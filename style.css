@@ -172,3 +172,15 @@ tr:last-child td{border-bottom:none;}
 }
 .toast.show{opacity:1;}
 .bl-flag{color:var(--danger);font-weight:600;}
+
+.btn-lg{width:100%;padding:1em 1.1em;font-size:1.1rem;border-radius:14px;font-weight:600;}
+.qty-stepper{display:flex;align-items:center;gap:.7em;justify-content:center;margin:.6em 0;}
+.qty-stepper button{width:48px;height:48px;font-size:1.5rem;padding:0;border-radius:12px;line-height:1;}
+.qty-stepper input{text-align:center;width:80px;font-size:1.2rem;font-weight:600;padding:.6em;}
+.pick-card{border:2px solid var(--line);border-radius:14px;padding:1em;margin-top:.6em;}
+.pick-card .pname{font-weight:600;font-size:1.05rem;margin-bottom:.2em;}
+.big-total{font-family:"Fraunces",serif;font-size:2rem;color:var(--wine-dark);text-align:center;}
+.kusur-box{border-radius:14px;padding:1em;text-align:center;margin:.8em 0;}
+.kusur-box.ok{background:rgba(63,116,87,.1);}
+.kusur-box.short{background:rgba(162,59,59,.1);}
+.kusur-box .n{font-family:"Fraunces",serif;font-size:1.8rem;}

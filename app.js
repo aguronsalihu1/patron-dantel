@@ -429,7 +429,7 @@ async function loadMyInvoices(){
   });
 }
 
-function openInvoiceForm(){
+function openInvoiceForm(onCreated){
   const items = [];
   const form = el(`<form id="inv-form">
     <label>Klienti (emri, opsionale)</label>
@@ -438,39 +438,59 @@ function openInvoiceForm(){
     <label>Materialet</label>
     <div class="row">
       <input id="if-mat-search" placeholder="Kërko material me emër/kod…" style="flex:2;">
-      <button type="button" id="if-scan" class="secondary small">📷 Skano</button>
+      <button type="button" id="if-scan" class="secondary">📷 Skano</button>
     </div>
     <div id="if-mat-results"></div>
+    <div id="if-pick"></div>
     <div id="if-items" style="margin:.6em 0;"></div>
-    <div class="row between" style="margin-top:.4em;">
-      <strong>Total</strong><strong id="if-total">0.00 €</strong>
+    <div class="row between" style="margin-top:.6em;">
+      <span class="hint" style="margin:0;">Totali</span><span class="big-total">0.00 €</span>
     </div>
-    <button type="submit" style="width:100%;margin-top:1.2em;">Krijo faturën</button>
+    <button type="submit" class="btn-lg" style="margin-top:1em;">✅ Krijo faturën</button>
     <div class="error-msg" id="if-error" style="display:none;"></div>
   </form>`);
 
   function renderItems(){
     const total = items.reduce((a,it)=>a+it.line_total,0);
-    form.querySelector('#if-total').textContent = fmtMoney(total);
+    form.querySelector('.big-total').textContent = fmtMoney(total).replace('—','0.00 €');
     form.querySelector('#if-items').innerHTML = items.map((it,i)=>`
-      <div class="row between" style="padding:.3em 0;border-bottom:1px solid var(--line);">
+      <div class="row between" style="padding:.5em 0;border-bottom:1px solid var(--line);">
         <span>${it.name} · ${it.quantity} ${it.unit}</span>
-        <span class="row" style="gap:.4em;">${fmtMoney(it.line_total)}<button type="button" data-i="${i}" class="ghost small rm-item">✕</button></span>
+        <span class="row" style="gap:.5em;"><strong>${fmtMoney(it.line_total)}</strong><button type="button" data-i="${i}" class="ghost small rm-item">✕</button></span>
       </div>`).join('') || '<div class="hint">Ende pa materiale</div>';
     form.querySelectorAll('.rm-item').forEach(b=> b.onclick = ()=>{ items.splice(+b.dataset.i,1); renderItems(); });
   }
 
-  function addItemFlow(m){
-    const qty = prompt(`Sasia e ${m.name} (${m.unit}), e mbetur: ${m.quantity_available} ${m.unit}`, '1');
-    if(!qty) return;
-    const q = parseFloat(qty);
-    if(!q || q<=0 || q>m.quantity_available){ alert('Sasi e pavlefshme.'); return; }
-    const price = prompt(`Çmimi total për ${q} ${m.unit} ${m.name} (€):`, '');
-    if(price==null) return;
-    const p = parseFloat(price) || 0;
-    items.push({ material_id:m.id, name:m.name, unit:m.unit, quantity:q, line_total:p });
-    form.querySelector('#if-mat-search').value=''; form.querySelector('#if-mat-results').innerHTML='';
-    renderItems();
+  function openPickCard(m){
+    const pick = form.querySelector('#if-pick');
+    pick.innerHTML = `<div class="pick-card">
+      <div class="pname">${m.name}</div>
+      <div class="hint" style="margin:0;">E mbetur: ${m.quantity_available} ${m.unit}</div>
+      <div class="qty-stepper">
+        <button type="button" id="pk-minus">−</button>
+        <input id="pk-qty" type="number" step="0.1" value="1" min="0.1" max="${m.quantity_available}">
+        <button type="button" id="pk-plus">+</button>
+      </div>
+      <label>Çmimi total për këtë sasi (€)</label>
+      <input id="pk-price" type="number" step="0.01" inputmode="decimal" placeholder="0.00">
+      <div class="row" style="margin-top:.8em;">
+        <button type="button" id="pk-cancel" class="ghost" style="flex:1;">Anulo</button>
+        <button type="button" id="pk-add" class="btn-lg" style="flex:2;">+ Shto në faturë</button>
+      </div>
+    </div>`;
+    const qtyInput = pick.querySelector('#pk-qty');
+    const step = 1;
+    pick.querySelector('#pk-minus').onclick = ()=>{ qtyInput.value = Math.max(0.1, (parseFloat(qtyInput.value)||0) - step).toFixed(1); };
+    pick.querySelector('#pk-plus').onclick = ()=>{ qtyInput.value = Math.min(m.quantity_available, (parseFloat(qtyInput.value)||0) + step).toFixed(1); };
+    pick.querySelector('#pk-cancel').onclick = ()=>{ pick.innerHTML=''; };
+    pick.querySelector('#pk-add').onclick = ()=>{
+      const q = parseFloat(qtyInput.value);
+      const p = parseFloat(pick.querySelector('#pk-price').value) || 0;
+      if(!q || q<=0 || q>m.quantity_available){ alert('Sasi e pavlefshme.'); return; }
+      items.push({ material_id:m.id, name:m.name, unit:m.unit, quantity:q, line_total:p });
+      pick.innerHTML=''; form.querySelector('#if-mat-search').value=''; form.querySelector('#if-mat-results').innerHTML='';
+      renderItems();
+    };
   }
 
   form.querySelector('#if-mat-search').addEventListener('input', debounce(async ()=>{
@@ -479,18 +499,18 @@ function openInvoiceForm(){
     const { data } = await sb.from('materials').select('*').or(`name.ilike.%${q}%,code.ilike.%${q}%`).limit(6);
     box.innerHTML='';
     (data||[]).forEach(m=>{
-      const row = el(`<div class="card" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:.6em .8em;">
+      const row = el(`<div class="card" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:.8em 1em;">
         <div><strong>${m.name}</strong> <span class="hint">${m.code}</span></div>
         <div class="pill ok">${m.quantity_available} ${m.unit}</div>
       </div>`);
-      row.onclick = ()=> addItemFlow(m);
+      row.onclick = ()=> openPickCard(m);
       box.appendChild(row);
     });
   }, 250));
   form.querySelector('#if-scan').onclick = ()=> startScanner(async (code)=>{
     const m = await findMaterialByCode(code);
     if(!m){ toast('Nuk u gjet material me këtë kod.'); return; }
-    addItemFlow(m);
+    openPickCard(m);
   });
   renderItems();
 
@@ -505,8 +525,8 @@ function openInvoiceForm(){
       items, total_amount: total, created_by: CURRENT_EMPLOYEE.id,
     }).select().single();
     if(error){ form.querySelector('#if-error').textContent = error.message; form.querySelector('#if-error').style.display='block'; btn.disabled=false; return; }
-    closeModal(); loadMyInvoices();
-    showInvoiceBarcode(inv);
+    closeModal();
+    if(onCreated) onCreated(inv); else { loadMyInvoices(); showInvoiceBarcode(inv); }
   });
   openModal('Faturë e re', form);
 }
@@ -516,7 +536,7 @@ function showInvoiceBarcode(inv){
   const body = el(`<div style="text-align:center;">
     <div class="pill ${inv.status==='paid'?'ok':inv.status==='cancelled'?'muted':'warn'}" style="margin-bottom:.8em;">${INVOICE_STATUS_LABEL[inv.status]}</div>
     <svg id="inv-barcode"></svg>
-    <h2 style="margin:.4em 0;">${fmtMoney(inv.total_amount)}</h2>
+    <div class="big-total">${fmtMoney(inv.total_amount)}</div>
     <p class="hint">${inv.customer_name || 'Pa emër klienti'}</p>
     <div class="table-wrap" style="text-align:left;margin-top:1em;">
       <table><thead><tr><th>Materiali</th><th>Sasia</th><th>Çmimi</th></tr></thead><tbody>
@@ -536,7 +556,7 @@ function showInvoiceBarcode(inv){
    ================================================================= */
 async function renderArkaTab(main){
   main.innerHTML = `
-    <h1>Arka</h1>
+    <div class="row between"><h1>Arka</h1><button id="ar-new">+ Shitje e re</button></div>
     <div class="card">
       <label>Skano barkodin e faturës (me lexues USB ose kamerë)</label>
       <div class="row">
@@ -553,6 +573,7 @@ async function renderArkaTab(main){
     if(e.key==='Enter'){ e.preventDefault(); lookupInvoiceCode(input.value.trim()); input.value=''; }
   });
   $('#ar-scan').onclick = ()=> startScanner((code)=> lookupInvoiceCode(code));
+  $('#ar-new').onclick = ()=> openInvoiceForm((inv)=> renderInvoiceAtRegister(inv));
   await loadReconciliation();
 }
 
@@ -566,9 +587,10 @@ async function lookupInvoiceCode(code){
 
 function renderInvoiceAtRegister(inv){
   const box = $('#ar-result'); if(!box) return;
+  box.scrollIntoView({behavior:'smooth', block:'start'});
   const items = Array.isArray(inv.items) ? inv.items : [];
   if(inv.status === 'paid'){
-    box.innerHTML = `<div class="card"><p class="pill ok">Tashmë e paguar</p><h2>${fmtMoney(inv.total_amount)}</h2><p class="hint">Fatura ${inv.code} u pagua më ${fmtDate(inv.paid_at)}.</p></div>`;
+    box.innerHTML = `<div class="card"><p class="pill ok">Tashmë e paguar</p><div class="big-total">${fmtMoney(inv.total_amount)}</div><p class="hint">Fatura ${inv.code} u pagua më ${fmtDate(inv.paid_at)}.</p></div>`;
     return;
   }
   if(inv.status === 'cancelled'){
@@ -582,22 +604,43 @@ function renderInvoiceAtRegister(inv){
         ${items.map(it=>`<tr><td>${it.name}</td><td>${it.quantity} ${it.unit}</td><td>${fmtMoney(it.line_total)}</td></tr>`).join('')}
       </tbody></table>
     </div>
-    <div class="row between"><h2 style="margin:0;">Për pagesë:</h2><h2 style="margin:0;">${fmtMoney(inv.total_amount)}</h2></div>
-    <button id="ar-confirm" style="width:100%;margin-top:1em;">Konfirmo pagesën (Cash)</button>
+    <div class="row between"><span class="hint" style="margin:0;">Për pagesë</span><span class="big-total">${fmtMoney(inv.total_amount)}</span></div>
+    <label>Sa para dha klienti (€)</label>
+    <input id="ar-paid" type="number" step="0.01" inputmode="decimal" placeholder="0.00">
+    <div id="ar-kusur"></div>
+    <button id="ar-confirm" class="btn-lg" disabled style="margin-top:.6em;">💶 Konfirmo pagesën</button>
   </div>`;
-  box.querySelector('#ar-confirm').onclick = async ()=>{
-    const btn = box.querySelector('#ar-confirm'); btn.disabled=true; btn.textContent='Duke konfirmuar…';
+  const paidInput = box.querySelector('#ar-paid');
+  const kusurBox = box.querySelector('#ar-kusur');
+  const confirmBtn = box.querySelector('#ar-confirm');
+  function updateKusur(){
+    const paid = parseFloat(paidInput.value);
+    if(!paid && paid!==0){ kusurBox.innerHTML=''; confirmBtn.disabled = true; return; }
+    const diff = paid - inv.total_amount;
+    if(diff < 0){
+      kusurBox.innerHTML = `<div class="kusur-box short"><span class="n">${fmtMoney(Math.abs(diff))}</span><div class="hint" style="margin:0;">ende mungon</div></div>`;
+      confirmBtn.disabled = true;
+    }else{
+      kusurBox.innerHTML = `<div class="kusur-box ok"><span class="n">${fmtMoney(diff)}</span><div class="hint" style="margin:0;">kusuri për klientin</div></div>`;
+      confirmBtn.disabled = false;
+    }
+  }
+  paidInput.addEventListener('input', updateKusur);
+  confirmBtn.onclick = async ()=>{
+    confirmBtn.disabled=true; confirmBtn.textContent='Duke konfirmuar…';
+    const paid = parseFloat(paidInput.value) || inv.total_amount;
+    const change = paid - inv.total_amount;
     try{
-      const { error: updErr } = await sb.from('invoices').update({ status:'paid', paid_at:new Date().toISOString(), cashier_id: CURRENT_EMPLOYEE.id }).eq('id', inv.id).eq('status','draft');
+      const { error: updErr } = await sb.from('invoices').update({ status:'paid', paid_at:new Date().toISOString(), cashier_id: CURRENT_EMPLOYEE.id, paid_amount: paid, change_due: change }).eq('id', inv.id).eq('status','draft');
       if(updErr) throw updErr;
       for(const it of items){
         await sb.from('material_movements').insert({ material_id: it.material_id, type:'shitje_fizike', quantity_change:-it.quantity, employee_id: CURRENT_EMPLOYEE.id, note:`Faturë ${inv.code}` });
         await sb.from('physical_sales').insert({ material_id: it.material_id, quantity: it.quantity, price: it.line_total, customer_id: inv.customer_id, employee_id: inv.created_by, invoice_id: inv.id });
       }
-      toast(`Pagesa u konfirmua — ${fmtMoney(inv.total_amount)}`);
-      box.innerHTML = `<div class="card"><p class="pill ok">U realizua</p><h2>${fmtMoney(inv.total_amount)}</h2><p class="hint">Vendose në arkë.</p></div>`;
+      toast(`Pagesa u konfirmua — kusuri ${fmtMoney(change)}`);
+      box.innerHTML = `<div class="card"><p class="pill ok">U realizua</p><div class="big-total">${fmtMoney(inv.total_amount)}</div><div class="kusur-box ok"><span class="n">${fmtMoney(change)}</span><div class="hint" style="margin:0;">kusuri që i dhe klientit</div></div></div>`;
       loadReconciliation();
-    }catch(err){ alert('Gabim: '+err.message); btn.disabled=false; btn.textContent='Konfirmo pagesën (Cash)'; }
+    }catch(err){ alert('Gabim: '+err.message); confirmBtn.disabled=false; confirmBtn.textContent='💶 Konfirmo pagesën'; }
   };
 }
 
