@@ -92,12 +92,14 @@ async function afterLogin(){
   buildTabs();
 }
 
-const DEPT_LABEL = { shitje_online:'Shitje Online', shitje_fizike:'Shitje Fizike', admin:'Admin' };
+const DEPT_LABEL = { shitje_online:'Shitje Online', shitje_fizike:'Shitje Fizike', arke:'Arkë', admin:'Admin' };
 
 const ALL_TABS = [
-  { id:'llogaria', label:'Llogaria', icon:'\ud83d\udc64', roles:['shitje_online','shitje_fizike','admin'], render: renderLlogariaIme },
+  { id:'llogaria', label:'Llogaria', icon:'\ud83d\udc64', roles:['shitje_online','shitje_fizike','arke','admin'], render: renderLlogariaIme },
   { id:'depo', label:'Depo', icon:'📦', roles:['shitje_fizike','admin'], render: renderDepo },
-  { id:'fizike', label:'Shitje', icon:'🧾', roles:['shitje_fizike','admin'], render: renderShitjeFizike },
+  { id:'fizike', label:'Shitje', icon:'💳', roles:['shitje_fizike','admin'], render: renderShitjeFizike },
+  { id:'fatura', label:'Faturë', icon:'🧾', roles:['shitje_fizike','admin'], render: renderFaturaTab },
+  { id:'arka', label:'Arka', icon:'🏧', roles:['arke','admin'], render: renderArkaTab },
   { id:'online', label:'Online', icon:'💬', roles:['shitje_online','admin'], render: renderShitjeOnline },
   { id:'kliente', label:'Klientë', icon:'👥', roles:['shitje_online','shitje_fizike','admin'], render: renderKliente },
   { id:'puntore', label:'Punëtorë', icon:'🧑‍💼', roles:['admin'], render: renderPuntore },
@@ -386,6 +388,240 @@ async function loadTodaySales(){
 }
 
 /* =================================================================
+   FATURË — shitësja i përgatit faturën, klienti e çon te arka
+   ================================================================= */
+const INVOICE_STATUS_LABEL = { draft:'Në pritje të pagesës', paid:'Paguar', cancelled:'Anuluar' };
+
+function genInvoiceCode(){
+  const n = Math.floor(Math.random()*900000)+100000;
+  return `F${n}`;
+}
+
+async function renderFaturaTab(main){
+  main.innerHTML = `
+    <div class="row between"><h1>Faturë e re</h1><button id="new-invoice">+ Krijo faturë</button></div>
+    <p class="hint">Shto materialet që zgjodhi klienti, krijo faturën, dhe tregoja klientit kodin/barkodin që del — e çon te arka për ta paguar.</p>
+    <h2 style="margin-top:1.2em;">Faturat e mia sot</h2>
+    <div id="inv-list"><div class="empty">Duke ngarkuar…</div></div>
+  `;
+  $('#new-invoice').onclick = ()=> openInvoiceForm();
+  await loadMyInvoices();
+}
+
+async function loadMyInvoices(){
+  const startOfDay = new Date(); startOfDay.setHours(0,0,0,0);
+  const { data, error } = await sb.from('invoices').select('*').eq('created_by', CURRENT_EMPLOYEE.id).gte('created_at', startOfDay.toISOString()).order('created_at',{ascending:false});
+  const box = $('#inv-list'); if(!box) return;
+  if(error){ box.innerHTML = `<div class="empty">Gabim: ${error.message}</div>`; return; }
+  if(!data.length){ box.innerHTML = '<div class="empty">Ende s\'ke krijuar asnjë faturë sot.</div>'; return; }
+  box.innerHTML = '';
+  data.forEach(inv=>{
+    const statusClass = inv.status==='paid' ? 'ok' : inv.status==='cancelled' ? 'muted' : 'warn';
+    const row = el(`<div class="card row between" style="cursor:pointer;">
+      <div>
+        <strong>${inv.code}</strong> ${inv.customer_name? '· '+inv.customer_name:''}
+        <div class="hint" style="margin:0;">${fmtMoney(inv.total_amount)} · ${fmtDate(inv.created_at)}</div>
+      </div>
+      <span class="pill ${statusClass}">${INVOICE_STATUS_LABEL[inv.status]}</span>
+    </div>`);
+    row.onclick = ()=> showInvoiceBarcode(inv);
+    box.appendChild(row);
+  });
+}
+
+function openInvoiceForm(){
+  const items = [];
+  const form = el(`<form id="inv-form">
+    <label>Klienti (emri, opsionale)</label>
+    <input id="if-customer" placeholder="Emri i klientit">
+
+    <label>Materialet</label>
+    <div class="row">
+      <input id="if-mat-search" placeholder="Kërko material me emër/kod…" style="flex:2;">
+      <button type="button" id="if-scan" class="secondary small">📷 Skano</button>
+    </div>
+    <div id="if-mat-results"></div>
+    <div id="if-items" style="margin:.6em 0;"></div>
+    <div class="row between" style="margin-top:.4em;">
+      <strong>Total</strong><strong id="if-total">0.00 €</strong>
+    </div>
+    <button type="submit" style="width:100%;margin-top:1.2em;">Krijo faturën</button>
+    <div class="error-msg" id="if-error" style="display:none;"></div>
+  </form>`);
+
+  function renderItems(){
+    const total = items.reduce((a,it)=>a+it.line_total,0);
+    form.querySelector('#if-total').textContent = fmtMoney(total);
+    form.querySelector('#if-items').innerHTML = items.map((it,i)=>`
+      <div class="row between" style="padding:.3em 0;border-bottom:1px solid var(--line);">
+        <span>${it.name} · ${it.quantity} ${it.unit}</span>
+        <span class="row" style="gap:.4em;">${fmtMoney(it.line_total)}<button type="button" data-i="${i}" class="ghost small rm-item">✕</button></span>
+      </div>`).join('') || '<div class="hint">Ende pa materiale</div>';
+    form.querySelectorAll('.rm-item').forEach(b=> b.onclick = ()=>{ items.splice(+b.dataset.i,1); renderItems(); });
+  }
+
+  function addItemFlow(m){
+    const qty = prompt(`Sasia e ${m.name} (${m.unit}), e mbetur: ${m.quantity_available} ${m.unit}`, '1');
+    if(!qty) return;
+    const q = parseFloat(qty);
+    if(!q || q<=0 || q>m.quantity_available){ alert('Sasi e pavlefshme.'); return; }
+    const price = prompt(`Çmimi total për ${q} ${m.unit} ${m.name} (€):`, '');
+    if(price==null) return;
+    const p = parseFloat(price) || 0;
+    items.push({ material_id:m.id, name:m.name, unit:m.unit, quantity:q, line_total:p });
+    form.querySelector('#if-mat-search').value=''; form.querySelector('#if-mat-results').innerHTML='';
+    renderItems();
+  }
+
+  form.querySelector('#if-mat-search').addEventListener('input', debounce(async ()=>{
+    const q = form.querySelector('#if-mat-search').value.trim();
+    const box = form.querySelector('#if-mat-results'); if(!q){ box.innerHTML=''; return; }
+    const { data } = await sb.from('materials').select('*').or(`name.ilike.%${q}%,code.ilike.%${q}%`).limit(6);
+    box.innerHTML='';
+    (data||[]).forEach(m=>{
+      const row = el(`<div class="card" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:.6em .8em;">
+        <div><strong>${m.name}</strong> <span class="hint">${m.code}</span></div>
+        <div class="pill ok">${m.quantity_available} ${m.unit}</div>
+      </div>`);
+      row.onclick = ()=> addItemFlow(m);
+      box.appendChild(row);
+    });
+  }, 250));
+  form.querySelector('#if-scan').onclick = ()=> startScanner(async (code)=>{
+    const m = await findMaterialByCode(code);
+    if(!m){ toast('Nuk u gjet material me këtë kod.'); return; }
+    addItemFlow(m);
+  });
+  renderItems();
+
+  form.addEventListener('submit', async (e)=>{
+    e.preventDefault();
+    if(!items.length){ alert('Shto të paktën një material.'); return; }
+    const btn = form.querySelector('button[type=submit]'); btn.disabled = true;
+    const total = items.reduce((a,it)=>a+it.line_total,0);
+    const code = genInvoiceCode();
+    const { data: inv, error } = await sb.from('invoices').insert({
+      code, customer_name: form.querySelector('#if-customer').value.trim()||null,
+      items, total_amount: total, created_by: CURRENT_EMPLOYEE.id,
+    }).select().single();
+    if(error){ form.querySelector('#if-error').textContent = error.message; form.querySelector('#if-error').style.display='block'; btn.disabled=false; return; }
+    closeModal(); loadMyInvoices();
+    showInvoiceBarcode(inv);
+  });
+  openModal('Faturë e re', form);
+}
+
+function showInvoiceBarcode(inv){
+  const items = Array.isArray(inv.items) ? inv.items : [];
+  const body = el(`<div style="text-align:center;">
+    <div class="pill ${inv.status==='paid'?'ok':inv.status==='cancelled'?'muted':'warn'}" style="margin-bottom:.8em;">${INVOICE_STATUS_LABEL[inv.status]}</div>
+    <svg id="inv-barcode"></svg>
+    <h2 style="margin:.4em 0;">${fmtMoney(inv.total_amount)}</h2>
+    <p class="hint">${inv.customer_name || 'Pa emër klienti'}</p>
+    <div class="table-wrap" style="text-align:left;margin-top:1em;">
+      <table><thead><tr><th>Materiali</th><th>Sasia</th><th>Çmimi</th></tr></thead><tbody>
+        ${items.map(it=>`<tr><td>${it.name}</td><td>${it.quantity} ${it.unit}</td><td>${fmtMoney(it.line_total)}</td></tr>`).join('')}
+      </tbody></table>
+    </div>
+    <p class="hint" style="margin-top:1em;">Tregoja klientit këtë ekran te arka — arkatarja e skanon dhe realizon pagesën.</p>
+  </div>`);
+  openModal(`Faturë ${inv.code}`, body);
+  setTimeout(()=>{
+    try{ JsBarcode('#inv-barcode', inv.code, { format:'CODE128', width:2.4, height:70, fontSize:18, margin:8 }); }catch(e){}
+  }, 30);
+}
+
+/* =================================================================
+   ARKA — arkatarja skanon faturën, merr pagesën, mbyll shitjen
+   ================================================================= */
+async function renderArkaTab(main){
+  main.innerHTML = `
+    <h1>Arka</h1>
+    <div class="card">
+      <label>Skano barkodin e faturës (me lexues USB ose kamerë)</label>
+      <div class="row">
+        <input id="ar-code" placeholder="Kodi i faturës (p.sh. F123456)" autofocus>
+        <button type="button" id="ar-scan" class="secondary">📷</button>
+      </div>
+    </div>
+    <div id="ar-result"></div>
+    <h2 style="margin-top:1.4em;">Barazimi i sotëm — ${CURRENT_EMPLOYEE.full_name}</h2>
+    <div id="ar-recon"><div class="empty">Duke ngarkuar…</div></div>
+  `;
+  const input = $('#ar-code');
+  input.addEventListener('keydown', (e)=>{
+    if(e.key==='Enter'){ e.preventDefault(); lookupInvoiceCode(input.value.trim()); input.value=''; }
+  });
+  $('#ar-scan').onclick = ()=> startScanner((code)=> lookupInvoiceCode(code));
+  await loadReconciliation();
+}
+
+async function lookupInvoiceCode(code){
+  if(!code) return;
+  const { data: inv, error } = await sb.from('invoices').select('*').eq('code', code.trim()).maybeSingle();
+  const box = $('#ar-result');
+  if(error || !inv){ box.innerHTML = `<div class="card"><p class="error-msg">Nuk u gjet asnjë faturë me kodin "${code}".</p></div>`; return; }
+  renderInvoiceAtRegister(inv);
+}
+
+function renderInvoiceAtRegister(inv){
+  const box = $('#ar-result'); if(!box) return;
+  const items = Array.isArray(inv.items) ? inv.items : [];
+  if(inv.status === 'paid'){
+    box.innerHTML = `<div class="card"><p class="pill ok">Tashmë e paguar</p><h2>${fmtMoney(inv.total_amount)}</h2><p class="hint">Fatura ${inv.code} u pagua më ${fmtDate(inv.paid_at)}.</p></div>`;
+    return;
+  }
+  if(inv.status === 'cancelled'){
+    box.innerHTML = `<div class="card"><p class="pill muted">Anuluar</p><p class="hint">Fatura ${inv.code} është anuluar.</p></div>`;
+    return;
+  }
+  box.innerHTML = `<div class="card">
+    <div class="hint" style="margin:0;">${inv.code} ${inv.customer_name? '· '+inv.customer_name:''}</div>
+    <div class="table-wrap" style="margin:.6em 0;">
+      <table><thead><tr><th>Materiali</th><th>Sasia</th><th>Çmimi</th></tr></thead><tbody>
+        ${items.map(it=>`<tr><td>${it.name}</td><td>${it.quantity} ${it.unit}</td><td>${fmtMoney(it.line_total)}</td></tr>`).join('')}
+      </tbody></table>
+    </div>
+    <div class="row between"><h2 style="margin:0;">Për pagesë:</h2><h2 style="margin:0;">${fmtMoney(inv.total_amount)}</h2></div>
+    <button id="ar-confirm" style="width:100%;margin-top:1em;">Konfirmo pagesën (Cash)</button>
+  </div>`;
+  box.querySelector('#ar-confirm').onclick = async ()=>{
+    const btn = box.querySelector('#ar-confirm'); btn.disabled=true; btn.textContent='Duke konfirmuar…';
+    try{
+      const { error: updErr } = await sb.from('invoices').update({ status:'paid', paid_at:new Date().toISOString(), cashier_id: CURRENT_EMPLOYEE.id }).eq('id', inv.id).eq('status','draft');
+      if(updErr) throw updErr;
+      for(const it of items){
+        await sb.from('material_movements').insert({ material_id: it.material_id, type:'shitje_fizike', quantity_change:-it.quantity, employee_id: CURRENT_EMPLOYEE.id, note:`Faturë ${inv.code}` });
+        await sb.from('physical_sales').insert({ material_id: it.material_id, quantity: it.quantity, price: it.line_total, customer_id: inv.customer_id, employee_id: inv.created_by, invoice_id: inv.id });
+      }
+      toast(`Pagesa u konfirmua — ${fmtMoney(inv.total_amount)}`);
+      box.innerHTML = `<div class="card"><p class="pill ok">U realizua</p><h2>${fmtMoney(inv.total_amount)}</h2><p class="hint">Vendose në arkë.</p></div>`;
+      loadReconciliation();
+    }catch(err){ alert('Gabim: '+err.message); btn.disabled=false; btn.textContent='Konfirmo pagesën (Cash)'; }
+  };
+}
+
+async function loadReconciliation(){
+  const startOfDay = new Date(); startOfDay.setHours(0,0,0,0);
+  const box = $('#ar-recon'); if(!box) return;
+  let query = sb.from('invoices').select('*').eq('status','paid').gte('paid_at', startOfDay.toISOString()).order('paid_at',{ascending:false});
+  if(CURRENT_EMPLOYEE.department !== 'admin') query = query.eq('cashier_id', CURRENT_EMPLOYEE.id);
+  const { data, error } = await query;
+  if(error){ box.innerHTML = `<div class="empty">${error.message}</div>`; return; }
+  if(!data.length){ box.innerHTML = '<div class="empty">Ende s\'ka pagesa sot.</div>'; return; }
+  const total = data.reduce((a,i)=>a+(i.total_amount||0),0);
+  box.innerHTML = `
+    <div class="stats-row" style="margin-bottom:.8em;">
+      <div class="stat"><span class="n">${data.length}</span><span class="l">fatura të paguara</span></div>
+      <div class="stat"><span class="n">${total.toFixed(0)}€</span><span class="l">gjithsej në arkë</span></div>
+    </div>
+    <div class="table-wrap"><table><thead><tr><th>Kodi</th><th>Ora</th><th>Shuma</th></tr></thead><tbody>
+      ${data.map(i=>`<tr><td>${i.code}</td><td>${new Date(i.paid_at).toLocaleTimeString('sq-AL',{hour:'2-digit',minute:'2-digit'})}</td><td>${fmtMoney(i.total_amount)}</td></tr>`).join('')}
+    </tbody></table></div>
+  `;
+}
+
+/* =================================================================
    SHITJE ONLINE
    ================================================================= */
 const PLATFORM_LABEL = { facebook:'Facebook', instagram:'Instagram', tiktok:'TikTok', viber:'Viber', whatsapp:'WhatsApp', tjeter:'Tjetër' };
@@ -652,7 +888,7 @@ function openEmployeeForm(){
     <div class="row"><input id="ef-pass" value="${suggested}" required style="flex:1;"><button type="button" id="ef-regen" class="ghost small">↻</button></div>
     <p class="hint">Jepja këtë fjalëkalim punëtorit — mund ta ndryshosh sërish më vonë nga kjo faqe.</p>
     <label>Departamenti *</label>
-    <select id="ef-dept"><option value="shitje_fizike">Shitje Fizike</option><option value="shitje_online">Shitje Online</option><option value="admin">Admin</option></select>
+    <select id="ef-dept"><option value="shitje_fizike">Shitje Fizike</option><option value="shitje_online">Shitje Online</option><option value="arke">Arkë</option><option value="admin">Admin</option></select>
     <button type="submit" style="width:100%;margin-top:1.2em;">Krijo llogarinë e punëtorit</button>
     <div class="error-msg" id="ef-error" style="display:none;"></div>
   </form>`);
