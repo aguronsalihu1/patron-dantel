@@ -1,18 +1,18 @@
 :root{
-  --ivory:#F6F1E8;
-  --paper:#FFFDF9;
-  --ink:#2A2320;
-  --ink-soft:#6b6058;
-  --wine:#6E2A3D;
-  --wine-dark:#511F2E;
-  --gold:#AD8A4E;
-  --rose:#C98A93;
-  --line:#E4D9C8;
+  --ivory:#FAF3F9;
+  --paper:#FFFFFF;
+  --ink:#2A1F2B;
+  --ink-soft:#8A7690;
+  --wine:#7A2A78;
+  --wine-dark:#571F58;
+  --gold:#D6339A;
+  --rose:#EFB3E0;
+  --line:#F1DCEC;
   --ok:#3F7457;
   --warn:#B4562A;
   --danger:#A23B3B;
   --radius:10px;
-  --shadow:0 1px 2px rgba(42,35,32,.06);
+  --shadow:0 1px 2px rgba(90,31,88,.08);
   font-size:16px;
 }
 *{box-sizing:border-box;}
@@ -79,10 +79,12 @@ header.topbar{
   position:sticky;top:0;z-index:20;
 }
 header.topbar .brand{display:flex;align-items:center;gap:.6em;}
-header.topbar .brand .mark{
-  width:34px;height:34px;border-radius:50%;
-  background:linear-gradient(135deg,var(--wine),var(--rose));
-  display:flex;align-items:center;justify-content:center;color:#fff;font-family:"Fraunces",serif;font-weight:600;
+.logo-mark{
+  width:34px;height:34px;border-radius:9px;object-fit:contain;
+  background:#fff;box-shadow:0 0 0 1px var(--line);
+}
+.login-logo{
+  width:150px;max-width:60%;display:block;margin:0 auto 1em;
 }
 header.topbar .who{font-size:.8rem;color:var(--ink-soft);text-align:right;}
 main{flex:1;padding:1em 1em 5.5em;max-width:900px;margin:0 auto;width:100%;}
@@ -128,17 +130,12 @@ tr:last-child td{border-bottom:none;}
 
 #login-screen{
   min-height:100vh;display:flex;align-items:center;justify-content:center;
-  background:radial-gradient(circle at 20% 20%, rgba(201,138,147,.25), transparent 45%),
-             radial-gradient(circle at 85% 80%, rgba(173,138,78,.2), transparent 40%),
+  background:radial-gradient(circle at 20% 20%, rgba(214,51,154,.18), transparent 45%),
+             radial-gradient(circle at 85% 80%, rgba(122,42,120,.16), transparent 40%),
              var(--ivory);
   padding:1.5em;
 }
 .login-card{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:2em 1.8em;max-width:360px;width:100%;box-shadow:0 8px 30px rgba(81,31,46,.08);}
-.login-card .mark{
-  width:52px;height:52px;border-radius:50%;margin:0 auto .8em;
-  background:linear-gradient(135deg,var(--wine),var(--rose));
-  display:flex;align-items:center;justify-content:center;color:#fff;font-family:"Fraunces",serif;font-size:1.4rem;font-weight:600;
-}
 .login-card h1{text-align:center;font-size:1.3rem;}
 .login-card .sub{text-align:center;color:var(--ink-soft);font-size:.85rem;margin-bottom:1.4em;}
 .error-msg{color:var(--danger);font-size:.85rem;margin-top:.6em;}
