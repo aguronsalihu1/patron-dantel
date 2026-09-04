@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="sq">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Patron Dantel — Menaxhimi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="mark">PD</div>
+    <h1>Patron Dantel</h1>
+    <div class="sub">Sistemi i menaxhimit të depos &amp; shitjeve</div>
+    <form id="login-form">
+      <label for="login-email">Numri i telefonit</label>
+      <input id="login-email" type="text" autocomplete="username" placeholder="p.sh. 044 123 456" required>
+      <label for="login-pass">Fjalëkalimi</label>
+      <input id="login-pass" type="password" autocomplete="current-password" required>
+      <button type="submit" style="width:100%;margin-top:1.2em;">Hyr</button>
+      <div class="error-msg" id="login-error" style="display:none;"></div>
+    </form>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="mark">PD</div>
+      <div>
+        <div style="font-family:'Fraunces',serif;font-weight:600;">Patron Dantel</div>
+      </div>
+    </div>
+    <div class="who">
+      <div id="who-name">—</div>
+      <div id="who-dept" class="hint" style="margin:0;"></div>
+      <a href="#" id="logout-link" style="font-size:.78rem;">Dil</a>
+    </div>
+  </header>
+
+  <main id="main"></main>
+
+  <nav class="tabs" id="tabs"></nav>
+</div>
+
+<div id="modal-root"></div>
+<div class="toast" id="toast"></div>
+
+<script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
