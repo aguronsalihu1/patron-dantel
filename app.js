@@ -469,7 +469,7 @@ async function renderFaturaTab(main){
     <h2 style="margin-top:1.2em;">Faturat e mia sot</h2>
     <div id="inv-list"><div class="empty">Duke ngarkuar…</div></div>
   `;
-  $('#new-invoice').onclick = ()=> openInvoiceForm();
+  $('#new-invoice').onclick = ()=> renderInvoiceEditor(main);
   await loadMyInvoices();
 }
 
@@ -492,6 +492,154 @@ async function loadMyInvoices(){
     row.onclick = ()=> showInvoiceBarcode(inv);
     box.appendChild(row);
   });
+}
+
+/* Full-page invoice editor, styled after standard sales-order/quotation editors:
+   header + status track, customer field, line-item table, totals bar, action bar. */
+function renderInvoiceEditor(main){
+  const items = [];
+
+  main.innerHTML = `
+    <div class="inv-editor-head">
+      <button type="button" class="back-link" id="ie-back">← Mbrapa te faturat</button>
+      <div class="inv-status-track"><span class="active">Draft</span><span>Te arka</span><span>Paguar</span></div>
+    </div>
+    <h1 style="margin-top:.3em;">Faturë e re</h1>
+
+    <div class="inv-field">
+      <label>Klienti</label>
+      <input id="ie-customer" list="ie-cust-list" placeholder="Kërko ose shkruaj emër të ri…">
+      <datalist id="ie-cust-list"></datalist>
+    </div>
+
+    <div class="inv-lines-wrap">
+      <table>
+        <thead><tr><th>Materiali</th><th>Sasia</th><th>Çmimi</th><th></th></tr></thead>
+        <tbody id="ie-lines-body"><tr><td colspan="4" class="hint" style="text-align:center;padding:1.2em;">Ende pa artikuj</td></tr></tbody>
+      </table>
+    </div>
+    <div class="inv-add-links">
+      <a id="ie-add-line">+ Shto artikull</a>
+      <a id="ie-add-scan">📷 Skano barkod</a>
+    </div>
+
+    <div class="inv-totals-bar">
+      <span class="hint" style="margin:0;">Totali</span>
+      <span class="big-total">0.00 €</span>
+    </div>
+
+    <div id="ie-picker"></div>
+    <div class="error-msg" id="ie-error" style="display:none;"></div>
+
+    <div class="inv-actionbar">
+      <button type="button" class="ghost" id="ie-cancel">Anulo</button>
+      <button type="button" class="btn-green btn-lg" id="ie-confirm">✅ Krijo faturën</button>
+    </div>
+  `;
+
+  function renderLines(){
+    const body = $('#ie-lines-body');
+    if(!items.length){
+      body.innerHTML = '<tr><td colspan="4" class="hint" style="text-align:center;padding:1.2em;">Ende pa artikuj</td></tr>';
+    }else{
+      body.innerHTML = items.map((it,i)=>`
+        <tr>
+          <td>${it.name}</td>
+          <td>${it.quantity} ${it.unit}</td>
+          <td>${fmtMoney(it.line_total)}</td>
+          <td><button type="button" class="rm-line" data-i="${i}">✕</button></td>
+        </tr>`).join('');
+      body.querySelectorAll('.rm-line').forEach(b=> b.onclick = ()=>{ items.splice(+b.dataset.i,1); renderLines(); });
+    }
+    const total = items.reduce((a,it)=>a+it.line_total,0);
+    main.querySelector('.big-total').textContent = fmtMoney(total).replace('—','0.00 €');
+  }
+
+  function openPicker(m){
+    const pick = $('#ie-picker');
+    pick.innerHTML = `<div class="pick-card">
+      <div class="pname">${m.name}</div>
+      <div class="hint" style="margin:0;">E mbetur: ${m.quantity_available} ${m.unit}</div>
+      <div class="qty-stepper">
+        <button type="button" id="pk-minus">−</button>
+        <input id="pk-qty" type="number" step="0.1" value="1" min="0.1" max="${m.quantity_available}">
+        <button type="button" id="pk-plus">+</button>
+      </div>
+      <label>Çmimi total për këtë sasi (€)</label>
+      <input id="pk-price" type="number" step="0.01" inputmode="decimal" placeholder="0.00">
+      <div class="row" style="margin-top:.8em;">
+        <button type="button" id="pk-cancel" class="ghost" style="flex:1;">Anulo</button>
+        <button type="button" id="pk-add" class="btn-lg" style="flex:2;">+ Shto në faturë</button>
+      </div>
+    </div>`;
+    const qtyInput = pick.querySelector('#pk-qty');
+    pick.querySelector('#pk-minus').onclick = ()=>{ qtyInput.value = Math.max(0.1, (parseFloat(qtyInput.value)||0) - 1).toFixed(1); };
+    pick.querySelector('#pk-plus').onclick = ()=>{ qtyInput.value = Math.min(m.quantity_available, (parseFloat(qtyInput.value)||0) + 1).toFixed(1); };
+    pick.querySelector('#pk-cancel').onclick = ()=>{ pick.innerHTML=''; };
+    pick.querySelector('#pk-add').onclick = ()=>{
+      const q = parseFloat(qtyInput.value);
+      const p = parseFloat(pick.querySelector('#pk-price').value) || 0;
+      if(!q || q<=0 || q>m.quantity_available){ alert('Sasi e pavlefshme.'); return; }
+      items.push({ material_id:m.id, name:m.name, unit:m.unit, quantity:q, line_total:p });
+      pick.innerHTML=''; renderLines();
+    };
+  }
+
+  $('#ie-add-line').onclick = ()=>{
+    // inline search box instead of prompt, for a nicer flow
+    const pick = $('#ie-picker');
+    pick.innerHTML = `<div class="pick-card">
+      <input id="ie-inline-search" placeholder="Kërko material me emër/kod…" autofocus>
+      <div id="ie-inline-results"></div>
+    </div>`;
+    pick.querySelector('#ie-inline-search').addEventListener('input', debounce(async (e)=>{
+      const q = e.target.value.trim();
+      const box = pick.querySelector('#ie-inline-results'); if(!q){ box.innerHTML=''; return; }
+      const { data } = await sb.from('materials').select('*').or(`name.ilike.%${q}%,code.ilike.%${q}%`).limit(6);
+      box.innerHTML='';
+      (data||[]).forEach(m=>{
+        const row = el(`<div class="card" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:.7em .9em;">
+          <div><strong>${m.name}</strong> <span class="hint">${m.code}</span></div>
+          <div class="pill ok">${m.quantity_available} ${m.unit}</div>
+        </div>`);
+        row.onclick = ()=> openPicker(m);
+        box.appendChild(row);
+      });
+    }, 250));
+  };
+  $('#ie-add-scan').onclick = ()=> startScanner(async (code)=>{
+    const m = await findMaterialByCode(code);
+    if(!m){ toast('Nuk u gjet material me këtë kod.'); return; }
+    openPicker(m);
+  });
+
+  $('#ie-customer').addEventListener('input', debounce(async (e)=>{
+    const q = e.target.value.trim();
+    const dl = $('#ie-cust-list'); dl.innerHTML='';
+    if(!q) return;
+    const { data } = await sb.from('customers').select('id,name,blacklisted').ilike('name', `%${q}%`).limit(6);
+    (data||[]).forEach(c=>dl.appendChild(el(`<option value="${c.name}">`)));
+  }, 250));
+
+  $('#ie-back').onclick = ()=> renderFaturaTab(main);
+  $('#ie-cancel').onclick = ()=> renderFaturaTab(main);
+
+  $('#ie-confirm').onclick = async ()=>{
+    const errBox = $('#ie-error'); errBox.style.display='none';
+    if(!items.length){ errBox.textContent='Shto të paktën një material.'; errBox.style.display='block'; return; }
+    const btn = $('#ie-confirm'); btn.disabled=true; btn.textContent='Duke krijuar…';
+    const total = items.reduce((a,it)=>a+it.line_total,0);
+    const code = genInvoiceCode();
+    const { data: inv, error } = await sb.from('invoices').insert({
+      code, customer_name: $('#ie-customer').value.trim()||null,
+      items, total_amount: total, created_by: CURRENT_EMPLOYEE.id,
+    }).select().single();
+    if(error){ errBox.textContent = error.message; errBox.style.display='block'; btn.disabled=false; btn.textContent='✅ Krijo faturën'; return; }
+    renderFaturaTab(main);
+    showInvoiceBarcode(inv);
+  };
+
+  renderLines();
 }
 
 function openInvoiceForm(onCreated){
