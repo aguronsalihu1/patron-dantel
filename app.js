@@ -247,6 +247,11 @@ function showMaterialDetail(m){
     </div>
     <div class="row" style="margin-top:1em;">
       <button class="secondary small" id="edit-loc">Ndrysho lokacionin</button>
+      <button class="secondary small" id="add-qty">+ Shto sasi</button>
+      <button class="ghost small" id="remove-qty">− Hiq sasi</button>
+    </div>
+    <div class="row" style="margin-top:.6em;">
+      <button class="danger small" id="del-mat">🗑 Fshij materialin</button>
     </div>
   </div>`);
   openModal(m.name, body);
@@ -255,6 +260,38 @@ function showMaterialDetail(m){
     if(loc==null) return;
     await sb.from('materials').update({location:loc}).eq('id', m.id);
     toast('Lokacioni u përditësua.'); closeModal(); loadMaterials();
+  };
+  body.querySelector('#add-qty').onclick = async ()=>{
+    const qty = prompt(`Sa ${m.unit} po shton (mall i ri i erdhur)?`, '');
+    if(!qty) return;
+    const q = parseFloat(qty);
+    if(!q || q<=0){ alert('Sasi e pavlefshme.'); return; }
+    const note = prompt('Shënim (opsionale):', 'Hyrje shtesë') || 'Hyrje shtesë';
+    await sb.from('material_movements').insert({ material_id:m.id, type:'hyrje', quantity_change:q, employee_id: CURRENT_EMPLOYEE.id, note });
+    await sb.from('materials').update({ quantity_total: m.quantity_total + q }).eq('id', m.id);
+    toast(`U shtuan ${q} ${m.unit}.`); closeModal(); loadMaterials();
+  };
+  body.querySelector('#remove-qty').onclick = async ()=>{
+    const qty = prompt(`Sa ${m.unit} po heq (defekt, korrigjim, etj.)? E mbetur: ${m.quantity_available} ${m.unit}`, '');
+    if(!qty) return;
+    const q = parseFloat(qty);
+    if(!q || q<=0 || q>m.quantity_available){ alert('Sasi e pavlefshme.'); return; }
+    const note = prompt('Arsyeja (opsionale):', 'Korrigjim manual') || 'Korrigjim manual';
+    await sb.from('material_movements').insert({ material_id:m.id, type:'korrigjim', quantity_change:-q, employee_id: CURRENT_EMPLOYEE.id, note });
+    toast(`U hoqën ${q} ${m.unit}.`); closeModal(); loadMaterials();
+  };
+  body.querySelector('#del-mat').onclick = async ()=>{
+    if(!confirm(`Të fshihet përgjithmonë "${m.name}"? Ky veprim s'kthehet mbrapa.`)) return;
+    const { error } = await sb.from('materials').delete().eq('id', m.id);
+    if(error){
+      if(/foreign key|violates/i.test(error.message)){
+        alert('Ky material ka shitje ose fatura të lidhura me të, prandaj s\'mund të fshihet plotësisht. Vendos sasinë në 0 dhe shëno lokacionin si "jashtë përdorimit" në vend të fshirjes.');
+      }else{
+        alert('Gabim: '+error.message);
+      }
+      return;
+    }
+    toast('Materiali u fshi.'); closeModal(); loadMaterials();
   };
 }
 
