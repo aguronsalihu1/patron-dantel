@@ -184,3 +184,8 @@ tr:last-child td{border-bottom:none;}
 .kusur-box.ok{background:rgba(63,116,87,.1);}
 .kusur-box.short{background:rgba(162,59,59,.1);}
 .kusur-box .n{font-family:"Fraunces",serif;font-size:1.8rem;}
+
+.green{--btn-bg:#2E9E5B;}
+.btn-green{background:#2E9E5B;border-color:#2E9E5B;color:#fff;}
+.btn-green:hover{background:#217A44;border-color:#217A44;}
+.sell-hero{font-size:1.35rem;padding:1.3em 1em;box-shadow:0 6px 20px rgba(46,158,91,.35);}

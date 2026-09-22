@@ -359,60 +359,88 @@ function openMaterialForm(){
    ================================================================= */
 async function renderShitjeFizike(main){
   main.innerHTML = `
-    <div class="row between"><h1>Shitje fizike</h1><button id="sf-scan">📷 Skano barkodin</button></div>
-    <div class="search-bar"><input id="sf-search" placeholder="Ose kërko materialin me emër/kod…"></div>
-    <div id="sf-results"></div>
-    <h2 style="margin-top:1.4em;">Shitjet e sotme</h2>
+    <h1>Shitje</h1>
+    <button id="sell-btn" class="btn-lg btn-green sell-hero">🛒 SHIT</button>
+    <h2 style="margin-top:1.6em;">Shitjet e sotme</h2>
     <div id="sf-today"><div class="empty">Duke ngarkuar…</div></div>
   `;
-  $('#sf-scan').onclick = ()=> startScanner(async (code)=>{
-    const m = await findMaterialByCode(code);
-    if(!m){ toast('Nuk u gjet material.'); return; }
-    openSaleForm(m);
-  });
-  $('#sf-search').addEventListener('input', debounce(async ()=>{
-    const q = $('#sf-search').value.trim();
-    const box = $('#sf-results'); if(!q){ box.innerHTML=''; return; }
+  $('#sell-btn').onclick = ()=> openSellFlow();
+  await loadTodaySales();
+}
+
+function openSellFlow(){
+  const body = el(`<div>
+    <div class="row">
+      <input id="sl-search" placeholder="Kërko material me emër/kod…" style="flex:2;">
+      <button type="button" id="sl-scan" class="secondary">📷 Skano</button>
+    </div>
+    <div id="sl-results"></div>
+    <div id="sl-pick"></div>
+  </div>`);
+  openModal('🛒 Shit', body);
+
+  function pick(m){
+    const wrap = body.querySelector('#sl-pick');
+    wrap.innerHTML = `<div class="pick-card">
+      <div class="pname">${m.name}</div>
+      <div class="hint" style="margin:0;">E mbetur: ${m.quantity_available} ${m.unit}</div>
+      <div class="qty-stepper">
+        <button type="button" id="sl-minus">−</button>
+        <input id="sl-qty" type="number" step="0.1" value="1" min="0.1" max="${m.quantity_available}">
+        <button type="button" id="sl-plus">+</button>
+      </div>
+      <label>Çmimi total (€)</label>
+      <input id="sl-price" type="number" step="0.01" inputmode="decimal" placeholder="0.00">
+      <label>Klienti (opsionale)</label>
+      <input id="sl-customer" placeholder="Emri i klientit">
+      <button type="button" id="sl-confirm" class="btn-lg btn-green" style="margin-top:1em;">✅ Regjistro Shitjen</button>
+      <div class="error-msg" id="sl-error" style="display:none;"></div>
+    </div>`;
+    const qtyInput = wrap.querySelector('#sl-qty');
+    wrap.querySelector('#sl-minus').onclick = ()=>{ qtyInput.value = Math.max(0.1, (parseFloat(qtyInput.value)||0) - 1).toFixed(1); };
+    wrap.querySelector('#sl-plus').onclick = ()=>{ qtyInput.value = Math.min(m.quantity_available, (parseFloat(qtyInput.value)||0) + 1).toFixed(1); };
+    wrap.querySelector('#sl-confirm').onclick = async ()=>{
+      const qty = parseFloat(qtyInput.value);
+      const errBox = wrap.querySelector('#sl-error'); errBox.style.display='none';
+      if(!qty || qty<=0 || qty>m.quantity_available){ errBox.textContent='Sasi e pavlefshme.'; errBox.style.display='block'; return; }
+      const btn = wrap.querySelector('#sl-confirm'); btn.disabled=true; btn.textContent='Duke regjistruar…';
+      try{
+        let customer_id = null;
+        const custName = wrap.querySelector('#sl-customer').value.trim();
+        if(custName){
+          const { data: existing } = await sb.from('customers').select('*').ilike('name', custName).maybeSingle();
+          if(existing){ customer_id = existing.id; }
+          else{ const { data: nc } = await sb.from('customers').insert({name:custName, customer_type:'klient_thjeshte'}).select().single(); customer_id = nc?.id; }
+        }
+        const price = parseFloat(wrap.querySelector('#sl-price').value) || null;
+        await sb.from('physical_sales').insert({ material_id:m.id, customer_id, quantity:qty, price, employee_id: CURRENT_EMPLOYEE.id });
+        await sb.from('material_movements').insert({ material_id:m.id, type:'shitje_fizike', quantity_change:-qty, employee_id: CURRENT_EMPLOYEE.id });
+        toast('Shitja u regjistrua.'); closeModal(); loadTodaySales();
+      }catch(err){ errBox.textContent = err.message; errBox.style.display='block'; btn.disabled=false; btn.textContent='✅ Regjistro Shitjen'; }
+    };
+  }
+
+  body.querySelector('#sl-search').addEventListener('input', debounce(async ()=>{
+    const q = body.querySelector('#sl-search').value.trim();
+    const box = body.querySelector('#sl-results'); if(!q){ box.innerHTML=''; return; }
     const { data } = await sb.from('materials').select('*').or(`name.ilike.%${q}%,code.ilike.%${q}%`).limit(8);
     box.innerHTML='';
     (data||[]).forEach(m=>{
-      const row = el(`<div class="card" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
+      const row = el(`<div class="card" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:.8em 1em;">
         <div><strong>${m.name}</strong> <span class="hint">${m.code}</span></div>
         <div class="pill ok">${m.quantity_available} ${m.unit}</div>
       </div>`);
-      row.onclick = ()=> openSaleForm(m);
+      row.onclick = ()=>{ pick(m); };
       box.appendChild(row);
     });
   }, 250));
-  await loadTodaySales();
-}
-function openSaleForm(m){
-  const form = el(`<form id="sale-form">
-    <p>Sasia e mbetur: <strong>${m.quantity_available} ${m.unit}</strong></p>
-    <label>Sasia e shitur (${m.unit}) *</label><input id="sf-qty" type="number" step="0.1" max="${m.quantity_available}" required>
-    <label>Çmimi total (€)</label><input id="sf-price" type="number" step="0.01">
-    <label>Klienti (opsionale)</label><input id="sf-customer" placeholder="Emri i klientit">
-    <button type="submit" style="width:100%;margin-top:1.2em;">Regjistro shitjen</button>
-  </form>`);
-  form.addEventListener('submit', async (e)=>{
-    e.preventDefault();
-    const qty = parseFloat(form.querySelector('#sf-qty').value);
-    if(qty > m.quantity_available){ alert('Sasia e kërkuar e kalon sasinë e mbetur.'); return; }
-    const btn = form.querySelector('button'); btn.disabled=true;
-    let customer_id = null;
-    const custName = form.querySelector('#sf-customer').value.trim();
-    if(custName){
-      const { data: existing } = await sb.from('customers').select('*').ilike('name', custName).maybeSingle();
-      if(existing){ customer_id = existing.id; }
-      else{ const { data: nc } = await sb.from('customers').insert({name:custName, customer_type:'klient_thjeshte'}).select().single(); customer_id = nc?.id; }
-    }
-    const price = parseFloat(form.querySelector('#sf-price').value) || null;
-    await sb.from('physical_sales').insert({ material_id:m.id, customer_id, quantity:qty, price, employee_id: CURRENT_EMPLOYEE.id });
-    await sb.from('material_movements').insert({ material_id:m.id, type:'shitje_fizike', quantity_change:-qty, employee_id: CURRENT_EMPLOYEE.id });
-    toast('Shitja u regjistrua.'); closeModal(); renderShitjeFizike($('#main'));
+  body.querySelector('#sl-scan').onclick = ()=> startScanner(async (code)=>{
+    const m = await findMaterialByCode(code);
+    if(!m){ toast('Nuk u gjet material.'); return; }
+    pick(m);
   });
-  openModal(`Shit: ${m.name}`, form);
 }
+
 async function loadTodaySales(){
   const startOfDay = new Date(); startOfDay.setHours(0,0,0,0);
   const { data, error } = await sb.from('physical_sales').select('*, materials(name,unit), employees(full_name)').gte('created_at', startOfDay.toISOString()).order('created_at',{ascending:false});
