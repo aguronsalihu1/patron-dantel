@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="sq">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Patron ↔ Pro-Data</title>
+<meta name="robots" content="noindex, nofollow">
+<style>
+  :root { --bg:#f6f7f9; --kart:#fff; --tekst:#1d2330; --zbehte:#6b7385; --vije:#e1e4ea; --kryesor:#1f5fbf; --ok:#1d8a4b; --gabim:#c2372f; --pritje:#b7791f; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: Segoe UI, system-ui, -apple-system, sans-serif; background:var(--bg); color:var(--tekst); font-size:15px; }
+  header { background:#16213a; color:#fff; padding:10px 16px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; }
+  header h1 { font-size:17px; margin:0; font-weight:600; }
+  header .djathtas { margin-left:auto; font-size:13px; display:flex; gap:10px; align-items:center; }
+  header button { background:none; border:1px solid #5a6a8c; color:#fff; border-radius:5px; padding:4px 10px; cursor:pointer; }
+  .statusi { display:flex; gap:14px; font-size:13px; flex-wrap:wrap; }
+  .drite { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:5px; background:#888; }
+  .drite.ok { background:#3ddc84; } .drite.jo { background:#ff5a4e; }
+  nav { display:flex; gap:4px; padding:10px 16px 0; overflow-x:auto; }
+  nav button { border:1px solid var(--vije); border-bottom:none; background:#e9ecf1; padding:9px 14px; border-radius:8px 8px 0 0; cursor:pointer; font-size:15px; white-space:nowrap; }
+  nav button.aktive { background:var(--kart); font-weight:600; }
+  main { padding:0 16px 30px; }
+  section { display:none; background:var(--kart); border:1px solid var(--vije); border-radius:0 8px 8px 8px; padding:16px; }
+  section.aktive { display:block; }
+  .rresht { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:12px; align-items:flex-end; }
+  label { display:flex; flex-direction:column; font-size:13px; color:var(--zbehte); gap:4px; }
+  input, select { font-size:16px; padding:8px 9px; border:1px solid #c7ccd6; border-radius:6px; min-width:120px; max-width:100%; }
+  input.sasi, input.cmim { width:90px; min-width:0; text-align:right; }
+  button.kryesor { background:var(--kryesor); color:#fff; border:none; padding:11px 22px; border-radius:6px; font-size:15px; cursor:pointer; font-weight:600; }
+  button.kryesor:disabled { opacity:.5; cursor:default; }
+  button.heq { background:none; border:none; color:var(--gabim); cursor:pointer; font-size:18px; }
+  .tabela { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; margin:8px 0; }
+  th, td { text-align:left; padding:7px 8px; border-bottom:1px solid var(--vije); vertical-align:top; }
+  th { font-size:12px; color:var(--zbehte); font-weight:600; text-transform:uppercase; }
+  td.num, th.num { text-align:right; }
+  .kerkimi { position:relative; }
+  .lista { position:absolute; z-index:10; background:#fff; border:1px solid #c7ccd6; border-radius:6px; max-height:360px; overflow:auto; width:min(640px, 92vw); box-shadow:0 6px 18px rgba(0,0,0,.12); top:100%; }
+  .lista div { padding:8px 10px; cursor:pointer; border-bottom:1px solid #f0f1f4; }
+  .lista div:hover { background:#eef3fb; }
+  .zbehte { color:var(--zbehte); font-size:13px; }
+  .totali { font-size:18px; font-weight:700; text-align:right; margin:10px 0; }
+  .mesazh { padding:12px 14px; border-radius:6px; margin-top:12px; display:none; }
+  .mesazh.ok { display:block; background:#e6f5ec; border:1px solid #9fd6b3; }
+  .mesazh.gabim { display:block; background:#fbeaea; border:1px solid #eba9a4; }
+  .mesazh.pritje { display:block; background:#fdf4e3; border:1px solid #edcf95; }
+  .shenje { padding:2px 8px; border-radius:10px; font-size:12px; font-weight:600; white-space:nowrap; }
+  .s-kryer { background:#e6f5ec; color:var(--ok); } .s-gabim { background:#fbeaea; color:var(--gabim); } .s-pritje { background:#fdf4e3; color:var(--pritje); }
+  .stoku span { display:inline-block; margin:1px 6px 1px 0; padding:1px 6px; background:#eef1f6; border-radius:4px; font-size:12px; }
+  .udhezim { background:#eef3fb; border-left:4px solid var(--kryesor); padding:10px 14px; margin-bottom:14px; font-size:14px; }
+  #hyrja { max-width:360px; margin:60px auto; background:var(--kart); border:1px solid var(--vije); border-radius:10px; padding:24px; }
+  #hyrja h2 { margin:0 0 16px; font-size:19px; }
+  #hyrja label { margin-bottom:12px; } #hyrja input { width:100%; }
+  #aplikacioni { display:none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Patron Dantel ↔ Pro-Data</h1>
+  <div class="statusi" id="statusi" hidden>
+    <span><span id="d-lexim" class="drite"></span><span id="t-lexim">Ura e leximit…</span></span>
+    <span><span id="d-shkrim" class="drite"></span><span id="t-shkrim">Ura e shkrimit…</span></span>
+  </div>
+  <div class="djathtas" id="perdoruesi" hidden><span id="emaili"></span><button id="dil">Dil</button></div>
+</header>
+
+<div id="hyrja">
+  <h2>Hyrja</h2>
+  <form id="forma-hyrja">
+    <label>Numri i telefonit <input id="h-email" type="text" autocomplete="username" placeholder="p.sh. 044 123 456" required></label>
+    <label>Fjalëkalimi <input id="h-fjalekalimi" type="password" autocomplete="current-password" required></label>
+    <button class="kryesor" type="submit" style="width:100%">Hyr</button>
+  </form>
+  <div class="mesazh" id="h-mesazh"></div>
+  <p class="zbehte">I njëjti numër telefoni dhe fjalëkalim si te Patron Dantel. Nëse je kyçur te Patron Dantel në këtë shfletues, hyn automatikisht.</p>
+</div>
+
+<div id="aplikacioni">
+<nav>
+  <button data-faqe="shitje" class="aktive">🛒 Shitje</button>
+  <button data-faqe="transfer">🔁 Transfer</button>
+  <button data-faqe="artikujt">📦 Artikujt & stoku</button>
+  <button data-faqe="historiku">📋 Historiku</button>
+</nav>
+<main>
+  <section id="shitje" class="aktive">
+    <div class="udhezim">Shitja krijohet si <b>porosi</b> në Pro-Data. Pastaj arkëtari e hap porosinë në Pro-Data, e kthen në shitje dhe shtyp kuponin fiskal (Datecs).</div>
+    <div class="rresht">
+      <label>Magazina / pika e shitjes <select id="sh-magazina"></select></label>
+      <label>Kodi i klientit në Pro-Data <input id="sh-klienti" value="13850" style="width:140px" inputmode="numeric">
+        <span class="zbehte">13850 = Qytetar- Patron</span></label>
+      <label>Shitësja <select id="sh-shitesja"><option value="">(pa shitëse)</option></select></label>
+      <label>Shënim <input id="sh-komenti" style="width:220px"></label>
+    </div>
+    <div class="rresht kerkimi">
+      <label>Shto artikull (barkodi, kodi ose emri)
+        <input id="sh-artikulli" placeholder="skano barkodin ose shkruaj…" autocomplete="off" style="width:420px">
+      </label>
+      <div class="lista" id="sh-artikulli-lista" hidden></div>
+    </div>
+    <div class="tabela"><table><thead><tr><th>Artikulli</th><th>Njësia</th><th class="num">Sasia</th><th class="num">Çmimi me TVSH</th><th class="num">Vlera</th><th></th></tr></thead>
+      <tbody id="sh-rreshtat"></tbody></table></div>
+    <div class="totali">Totali: <span id="sh-totali">0.00</span> €</div>
+    <button class="kryesor" id="sh-dergo">Dërgo porosinë në Pro-Data</button>
+    <div class="mesazh" id="sh-mesazh"></div>
+  </section>
+
+  <section id="transfer">
+    <div class="rresht">
+      <label>Nga magazina <select id="tr-nga"></select></label>
+      <label>Te magazina <select id="tr-te"></select></label>
+      <label>Shënim <input id="tr-komenti" style="width:260px"></label>
+    </div>
+    <div class="rresht kerkimi">
+      <label>Shto artikull (barkodi, kodi ose emri)
+        <input id="tr-artikulli" placeholder="skano barkodin ose shkruaj…" autocomplete="off" style="width:420px">
+      </label>
+      <div class="lista" id="tr-artikulli-lista" hidden></div>
+    </div>
+    <div class="tabela"><table><thead><tr><th>Artikulli</th><th>Njësia</th><th>Stoku në "nga"</th><th class="num">Sasia</th><th></th></tr></thead>
+      <tbody id="tr-rreshtat"></tbody></table></div>
+    <button class="kryesor" id="tr-dergo">Dërgo transferin në Pro-Data</button>
+    <div class="mesazh" id="tr-mesazh"></div>
+  </section>
+
+  <section id="artikujt">
+    <div class="rresht"><label>Kërko artikull <input id="ar-kerko" placeholder="barkodi, kodi ose emri" style="width:420px" autocomplete="off"></label></div>
+    <div class="tabela"><table><thead><tr><th>Kodi</th><th>Emri</th><th>Njësia</th><th class="num">Çmimi</th><th>Stoku sipas magazinës</th></tr></thead>
+      <tbody id="ar-rezultatet"></tbody></table></div>
+    <p class="zbehte">Të dhënat vijnë nga Pro-Data çdo 5 minuta. Stoku është i njëjtë me raportin e stokut në Pro-Data.</p>
+  </section>
+
+  <section id="historiku">
+    <div class="tabela"><table><thead><tr><th>Koha</th><th>Lloji</th><th>Përmbajtja</th><th>Statusi</th><th>Dokumenti në Pro-Data / arsyeja</th></tr></thead>
+      <tbody id="hi-rreshtat"></tbody></table></div>
+  </section>
+</main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script>
+<script>
+// Çelësi publik (publishable): i sigurt për shfletuesin. Qasja kontrollohet nga hyrja + RLS + lista prodata_perdoruesit.
+const sb = supabase.createClient('https://bzlqzlgwsrdnxudcvzfr.supabase.co', 'sb_publishable_M302XR4KDMylBFHhzGxHdA_muxNiev-');
+const $ = (id) => document.getElementById(id);
+const eur = (x) => (Math.round(x * 100) / 100).toFixed(2);
+const sot = () => new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Belgrade' });
+const celesRi = (p) => `PD-${p}-${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const pastro = (q) => q.replace(/[,()%*\\]/g, ' ').trim();
+let magazinat = [], perdoruesi = null, intervaliStatusit = null;
+
+// ---------- Hyrja ----------
+$('forma-hyrja').onsubmit = async (e) => {
+  e.preventDefault();
+  const m = $('h-mesazh'); m.className = 'mesazh pritje'; m.textContent = 'Duke hyrë…';
+  // Njësoj si Patron Dantel: numri i telefonit → p<shifrat>@patrondantel.local; nëse është email, provohet edhe ashtu.
+  const raw = $('h-email').value.trim(), pass = $('h-fjalekalimi').value;
+  let { error } = await sb.auth.signInWithPassword({ email: `p${raw.replace(/\D/g, '')}@patrondantel.local`, password: pass });
+  if (error && raw.includes('@')) ({ error } = await sb.auth.signInWithPassword({ email: raw, password: pass }));
+  if (error) { m.className = 'mesazh gabim'; m.textContent = 'Hyrja dështoi: numri i telefonit ose fjalëkalimi gabim.'; return; }
+  m.className = 'mesazh'; $('h-fjalekalimi').value = '';
+};
+$('dil').onclick = () => sb.auth.signOut();
+sb.auth.onAuthStateChange((_ng, sesioni) => {
+  perdoruesi = sesioni ? sesioni.user : null;
+  $('hyrja').style.display = perdoruesi ? 'none' : 'block';
+  $('aplikacioni').style.display = perdoruesi ? 'block' : 'none';
+  $('statusi').hidden = $('perdoruesi').hidden = !perdoruesi;
+  if (perdoruesi) { $('emaili').textContent = perdoruesi.email; nisAplikacionin(); }
+  else if (intervaliStatusit) { clearInterval(intervaliStatusit); intervaliStatusit = null; }
+});
+
+// ---------- Faqet ----------
+document.querySelectorAll('nav button').forEach((b) => b.onclick = () => {
+  document.querySelectorAll('nav button, section').forEach((e) => e.classList.remove('aktive'));
+  b.classList.add('aktive'); $(b.dataset.faqe).classList.add('aktive');
+  if (b.dataset.faqe === 'historiku') historiku();
+});
+
+// ---------- Statusi ----------
+async function statusi() {
+  const [{ data: hb }, { data: cfg }, { data: mosha }] = await Promise.all([
+    sb.from('prodata_ura_heartbeat').select('*').eq('id', 1).maybeSingle(),
+    sb.from('prodata_ura_config').select('*').eq('id', 1).maybeSingle(),
+    sb.rpc('prodata_mosha_raporteve'),
+  ]);
+  if (!hb) { $('t-lexim').textContent = 'Llogaria jote nuk ka qasje te të dhënat e Pro-Data. Kërko leje nga administratori.'; $('d-lexim').className = 'drite jo'; return; }
+  const leximOk = hb.lidhja_prodata && mosha && mosha.lexim_sek < 120;
+  $('d-lexim').className = 'drite ' + (leximOk ? 'ok' : 'jo');
+  $('t-lexim').textContent = leximOk ? 'Ura e leximit: e lidhur me Pro-Data' : 'Ura e leximit: PA LIDHJE me Pro-Data';
+  const shkrimOk = hb.shkrimi_lidhja && mosha && mosha.shkrim_sek < 180 && cfg && cfg.aktiv && cfg.shkrimi_lejuar;
+  $('d-shkrim').className = 'drite ' + (shkrimOk ? 'ok' : 'jo');
+  $('t-shkrim').textContent = shkrimOk ? 'Ura e shkrimit: gati' : (cfg && !cfg.shkrimi_lejuar ? 'Ura e shkrimit: e ndaluar' : 'Ura e shkrimit: NUK PUNON');
+}
+
+// ---------- Artikujt ----------
+async function kerkoArtikuj(q) {
+  q = pastro(q); if (q.length < 2) return [];
+  const { data: art, error } = await sb.from('prodata_artikujt').select('prodata_id, kodi, barkodi, emri, njesia, cmimi')
+    .eq('aktiv', true).or(`kodi.eq.${q},barkodi.eq.${q},kodi.ilike.%${q}%,barkodi.ilike.%${q}%,emri.ilike.%${q}%`).limit(30);
+  if (error || !art || !art.length) return [];
+  art.sort((a, b) => ((b.kodi === q || b.barkodi === q) - (a.kodi === q || a.barkodi === q)) || a.emri.localeCompare(b.emri));
+  const { data: st } = await sb.from('prodata_stoku').select('prodata_artikull_id, magazina, sasia')
+    .in('prodata_artikull_id', art.map((a) => a.prodata_id)).neq('sasia', 0);
+  for (const a of art) {
+    a.id = +a.prodata_id; a.cmimi = +a.cmimi || 0;
+    a.stoku = (st || []).filter((s) => s.prodata_artikull_id === a.prodata_id).map((s) => ({ magazina: s.magazina, sasia: +s.sasia }));
+  }
+  return art;
+}
+function kerkimArtikujsh(inputId, listaId, kurZgjidhet) {
+  const inp = $(inputId), lista = $(listaId); let kohe;
+  const zgjidh = (a) => { lista.hidden = true; inp.value = ''; kurZgjidhet(a); inp.focus(); };
+  inp.oninput = () => { clearTimeout(kohe); kohe = setTimeout(async () => {
+    const q = inp.value.trim(); if (q.length < 2) { lista.hidden = true; return; }
+    const art = await kerkoArtikuj(q);
+    if (art.length && (art[0].barkodi === q || art[0].kodi === q) && art.filter((a) => a.barkodi === q || a.kodi === q).length === 1) return zgjidh(art[0]);
+    lista.innerHTML = art.length ? '' : '<div class="zbehte">Nuk u gjet asnjë artikull</div>';
+    for (const a of art) {
+      const d = document.createElement('div');
+      d.innerHTML = `<b>${esc(a.kodi)}</b> – ${esc(a.emri)} <span class="zbehte">· ${eur(a.cmimi)} € · ${esc(a.njesia || '')}</span>
+        <div class="stoku">${a.stoku.map((s) => `<span>${esc(s.magazina)}: ${s.sasia}</span>`).join('') || '<span>pa stok</span>'}</div>`;
+      d.onclick = () => zgjidh(a); lista.appendChild(d);
+    }
+    lista.hidden = false; }, 300); };
+  inp.onkeydown = (e) => { if (e.key === 'Escape') lista.hidden = true; };
+}
+
+// ---------- Komandat ----------
+async function dergoKomande(lloji, celesi, payload) {
+  const { error } = await sb.from('prodata_komandat').insert({ lloji, celesi_unik: celesi, payload, krijuar_nga: perdoruesi.id });
+  if (error && !/duplicate|unique/i.test(error.message)) throw new Error(error.message);
+}
+async function ndiq(celesi, mesazhId, kurKryhet) {
+  const m = $(mesazhId);
+  m.className = 'mesazh pritje'; m.innerHTML = '⏳ U dërgua. Po pret që ura ta krijojë dokumentin në Pro-Data…';
+  for (let i = 0; i < 120; i++) {
+    await new Promise((r) => setTimeout(r, 2000));
+    const { data: k } = await sb.from('prodata_komandat').select('statusi, rezultati, gabimi').eq('celesi_unik', celesi).maybeSingle();
+    if (!k) continue;
+    if (k.statusi === 'kryer') { m.className = 'mesazh ok'; m.innerHTML = kurKryhet(k.rezultati || {}); return; }
+    if (k.statusi === 'gabim') { m.className = 'mesazh gabim'; m.innerHTML = '❌ Pro-Data nuk e pranoi: ' + esc(k.gabimi); return; }
+  }
+  m.className = 'mesazh gabim'; m.innerHTML = '⚠️ Ura nuk u përgjigj brenda 4 minutave. Kontrollo shenjën e urës së shkrimit lart dhe faqen Historiku.';
+}
+
+// ---------- Shitje ----------
+let shRreshtat = [], shCelesi = celesRi('PS');
+function shVizato() {
+  const tb = $('sh-rreshtat'); tb.innerHTML = ''; let tot = 0;
+  shRreshtat.forEach((r, i) => {
+    const v = r.sasia * r.cmimi; tot += v;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><b>${esc(r.kodi)}</b><br><span class="zbehte">${esc(r.emri)}</span></td><td>${esc(r.njesia || '')}</td>
+      <td class="num"><input class="sasi" type="number" min="0" step="any" value="${r.sasia}"></td>
+      <td class="num"><input class="cmim" type="number" min="0" step="0.01" value="${eur(r.cmimi)}"></td>
+      <td class="num">${eur(v)}</td><td><button class="heq" title="Hiqe">✕</button></td>`;
+    tr.querySelector('.sasi').onchange = (e) => { r.sasia = +e.target.value; shVizato(); };
+    tr.querySelector('.cmim').onchange = (e) => { r.cmimi = +e.target.value; shVizato(); };
+    tr.querySelector('.heq').onclick = () => { shRreshtat.splice(i, 1); shVizato(); };
+    tb.appendChild(tr);
+  });
+  $('sh-totali').textContent = eur(tot);
+}
+kerkimArtikujsh('sh-artikulli', 'sh-artikulli-lista', (a) => {
+  const ek = shRreshtat.find((r) => r.id === a.id);
+  if (ek) ek.sasia += 1; else shRreshtat.push({ id: a.id, kodi: a.kodi, emri: a.emri, njesia: a.njesia, sasia: 1, cmimi: a.cmimi });
+  shVizato();
+});
+$('sh-dergo').onclick = async () => {
+  if (!shRreshtat.length) return alert('Shto të paktën një artikull.');
+  if (shRreshtat.some((r) => !(r.sasia > 0))) return alert('Çdo rresht duhet të ketë sasi më të madhe se 0.');
+  const klienti = $('sh-klienti').value.trim(); if (!klienti) return alert('Shkruaj kodin e klientit (13850 = Qytetar- Patron).');
+  const btn = $('sh-dergo'); btn.disabled = true; const celesi = shCelesi;
+  try {
+    await dergoKomande('porosi_shitje', celesi, {
+      magazina: $('sh-magazina').value, klienti_kodi: klienti, data: sot(),
+      agjenti_id: $('sh-shitesja').value ? +$('sh-shitesja').value : null, komenti: $('sh-komenti').value || null,
+      rreshtat: shRreshtat.map((r) => ({ prodata_id: r.id, sasia: r.sasia, cmimi_me_tvsh: Math.round(r.cmimi * 100) / 100 })) });
+    const total = $('sh-totali').textContent;
+    shRreshtat = []; shVizato(); shCelesi = celesRi('PS'); $('sh-komenti').value = '';
+    await ndiq(celesi, 'sh-mesazh', (r) => `✅ Porosia <b style="font-size:18px">${esc(r.prodata_nr)}</b> u krijua në Pro-Data (${total} €).<br>
+      <b>Arkëtari:</b> në Pro-Data hap porosinë ${esc(r.prodata_nr)}, ktheje në shitje dhe shtyp kuponin fiskal.`);
+  } catch (e) { $('sh-mesazh').className = 'mesazh gabim'; $('sh-mesazh').textContent = '❌ ' + e.message; }
+  btn.disabled = false;
+};
+
+// ---------- Transfer ----------
+let trRreshtat = [], trCelesi = celesRi('TR');
+function trVizato() {
+  const tb = $('tr-rreshtat'); tb.innerHTML = '';
+  trRreshtat.forEach((r, i) => {
+    const st = (r.stoku.find((s) => s.magazina === $('tr-nga').value) || {}).sasia ?? 0;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><b>${esc(r.kodi)}</b><br><span class="zbehte">${esc(r.emri)}</span></td><td>${esc(r.njesia || '')}</td><td>${st}</td>
+      <td class="num"><input class="sasi" type="number" min="0" step="any" value="${r.sasia}"></td><td><button class="heq">✕</button></td>`;
+    tr.querySelector('.sasi').onchange = (e) => { r.sasia = +e.target.value; };
+    tr.querySelector('.heq').onclick = () => { trRreshtat.splice(i, 1); trVizato(); };
+    tb.appendChild(tr);
+  });
+}
+kerkimArtikujsh('tr-artikulli', 'tr-artikulli-lista', (a) => {
+  const ek = trRreshtat.find((r) => r.id === a.id);
+  if (ek) ek.sasia += 1; else trRreshtat.push({ ...a, sasia: 1 });
+  trVizato();
+});
+$('tr-nga').onchange = trVizato;
+$('tr-dergo').onclick = async () => {
+  if ($('tr-nga').value === $('tr-te').value) return alert('Magazina "nga" dhe "te" duhet të jenë të ndryshme.');
+  if (!trRreshtat.length) return alert('Shto të paktën një artikull.');
+  if (trRreshtat.some((r) => !(r.sasia > 0))) return alert('Çdo rresht duhet të ketë sasi më të madhe se 0.');
+  const btn = $('tr-dergo'); btn.disabled = true; const celesi = trCelesi;
+  try {
+    await dergoKomande('transfer', celesi, { nga: $('tr-nga').value, te: $('tr-te').value, data: sot(),
+      komenti: $('tr-komenti').value || null, rreshtat: trRreshtat.map((r) => ({ prodata_id: r.id, sasia: r.sasia })) });
+    trRreshtat = []; trVizato(); trCelesi = celesRi('TR'); $('tr-komenti').value = '';
+    await ndiq(celesi, 'tr-mesazh', (r) => `✅ Transferi <b style="font-size:18px">${esc(r.prodata_nr)}</b> u krijua në Pro-Data.`);
+  } catch (e) { $('tr-mesazh').className = 'mesazh gabim'; $('tr-mesazh').textContent = '❌ ' + e.message; }
+  btn.disabled = false;
+};
+
+// ---------- Artikujt & stoku ----------
+(() => { let kohe; $('ar-kerko').oninput = () => { clearTimeout(kohe); kohe = setTimeout(async () => {
+  const q = $('ar-kerko').value.trim(); const tb = $('ar-rezultatet');
+  if (q.length < 2) { tb.innerHTML = ''; return; }
+  const art = await kerkoArtikuj(q);
+  tb.innerHTML = art.map((a) => `<tr><td><b>${esc(a.kodi)}</b><br><span class="zbehte">${esc(a.barkodi || '')}</span></td><td>${esc(a.emri)}</td>
+    <td>${esc(a.njesia || '')}</td><td class="num">${eur(a.cmimi)} €</td>
+    <td class="stoku">${a.stoku.map((s) => `<span>${esc((magazinat.find((m) => m.kodi === s.magazina) || {}).emri || s.magazina)}: <b>${s.sasia}</b></span>`).join('') || '<span>pa stok</span>'}</td></tr>`).join('')
+    || '<tr><td colspan="5" class="zbehte">Nuk u gjet asnjë artikull</td></tr>';
+}, 300); }; })();
+
+// ---------- Historiku ----------
+async function historiku() {
+  const { data: k } = await sb.from('prodata_komandat').select('krijuar, lloji, statusi, rezultati, gabimi, payload').order('krijuar', { ascending: false }).limit(50);
+  const em = { ne_pritje: ['⏳ Në pritje', 's-pritje'], ne_proces: ['⏳ Në proces', 's-pritje'], kryer: ['✅ Kryer', 's-kryer'], gabim: ['❌ Gabim', 's-gabim'], anuluar: ['Anuluar', 's-pritje'] };
+  $('hi-rreshtat').innerHTML = (k || []).map((x) => {
+    const p = x.payload || {}; const n = (p.rreshtat || []).length;
+    const pershk = x.lloji === 'transfer' ? `${esc(p.nga)} → ${esc(p.te)}, ${n} artikuj` : `Mag. ${esc(p.magazina)}, klienti ${esc(p.klienti_kodi)}, ${n} artikuj`;
+    const [t, c] = em[x.statusi] || [x.statusi, ''];
+    return `<tr><td>${new Date(x.krijuar).toLocaleString('sq-AL', { timeZone: 'Europe/Belgrade' })}</td><td>${x.lloji === 'transfer' ? 'Transfer' : 'Shitje (porosi)'}</td>
+      <td>${pershk}</td><td><span class="shenje ${c}">${t}</span></td>
+      <td>${x.statusi === 'kryer' ? '<b>' + esc((x.rezultati || {}).prodata_nr) + '</b>' : esc(x.gabimi || '')}</td></tr>`;
+  }).join('') || '<tr><td colspan="5" class="zbehte">Ende asnjë komandë</td></tr>';
+}
+
+// ---------- Nisja pas hyrjes ----------
+let nisur = false;
+async function nisAplikacionin() {
+  statusi(); if (!intervaliStatusit) intervaliStatusit = setInterval(statusi, 15000);
+  if (nisur) return; nisur = true;
+  const { data: mg } = await sb.from('prodata_magazinat').select('kodi, emri').order('kodi');
+  magazinat = mg || [];
+  for (const id of ['sh-magazina', 'tr-nga', 'tr-te'])
+    $(id).innerHTML = magazinat.map((m) => `<option value="${esc(m.kodi)}">${esc(m.kodi)} – ${esc(m.emri)}</option>`).join('');
+  $('sh-magazina').value = '002'; $('tr-nga').value = '001'; $('tr-te').value = '003';
+  const { data: sh } = await sb.from('prodata_shiteset').select('id, emri').order('emri');
+  $('sh-shitesja').innerHTML = '<option value="">(pa shitëse)</option>' + (sh || []).map((s) => `<option value="${s.id}">${esc(s.emri)}</option>`).join('');
+}
+document.addEventListener('click', (e) => { if (!e.target.closest('.kerkimi')) document.querySelectorAll('.lista').forEach((l) => l.hidden = true); });
+</script>
+</body>
+</html>
