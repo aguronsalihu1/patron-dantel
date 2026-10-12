@@ -68,6 +68,18 @@
   .live { display:inline-block; font-size:12px; color:var(--ok); font-weight:600; }
   .live::before { content:"●"; margin-right:4px; animation:pulso 1.5s infinite; }
   @keyframes pulso { 50% { opacity:.2; } }
+  .dk-pllakat { display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:12px; margin-bottom:16px; }
+  .dk-pll { border:0; border-radius:18px; padding:16px; text-align:left; color:#fff; cursor:pointer; display:flex; flex-direction:column; gap:2px; font:inherit; box-shadow:0 4px 0 rgba(0,0,0,.15); }
+  .dk-pll span { font-size:1.8rem; } .dk-pll b { font-size:1.15rem; } .dk-pll small { opacity:.9; }
+  .dk-pll.aktive { outline:4px solid #2b1630; outline-offset:2px; }
+  .dk-in { background:#1f8a5b; } .dk-out { background:#d9482b; } .dk-all { background:#e0a100; color:#2b2000; } .dk-reg { background:#2c5fd6; }
+  .chips { display:flex; gap:8px; flex-wrap:wrap; }
+  .chips button { border:1px solid var(--vije); background:#f4f2f5; border-radius:999px; padding:7px 12px; cursor:pointer; font-size:14px; font-weight:600; }
+  .chips button.on { background:var(--kryesor); color:#fff; border-color:var(--kryesor); }
+  .htab { font-size:14px; min-width:780px; } .htab td { white-space:nowrap; } .htab td.wrap { white-space:normal; min-width:180px; }
+  .plus { color:var(--ok); font-weight:700; } .minus { color:var(--gabim); font-weight:700; }
+  #dk-skaneri { position:fixed; inset:0; background:#000; z-index:50; display:none; flex-direction:column; }
+  #dk-skaneri video { flex:1; width:100%; object-fit:cover; } .dk-skaneri-bar { display:flex; justify-content:space-between; align-items:center; padding:12px; color:#fff; }
   #printimi { display:none; }
   @media print {
     body * { visibility:hidden; } #printimi, #printimi * { visibility:visible; }
@@ -112,7 +124,7 @@
     <h3>Pagesat e pranuara</h3><div class="karta" id="p-pagesat"></div>
     <h3>Shpenzimet dhe blerjet</h3><div class="karta" id="p-blerjet"></div>
     <h3>Stafi dhe porositë</h3><div class="karta" id="p-stafi"></div>
-    <h3>Depo (depo.html)</h3><div class="karta" id="p-depo"></div>
+    <h3>Depo: hyrje/dalje interne nga faqja</h3><div class="karta" id="p-depo"></div>
   </section>
 
   <!-- ===== SHITJE (faturë) ===== -->
@@ -226,13 +238,56 @@
     <div class="tabela"><table><thead><tr><th>Data</th><th>Lloji</th><th class="num">Dokumente</th><th class="num">Vlera me TVSH</th></tr></thead><tbody id="bl-tabela"></tbody></table></div>
   </section>
 
-  <!-- ===== DEPO DHE STOKU ===== -->
+  <!-- ===== DEPO (Depoja Kryesore dhe magazinat e tjera) ===== -->
   <section class="faqe" id="f-depo">
-    <h2>Depo dhe stoku</h2>
-    <div class="rresht"><label>Kërko artikull <input id="dp-kerko" placeholder="barkodi, kodi ose emri" style="width:min(420px, 88vw)" autocomplete="off"></label></div>
-    <div class="tabela"><table><thead><tr><th>Kodi</th><th>Emri</th><th class="num">Çmimi</th><th>Stoku sipas magazinës</th></tr></thead><tbody id="dp-rezultatet"></tbody></table></div>
-    <p class="zbehte">I njëjti stok si raporti "Stoqet" në Pro-Data.</p>
+    <div class="rresht" style="justify-content:space-between">
+      <h2 style="margin:0" id="dk-titulli">🏭 Depo</h2>
+      <label>Depoja <select id="dk-depoja"></select></label>
+    </div>
+    <div class="dk-pllakat">
+      <button class="dk-pll dk-in" data-dk="hyrje"><span>📥</span><b>Hyrje interne</b><small>Malli që hyn në depo</small></button>
+      <button class="dk-pll dk-out" data-dk="dalje"><span>📤</span><b>Dalje interne</b><small>Malli që del nga depo</small></button>
+      <button class="dk-pll dk-all" data-dk="malli"><span>📦</span><b>Malli plotë</b><small>Stoku në depo</small></button>
+      <button class="dk-pll dk-reg" data-dk="historiku"><span>🕘</span><b>Historiku</b><small id="dk-histsub">Lëvizjet në Pro-Data</small></button>
+    </div>
+
+    <div id="dk-v-levizje" hidden>
+      <h3 id="dk-lv-titulli"></h3>
+      <div class="rresht">
+        <label id="dk-vendi-l">Vendi <select id="dk-vendi"></select></label>
+        <label id="dk-personi-l">Personi <input id="dk-personi" style="width:220px"></label>
+        <label style="flex:1">Shënim <input id="dk-shenim" style="width:100%"></label>
+      </div>
+      <div class="rresht kerkimi">
+        <label>Shto artikull <input id="dk-kerko" placeholder="barkodi, kodi ose emri…" autocomplete="off" style="width:min(420px, 72vw)"></label>
+        <button class="dyte" id="dk-skano" type="button" title="Skano me kamerë">📷 Skano</button>
+        <div class="lista" id="dk-lista" hidden></div>
+      </div>
+      <div class="tabela"><table><thead><tr><th>Artikulli</th><th>Në depo</th><th class="num">Sasia</th><th></th></tr></thead><tbody id="dk-rreshtat"></tbody></table></div>
+      <div class="butona"><button class="kryesor" id="dk-regjistro"></button></div>
+      <div class="mesazh" id="dk-mesazh"></div>
+    </div>
+
+    <div id="dk-v-malli" hidden>
+      <div class="rresht"><label>Kërko në depo <input id="dk-m-kerko" placeholder="barkodi, kodi ose emri" style="width:min(420px, 72vw)" autocomplete="off"></label>
+        <button class="dyte" id="dk-m-skano" type="button">📷 Skano</button></div>
+      <div class="tabela"><table><thead><tr><th>Artikulli</th><th>Size</th><th class="num">Në depo</th><th class="num">Çmimi</th><th>Në vende të tjera</th></tr></thead><tbody id="dk-m-tabela"></tbody></table></div>
+      <p class="zbehte">I njëjti stok si raporti "Stoqet" në Pro-Data.</p>
+    </div>
+
+    <div id="dk-v-historiku" hidden>
+      <div class="chips" id="dk-h-kat"></div>
+      <div class="rresht" style="margin-top:10px">
+        <label style="flex:1">Kërko <input id="dk-h-kerko" placeholder="produkti, kodi, size, nr. dokumenti, personi…" autocomplete="off" style="width:100%"></label>
+        <label>Periudha <select id="dk-h-periudha"><option value="0">Sot</option><option value="1">Dje dhe sot</option><option value="7" selected>7 ditët e fundit</option></select></label>
+      </div>
+      <div class="karta" id="dk-h-permb"></div>
+      <div id="dk-h-pritje"></div>
+      <div class="tabela"><table class="htab"><thead><tr><th>Koha</th><th>Lëvizja</th><th>Produkti</th><th>Size</th><th class="num">Sasia</th><th class="num">Çmimi €</th><th class="num">Vlera €</th><th>Kush</th></tr></thead><tbody id="dk-h-tabela"></tbody></table></div>
+      <p class="zbehte" id="dk-h-shenim"></p>
+    </div>
   </section>
+  <div id="dk-skaneri"><div class="dk-skaneri-bar"><b>📷 Skano barkodin</b><button class="dyte" id="dk-skaneri-mbyll">Mbyll</button></div><video id="dk-video" playsinline muted></video></div>
 
   <!-- ===== ARKA DHE PAGESAT ===== -->
   <section class="faqe" id="f-pagesat">
@@ -257,6 +312,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
 <script>
 const sb = supabase.createClient('https://bzlqzlgwsrdnxudcvzfr.supabase.co', 'sb_publishable_M302XR4KDMylBFHhzGxHdA_muxNiev-');
 const $ = (id) => document.getElementById(id);
@@ -274,9 +330,10 @@ let profili = null, magazinat = [], perdoruesi = null;
 
 // ---------- Rolet dhe menytë ----------
 const MENYTE = {
-  admin: [['paneli', '📊 Paneli'], ['arka', '🧾 Arka'], ['shitjet', '🛒 Shitjet'], ['blerjet', '📦 Blerjet'], ['depo', '🏬 Depo dhe stoku'], ['pagesat', '💶 Arka dhe pagesat'],
-          ['stafi', '👷 Burime njerëzore'], ['partneret', '🤝 Partnerët'], ['kontabiliteti', '📒 Kontabiliteti'], ['admin', '⚙️ Administrimi'], ['shitje', '➕ Faturë'], ['regjistrim', '📝 Regjistrim'], ['transfer', '🔁 Transfer'], ['depolink', '🏭 Depo ↗']],
-  arka: [['arka', '🧾 Arka'], ['shitjet', '🛒 Shitjet'], ['blerjet', '📦 Blerjet'], ['depo', '🏬 Depo dhe stoku'], ['pagesat', '💶 Arka dhe pagesat'], ['stafi', '👷 Burime njerëzore'],
+  admin: [['paneli', '📊 Paneli'], ['arka', '🧾 Arka'], ['shitjet', '🛒 Shitjet'], ['blerjet', '📦 Blerjet'], ['depo', '🏭 Depo'], ['pagesat', '💶 Arka dhe pagesat'],
+          ['stafi', '👷 Burime njerëzore'], ['partneret', '🤝 Partnerët'], ['kontabiliteti', '📒 Kontabiliteti'], ['admin', '⚙️ Administrimi'], ['shitje', '➕ Faturë'], ['regjistrim', '📝 Regjistrim'], ['transfer', '🔁 Transfer']],
+  depo: [['depo', '🏭 Depo']],
+  arka: [['arka', '🧾 Arka'], ['shitjet', '🛒 Shitjet'], ['blerjet', '📦 Blerjet'], ['depo', '🏭 Depo'], ['pagesat', '💶 Arka dhe pagesat'], ['stafi', '👷 Burime njerëzore'],
          ['partneret', '🤝 Partnerët'], ['kontabiliteti', '📒 Kontabiliteti'], ['admin', '⚙️ Administrimi'], ['shitje', '➕ Faturë'], ['regjistrim', '📝 Regjistrim'], ['transfer', '🔁 Transfer']],
   shitese_online: [['shitje', '🛒 Shitje'], ['regjistrim', '📝 Regjistrim'], ['llogaria', '👤 Llogaria ime']],
   shitese_fizike: [['shitje', '🛒 Shitje'], ['regjistrim', '📝 Regjistrim'], ['llogaria', '👤 Llogaria ime']],
@@ -284,7 +341,6 @@ const MENYTE = {
 const NEN_REGJISTRIM = { shitese_online: ['hyrje', 'dalje'], shitese_fizike: ['hyrje', 'dalje', 'shpenzim'], arka: ['hyrje', 'dalje', 'shpenzim'], admin: ['hyrje', 'dalje', 'shpenzim'] };
 const NGARKUESIT = {};
 function hapFaqen(emri) {
-  if (emri === 'depolink') { location.href = 'depo.html'; return; }
   document.querySelectorAll('#menyja button').forEach((b) => b.classList.toggle('aktive', b.dataset.faqe === emri));
   document.querySelectorAll('section.faqe').forEach((s) => s.classList.toggle('aktive', s.id === 'f-' + emri));
   if (NGARKUESIT[emri]) NGARKUESIT[emri]();
@@ -311,16 +367,16 @@ sb.auth.onAuthStateChange(async (_n, ses) => {
   if (nisur) return; nisur = true;
   const { data } = await sb.from('prodata_perdoruesit').select('roli, emri').eq('user_id', perdoruesi.id).maybeSingle();
   profili = data;
-  if (profili && profili.roli === 'depo') { location.href = 'depo.html'; return; }   // përgjegjësi i depos punon te depo.html
   if (!profili || !profili.roli) {
     $('menyja').innerHTML = ''; document.querySelector('main').innerHTML = '<section class="faqe aktive"><div class="udhezim">Llogaria jote nuk ka ende rol. Kërko nga administratori të të caktojë rolin.</div></section>'; return;
   }
-  $('emri-perdoruesit').textContent = `${profili.emri || perdoruesi.email || ''} · ${({ admin: 'Super Admin', arka: 'ARKA', shitese_online: 'Shitëse online', shitese_fizike: 'Shitëse fizike' })[profili.roli]}`;
+  $('emri-perdoruesit').textContent = `${profili.emri || perdoruesi.email || ''} · ${({ admin: 'Super Admin', arka: 'ARKA', shitese_online: 'Shitëse online', shitese_fizike: 'Shitëse fizike', depo: 'Depo' })[profili.roli]}`;
   $('menyja').innerHTML = MENYTE[profili.roli].map(([k, t]) => `<button data-faqe="${k}">${t}</button>`).join('');
   document.querySelectorAll('#menyja button').forEach((b) => b.onclick = () => hapFaqen(b.dataset.faqe));
   await ngarkoListat();
   statusi(); setInterval(statusi, 15000);
-  hapFaqen(MENYTE[profili.roli][0][0]);
+  const ngaLinku = location.hash.slice(1);   // p.sh. ura.html#depo (nga linku i vjetër depo.html)
+  hapFaqen(MENYTE[profili.roli].some(([k]) => k === ngaLinku) ? ngaLinku : MENYTE[profili.roli][0][0]);
   sb.channel('faturat').on('postgres_changes', { event: '*', schema: 'public', table: 'app_faturat' }, () => {
     const a = document.querySelector('section.faqe.aktive'); if (a && NGARKUESIT[a.id.slice(2)]) NGARKUESIT[a.id.slice(2)](true);
   }).subscribe();
@@ -713,12 +769,176 @@ NGARKUESIT.pagesat = async () => {
   const { data } = await sb.from('prodata_pagesat_ditore').select('*').order('data', { ascending: false }).limit(300);
   $('pg-tabela').innerHTML = (data || []).map((x) => `<tr><td>${x.data}</td><td>${x.lloji === 'PGH01' ? 'Hyrëse' : x.lloji === 'PGD01' ? 'Dalëse' : x.lloji}</td><td>${esc(x.grupi || '')}</td><td>${esc(x.menyra)}</td><td class="num">${x.nr}</td><td class="num">${eur(x.shuma)} €</td></tr>`).join('') || '<tr><td colspan="6" class="zbehte">Asnjë</td></tr>';
 };
-(() => { let kohe; $('dp-kerko').oninput = () => { clearTimeout(kohe); kohe = setTimeout(async () => {
-  const q = $('dp-kerko').value.trim(); if (q.length < 2) { $('dp-rezultatet').innerHTML = ''; return; }
-  const art = await kerkoArtikuj(q);
-  $('dp-rezultatet').innerHTML = art.map((a) => `<tr><td><b>${esc(a.kodi)}</b><br><span class="zbehte">${esc(a.barkodi || '')}</span></td><td>${esc(a.emri)}</td><td class="num">${eur(a.cmimi)} €</td>
-    <td class="stoku">${a.stoku.map((s) => `<span>${esc((magazinat.find((m) => m.kodi === s.magazina) || {}).emri || s.magazina)}: <b>${s.sasia}</b></span>`).join('') || '<span>pa stok</span>'}</td></tr>`).join('') || '<tr><td colspan="4" class="zbehte">Nuk u gjet</td></tr>';
-}, 300); }; })();
+// ================= DEPO (brenda faqes kryesore) =================
+// Hyrje/Dalje interne → komandë "transfer" (ura e krijon në Pro-Data). Historiku vjen nga prodata_levizjet (të gjitha lëvizjet e Pro-Data-s).
+let DK = (() => { try { return localStorage.getItem('depo_kodi') || '001'; } catch { return '001'; } })();
+let dkLv = { tipi: 'dalje', rreshtat: [], celes: celesRi('DP') }, dkPamja = null;
+const emriMag = (k) => (magazinat.find((m) => m.kodi === k) || {}).emri || k;
+const fmtN = (n) => (Math.round((+n || 0) * 100) / 100).toLocaleString('sq-AL');
+function sizeNgaEmri(emri) {   // Pro-Data s'ka fushë për size: merret nga fundi i emrit ("… Dress 40" → 40)
+  const m = String(emri || '').trim().match(/(?:^|\s)(\d{2}(?:[\/-]\d{2})?|XXS|XS|S|M|L|XL|XXL|XXXL|[2-5]XL|S\/M|M\/L|L\/XL|ONE ?SIZE)$/i);
+  return m ? m[1].toUpperCase() : '';
+}
+function dkPerditesoDepon() {
+  $('dk-titulli').textContent = '🏭 ' + emriMag(DK);
+  try { localStorage.setItem('depo_kodi', DK); } catch {}
+}
+function dkHap(pamja) {
+  dkPamja = pamja;
+  document.querySelectorAll('.dk-pll').forEach((b) => b.classList.toggle('aktive', b.dataset.dk === pamja));
+  $('dk-v-levizje').hidden = !(pamja === 'hyrje' || pamja === 'dalje');
+  $('dk-v-malli').hidden = pamja !== 'malli';
+  $('dk-v-historiku').hidden = pamja !== 'historiku';
+  if (pamja === 'hyrje' || pamja === 'dalje') dkHapLevizjen(pamja);
+  if (pamja === 'malli') dkMalli($('dk-m-kerko').value);
+  if (pamja === 'historiku') dkHistoriku();
+}
+document.querySelectorAll('.dk-pll').forEach((b) => b.onclick = () => dkHap(b.dataset.dk));
+$('dk-depoja').onchange = () => { DK = $('dk-depoja').value; dkPerditesoDepon(); if (dkPamja) dkHap(dkPamja); };
+NGARKUESIT.depo = (ngaRealtime) => {
+  if (ngaRealtime) return;
+  if (!$('dk-depoja').options.length) {
+    $('dk-depoja').innerHTML = magazinat.map((m) => `<option value="${esc(m.kodi)}">${esc(m.kodi)} – ${esc(m.emri)}</option>`).join('');
+    if (!magazinat.some((m) => m.kodi === DK)) DK = '001';
+  }
+  $('dk-depoja').value = DK; dkPerditesoDepon();
+  dkHap(dkPamja || 'historiku');
+};
+
+// --- Skanimi me kamerë ---
+let dkLexuesi = null;
+async function dkSkaneri(cb) {
+  $('dk-skaneri').style.display = 'flex';
+  try {
+    dkLexuesi = dkLexuesi || new ZXing.BrowserMultiFormatReader();
+    await dkLexuesi.decodeFromVideoDevice(null, 'dk-video', (r) => { if (r) { const t = r.getText(); dkMbyllSkanerin(); cb(t); } });
+  } catch (e) { dkMbyllSkanerin(); alert('Kamera nuk u hap: ' + e.message); }
+}
+function dkMbyllSkanerin() { try { dkLexuesi && dkLexuesi.reset(); } catch {} $('dk-skaneri').style.display = 'none'; }
+$('dk-skaneri-mbyll').onclick = dkMbyllSkanerin;
+
+// --- Hyrje / Dalje interne ---
+function dkHapLevizjen(tipi) {
+  const IN = tipi === 'hyrje';
+  dkLv = { tipi, rreshtat: [], celes: celesRi('DP') };
+  $('dk-lv-titulli').textContent = IN ? '📥 Hyrje interne' : '📤 Dalje interne';
+  $('dk-vendi-l').firstChild.textContent = IN ? 'Nga vjen malli ' : 'Ku shkon malli ';
+  $('dk-personi-l').firstChild.textContent = IN ? 'Personi, kush e sjell ' : 'Personi, kush e merr ';
+  $('dk-personi').placeholder = IN ? 'emri i personit që e sjell' : 'emri i personit që e merr';
+  $('dk-vendi').innerHTML = magazinat.filter((m) => m.kodi !== DK).map((m) => `<option value="${esc(m.kodi)}">${esc(m.kodi)} – ${esc(m.emri)}</option>`).join('');
+  $('dk-regjistro').textContent = IN ? '📥 Regjistro hyrjen në Pro-Data' : '📤 Regjistro daljen në Pro-Data';
+  $('dk-regjistro').style.background = IN ? '#1f8a5b' : '#d9482b';
+  $('dk-personi').value = ''; $('dk-shenim').value = ''; $('dk-mesazh').className = 'mesazh'; dkVizato();
+}
+const neDepo = (a) => +((a.stoku || []).find((s) => s.magazina === DK) || {}).sasia || 0;
+function dkShto(a) {
+  const ek = dkLv.rreshtat.find((r) => r.id === a.id);
+  if (ek) ek.sasia += 1; else dkLv.rreshtat.push({ id: a.id, kodi: a.kodi, emri: a.emri, njesia: a.njesia, neDepo: neDepo(a), sasia: 1 });
+  dkVizato();
+}
+function dkVizato() {
+  $('dk-rreshtat').innerHTML = '';
+  dkLv.rreshtat.forEach((r, i) => {
+    const mungon = dkLv.tipi === 'dalje' && r.sasia > r.neDepo;
+    const t = document.createElement('tr');
+    t.innerHTML = `<td><b>${esc(r.kodi)}</b> ${esc(r.emri)}</td><td>${fmtN(r.neDepo)} ${esc(r.njesia || '')}${mungon ? ' <span class="shenje s-gabim">më shumë se stoku</span>' : ''}</td>
+      <td class="num"><input class="sasi" type="number" min="0" step="any" value="${r.sasia}"></td><td><button class="heq">✕</button></td>`;
+    t.querySelector('.sasi').onchange = (e) => { r.sasia = +e.target.value; dkVizato(); };
+    t.querySelector('.heq').onclick = () => { dkLv.rreshtat.splice(i, 1); dkVizato(); };
+    $('dk-rreshtat').appendChild(t);
+  });
+  if (!dkLv.rreshtat.length) $('dk-rreshtat').innerHTML = '<tr><td colspan="4" class="zbehte">Ende asnjë artikull. Skano barkodin ose kërko.</td></tr>';
+}
+kerkimArtikujsh('dk-kerko', 'dk-lista', dkShto);
+$('dk-skano').onclick = () => dkSkaneri(async (kodi) => { const a = await kerkoArtikuj(kodi); const g = a.find((x) => x.barkodi === kodi || x.kodi === kodi); if (g) dkShto(g); else alert('Barkodi ' + kodi + ' nuk u gjet në Pro-Data.'); });
+$('dk-regjistro').onclick = async () => {
+  if (!dkLv.rreshtat.length) return alert('Shto të paktën një artikull.');
+  if (dkLv.rreshtat.some((r) => !(r.sasia > 0))) return alert('Sasia duhet të jetë më e madhe se 0.');
+  const IN = dkLv.tipi === 'hyrje', vendi = $('dk-vendi').value, nga = IN ? vendi : DK, te = IN ? DK : vendi;
+  if (!confirm(`${IN ? 'Hyrje' : 'Dalje'}: ${dkLv.rreshtat.length} artikuj\n${emriMag(nga)} → ${emriMag(te)}\n\nRegjistrohet në Pro-Data si transfer. Vazhdo?`)) return;
+  const btn = $('dk-regjistro'), m = $('dk-mesazh'), celesi = dkLv.celes; btn.disabled = true;
+  const personi = $('dk-personi').value.trim();
+  const komenti = [IN ? 'Hyrje interne' : 'Dalje interne', personi && 'Personi: ' + personi, $('dk-shenim').value.trim(), profili.emri && 'Depo: ' + profili.emri].filter(Boolean).join(' · ').slice(0, 100);
+  try {
+    await dergoKomande('transfer', celesi, { nga, te, komenti, burimi: 'depo', tipi: dkLv.tipi, personi: personi || null, perdoruesi: profili.emri || null,
+      rreshtat: dkLv.rreshtat.map((r) => ({ prodata_id: r.id, sasia: r.sasia, kodi: r.kodi, emri: r.emri, njesia: r.njesia || null })) });
+    m.className = 'mesazh pritje'; m.textContent = '⏳ Po regjistrohet në Pro-Data…';
+    const k = await prisKomanden(celesi);
+    if (k && k.statusi === 'kryer') { m.className = 'mesazh ok'; m.innerHTML = `✅ U regjistrua në Pro-Data: <b>${esc(k.rezultati.prodata_nr)}</b>`; dkLv.rreshtat = []; dkLv.celes = celesRi('DP'); dkVizato(); }
+    else { m.className = 'mesazh gabim'; m.innerHTML = k ? '❌ ' + esc(k.gabimi) : '⚠️ Ura nuk u përgjigj. Lëvizja mbetet në radhë dhe regjistrohet kur ura të kthehet.'; }
+  } catch (e) { m.className = 'mesazh gabim'; m.textContent = '❌ ' + e.message; }
+  btn.disabled = false;
+};
+
+// --- Malli plotë ---
+async function dkMalli(q) {
+  const tb = $('dk-m-tabela'); let rr = [];
+  if (pastro(q || '').length >= 2) rr = (await kerkoArtikuj(q)).map((a) => ({ ...a, neDepo: neDepo(a) }));
+  else {
+    const { data: st } = await sb.from('prodata_stoku').select('prodata_artikull_id, sasia').eq('magazina', DK).gt('sasia', 0).order('sasia', { ascending: false }).limit(150);
+    if (st && st.length) {
+      const { data: a } = await sb.from('prodata_artikujt').select('prodata_id, kodi, barkodi, emri, njesia, cmimi').in('prodata_id', st.map((s) => s.prodata_artikull_id));
+      rr = st.map((s) => ({ ...((a || []).find((y) => y.prodata_id === s.prodata_artikull_id) || {}), neDepo: +s.sasia, stoku: [] }));
+    }
+  }
+  tb.innerHTML = rr.map((x) => `<tr><td><b>${esc(x.kodi)}</b> ${esc(x.emri)}<br><span class="zbehte">${esc(x.barkodi || '')}</span></td><td>${esc(sizeNgaEmri(x.emri))}</td>
+    <td class="num"><b>${fmtN(x.neDepo)}</b> ${esc(x.njesia || '')}</td><td class="num">${x.cmimi != null ? eur(x.cmimi) : '—'}</td>
+    <td class="stoku">${(x.stoku || []).filter((s) => s.magazina !== DK).map((s) => `<span>${esc(emriMag(s.magazina))}: ${fmtN(s.sasia)}</span>`).join('')}</td></tr>`).join('')
+    || '<tr><td colspan="5" class="zbehte">Asnjë artikull</td></tr>';
+}
+(() => { let t; $('dk-m-kerko').oninput = () => { clearTimeout(t); t = setTimeout(() => dkMalli($('dk-m-kerko').value), 300); }; })();
+$('dk-m-skano').onclick = () => dkSkaneri((k) => { $('dk-m-kerko').value = k; dkMalli(k); });
+
+// --- Historiku: të gjitha lëvizjet e stokut në Pro-Data, me kategori dhe kërkim ---
+const LLOJET_PD = { LI001: 'Transfer', BLV01: 'Blerje vendore', BLS01: 'Blerje shpenzimesh', BLI01: 'Blerje import', SHV01: 'Shitje', SHE01: 'Shitje export',
+  SHV02: 'Shitje POS', NOKR2: 'Kthim shitjeje', PR001: 'Prodhim', RS001: 'Rregullim stoku', SF001: 'Saldo fillestare' };
+const DK_KAT = [
+  ['te_gjitha', 'Të gjitha', () => true], ['levizjet', '🔁 Lëvizjet', (r) => r.txn === 'LI001'],
+  ['hyrjet', '📥 Hyrjet', (r) => +r.sasia > 0], ['daljet', '📤 Daljet', (r) => +r.sasia < 0],
+  ['blerjet', '🛒 Blerjet', (r) => /^BL/.test(r.txn || '')], ['shitjet', '💶 Shitjet', (r) => /^(SHV|SHE|NOKR)/.test(r.txn || '')],
+  ['prodhimi', '🧵 Prodhimi', (r) => r.txn === 'PR001'], ['rregullimet', '⚖️ Rregullimet', (r) => r.txn === 'RS001' || r.txn === 'SF001']];
+let dkH = [], dkKat = 'te_gjitha';
+$('dk-h-kat').innerHTML = DK_KAT.map(([k, t]) => `<button data-k="${k}" class="${k === dkKat ? 'on' : ''}">${t}</button>`).join('');
+document.querySelectorAll('#dk-h-kat button').forEach((b) => b.onclick = () => { dkKat = b.dataset.k; document.querySelectorAll('#dk-h-kat button').forEach((x) => x.classList.toggle('on', x === b)); dkHVizato(); });
+(() => { let t; $('dk-h-kerko').oninput = () => { clearTimeout(t); t = setTimeout(dkHVizato, 200); }; })();
+$('dk-h-periudha').onchange = () => dkHistoriku();
+async function dkHistoriku() {
+  const ditet = +$('dk-h-periudha').value;
+  const prej = new Date(Date.now() - ditet * 864e5).toLocaleDateString('sv-SE', { timeZone: 'Europe/Belgrade' });
+  $('dk-h-tabela').innerHTML = '<tr><td colspan="8" class="zbehte">Duke ngarkuar…</td></tr>';
+  const [{ data: lv }, { data: pritje }] = await Promise.all([
+    sb.from('prodata_levizjet').select('nr, txn, data, koha, artikull_id, sasia, cmimi, cmimi_lloji, krijoi, komenti').eq('magazina', DK).gte('data', prej).order('koha', { ascending: false }).limit(5000),
+    sb.from('prodata_komandat').select('krijuar, statusi, gabimi, payload').eq('lloji', 'transfer').in('statusi', ['ne_pritje', 'ne_proces', 'gabim'])
+      .or(`payload->>nga.eq.${DK},payload->>te.eq.${DK}`).gte('krijuar', new Date(Date.now() - 7 * 864e5).toISOString())]);
+  const nrTr = [...new Set((lv || []).filter((r) => r.txn === 'LI001').map((r) => r.nr))], idArt = [...new Set((lv || []).map((r) => r.artikull_id))];
+  const tj = [], art = [];
+  for (let i = 0; i < nrTr.length; i += 200) { const { data } = await sb.from('prodata_levizjet').select('nr, magazina').in('nr', nrTr.slice(i, i + 200)).neq('magazina', DK); tj.push(...(data || [])); }
+  for (let i = 0; i < idArt.length; i += 300) { const { data } = await sb.from('prodata_artikujt').select('prodata_id, kodi, emri, njesia, cmimi').in('prodata_id', idArt.slice(i, i + 300)); art.push(...(data || [])); }
+  const tjM = new Map(tj.map((t) => [t.nr, t.magazina])), artM = new Map(art.map((a) => [a.prodata_id, a]));
+  dkH = (lv || []).map((r) => { const a = artM.get(r.artikull_id) || {}, IN = +r.sasia >= 0, t = tjM.get(r.nr);
+    return { ...r, kodi: a.kodi || r.artikull_id, emri: a.emri || '', njesia: a.njesia || '', size: sizeNgaEmri(a.emri),
+      cmimi: r.cmimi != null ? +r.cmimi : (a.cmimi != null ? +a.cmimi : null), cmimiBurimi: r.cmimi != null ? r.cmimi_lloji : 'çmimi me pakicë',
+      vendi: t ? (IN ? `${emriMag(t)} → ${emriMag(DK)}` : `${emriMag(DK)} → ${emriMag(t)}`) : '' }; });
+  $('dk-h-pritje').innerHTML = (pritje || []).length ? `<div class="udhezim"><b>Nga faqja, ende pa u regjistruar në Pro-Data:</b>${(pritje || []).map((x) => { const y = x.payload || {};
+    return `<div>${oraKS(x.krijuar)} · ${esc(emriMag(y.nga))} → ${esc(emriMag(y.te))} · ${(y.rreshtat || []).length} artikuj · ${shenje(x.statusi)} ${esc(x.gabimi || '')}</div>`; }).join('')}</div>` : '';
+  dkHVizato();
+}
+function dkHVizato() {
+  const f = (DK_KAT.find(([k]) => k === dkKat) || DK_KAT[0])[2], q = $('dk-h-kerko').value.trim().toLowerCase();
+  const rr = dkH.filter(f).filter((r) => !q || [r.kodi, r.emri, r.size, r.nr, r.krijoi, r.komenti, r.vendi, LLOJET_PD[r.txn]].some((v) => String(v || '').toLowerCase().includes(q)));
+  const hy = rr.filter((r) => +r.sasia > 0), da = rr.filter((r) => +r.sasia < 0);
+  const vl = (a) => a.reduce((t, r) => t + Math.abs(+r.sasia) * (r.cmimi || 0), 0), sa = (a) => a.reduce((t, r) => t + Math.abs(+r.sasia), 0), dok = (a) => new Set(a.map((r) => r.nr)).size;
+  $('dk-h-permb').innerHTML = `<div class="karte" style="border-left:6px solid #1f8a5b"><div class="tit">📥 Hyrje</div><div class="vl">${dok(hy)}</div><div class="det">${fmtN(sa(hy))} njësi · ${eur(vl(hy))} €</div></div>
+    <div class="karte" style="border-left:6px solid #d9482b"><div class="tit">📤 Dalje</div><div class="vl">${dok(da)}</div><div class="det">${fmtN(sa(da))} njësi · ${eur(vl(da))} €</div></div>`;
+  const MAX = 600;
+  $('dk-h-tabela').innerHTML = rr.slice(0, MAX).map((r) => { const IN = +r.sasia > 0, v = r.cmimi != null ? Math.abs(+r.sasia) * r.cmimi : null;
+    return `<tr><td>${r.koha ? oraKS(r.koha) : esc(r.data)}</td><td class="wrap"><b>${IN ? '📥' : '📤'} ${esc(LLOJET_PD[r.txn] || r.txn)}</b>${r.vendi ? '<br>' + esc(r.vendi) : ''}<div class="zbehte">${esc(r.nr)}${r.komenti ? ' · ' + esc(r.komenti) : ''}</div></td>
+      <td class="wrap"><b>${esc(r.kodi)}</b> ${esc(r.emri)}</td><td>${esc(r.size)}</td><td class="num ${IN ? 'plus' : 'minus'}">${IN ? '+' : ''}${fmtN(r.sasia)} <span class="zbehte">${esc(r.njesia)}</span></td>
+      <td class="num" title="${esc(r.cmimiBurimi || '')}">${r.cmimi != null ? eur(r.cmimi) : '—'}</td><td class="num">${v != null ? eur(v) : '—'}</td><td>${esc(r.krijoi || '')}</td></tr>`; }).join('')
+    || '<tr><td colspan="8" class="zbehte">Asnjë lëvizje për këtë zgjedhje</td></tr>';
+  $('dk-h-shenim').textContent = `${rr.length} rreshta${rr.length > MAX ? ` (shfaqen ${MAX}; ngushto kërkimin)` : ''} · Çmimi: blerjet me koston pa TVSH, shitjet me çmimin e shitjes, të tjerat me çmimin me pakicë · Size merret nga emri i artikullit.`;
+  $('dk-histsub').textContent = `${dok(dkH)} dokumente`;
+}
 NGARKUESIT.stafi = async () => {
   const { data: sh } = await sb.from('prodata_shiteset').select('emri');
   $('st-karta').innerHTML = `<div class="karte"><div class="tit">Shitëse aktive (6 muaj)</div><div class="vl">${(sh || []).length}</div></div>`;
