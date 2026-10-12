@@ -112,6 +112,7 @@
     <h3>Pagesat e pranuara</h3><div class="karta" id="p-pagesat"></div>
     <h3>Shpenzimet dhe blerjet</h3><div class="karta" id="p-blerjet"></div>
     <h3>Stafi dhe porositë</h3><div class="karta" id="p-stafi"></div>
+    <h3>Depo (depo.html)</h3><div class="karta" id="p-depo"></div>
   </section>
 
   <!-- ===== SHITJE (faturë) ===== -->
@@ -274,7 +275,7 @@ let profili = null, magazinat = [], perdoruesi = null;
 // ---------- Rolet dhe menytë ----------
 const MENYTE = {
   admin: [['paneli', '📊 Paneli'], ['arka', '🧾 Arka'], ['shitjet', '🛒 Shitjet'], ['blerjet', '📦 Blerjet'], ['depo', '🏬 Depo dhe stoku'], ['pagesat', '💶 Arka dhe pagesat'],
-          ['stafi', '👷 Burime njerëzore'], ['partneret', '🤝 Partnerët'], ['kontabiliteti', '📒 Kontabiliteti'], ['admin', '⚙️ Administrimi'], ['shitje', '➕ Faturë'], ['regjistrim', '📝 Regjistrim'], ['transfer', '🔁 Transfer']],
+          ['stafi', '👷 Burime njerëzore'], ['partneret', '🤝 Partnerët'], ['kontabiliteti', '📒 Kontabiliteti'], ['admin', '⚙️ Administrimi'], ['shitje', '➕ Faturë'], ['regjistrim', '📝 Regjistrim'], ['transfer', '🔁 Transfer'], ['depolink', '🏭 Depo ↗']],
   arka: [['arka', '🧾 Arka'], ['shitjet', '🛒 Shitjet'], ['blerjet', '📦 Blerjet'], ['depo', '🏬 Depo dhe stoku'], ['pagesat', '💶 Arka dhe pagesat'], ['stafi', '👷 Burime njerëzore'],
          ['partneret', '🤝 Partnerët'], ['kontabiliteti', '📒 Kontabiliteti'], ['admin', '⚙️ Administrimi'], ['shitje', '➕ Faturë'], ['regjistrim', '📝 Regjistrim'], ['transfer', '🔁 Transfer']],
   shitese_online: [['shitje', '🛒 Shitje'], ['regjistrim', '📝 Regjistrim'], ['llogaria', '👤 Llogaria ime']],
@@ -283,6 +284,7 @@ const MENYTE = {
 const NEN_REGJISTRIM = { shitese_online: ['hyrje', 'dalje'], shitese_fizike: ['hyrje', 'dalje', 'shpenzim'], arka: ['hyrje', 'dalje', 'shpenzim'], admin: ['hyrje', 'dalje', 'shpenzim'] };
 const NGARKUESIT = {};
 function hapFaqen(emri) {
+  if (emri === 'depolink') { location.href = 'depo.html'; return; }
   document.querySelectorAll('#menyja button').forEach((b) => b.classList.toggle('aktive', b.dataset.faqe === emri));
   document.querySelectorAll('section.faqe').forEach((s) => s.classList.toggle('aktive', s.id === 'f-' + emri));
   if (NGARKUESIT[emri]) NGARKUESIT[emri]();
@@ -309,6 +311,7 @@ sb.auth.onAuthStateChange(async (_n, ses) => {
   if (nisur) return; nisur = true;
   const { data } = await sb.from('prodata_perdoruesit').select('roli, emri').eq('user_id', perdoruesi.id).maybeSingle();
   profili = data;
+  if (profili && profili.roli === 'depo') { location.href = 'depo.html'; return; }   // përgjegjësi i depos punon te depo.html
   if (!profili || !profili.roli) {
     $('menyja').innerHTML = ''; document.querySelector('main').innerHTML = '<section class="faqe aktive"><div class="udhezim">Llogaria jote nuk ka ende rol. Kërko nga administratori të të caktojë rolin.</div></section>'; return;
   }
@@ -675,6 +678,13 @@ async function paneli() {
   $('p-stafi').innerHTML = karte('Shitësja më e mirë', top[0] ? esc(top[0][0]) : '—', top.slice(0, 5).map(([k, v]) => `${esc(k)}: ${eur(v)} €`).join('<br>'))
     + karte('Porosi online nga aplikacioni', appP.filter((f) => f.kanali === 'online' && f.statusi !== 'anuluar').length, `me nr. poste: ${appP.filter((f) => f.posta_nr).length}`)
     + karte('Porosi të dorëzuara në postë', '—', 'Lidhja me postën lokale dhe export-in: në pritje');
+  const { data: dp } = await sb.from('prodata_komandat').select('statusi, payload, krijuar').eq('lloji', 'transfer').eq('payload->>burimi', 'depo').gte('krijuar', fillim);
+  const dpP = (dp || []).filter((x) => { const d = ditaKS(x.krijuar); return d >= prej && d <= deri; });
+  const dpN = (t) => dpP.filter((x) => (x.payload || {}).tipi === t);
+  const art = (a) => a.reduce((t, x) => t + ((x.payload || {}).rreshtat || []).length, 0);
+  $('p-depo').innerHTML = karte('📥 Hyrje interne', dpN('hyrje').length, art(dpN('hyrje')) + ' rreshta artikujsh')
+    + karte('📤 Dalje interne', dpN('dalje').length, art(dpN('dalje')) + ' rreshta artikujsh')
+    + karte('Në pritje / gabime', `${dpP.filter((x) => x.statusi === 'ne_pritje' || x.statusi === 'ne_proces').length} / ${dpP.filter((x) => x.statusi === 'gabim').length}`, 'kontrollo Administrimi → Komandat');
   $('p-rifreskuar').textContent = `Rifreskuar: ${new Date().toLocaleTimeString('sq-AL', { timeZone: 'Europe/Belgrade' })} · të dhënat e Pro-Data-s vijnë çdo 1 minutë, faturat e aplikacionit menjëherë.`;
 }
 $('p-periudha').onchange = paneli;
@@ -717,7 +727,7 @@ NGARKUESIT.admin = async () => {
   const [{ data: p }, { data: k }] = await Promise.all([
     sb.from('prodata_perdoruesit').select('emri, roli, shtuar').order('shtuar'),
     sb.from('prodata_komandat').select('krijuar, lloji, statusi, rezultati, gabimi').order('krijuar', { ascending: false }).limit(50)]);
-  const rolet = { admin: 'Super Admin', arka: 'ARKA', shitese_online: 'Shitëse online', shitese_fizike: 'Shitëse fizike' };
+  const rolet = { admin: 'Super Admin', arka: 'ARKA', shitese_online: 'Shitëse online', shitese_fizike: 'Shitëse fizike', depo: 'Depo' };
   $('ad-perdoruesit').innerHTML = (p || []).map((x) => `<tr><td>${esc(x.emri || '—')}</td><td>${rolet[x.roli] || '<span class="zbehte">pa rol</span>'}</td><td>${oraKS(x.shtuar)}</td></tr>`).join('');
   $('ad-komandat').innerHTML = (k || []).map((x) => `<tr><td>${oraKS(x.krijuar)}</td><td>${esc(x.lloji)}</td><td>${shenje(x.statusi)}</td><td>${x.statusi === 'kryer' ? '<b>' + esc((x.rezultati || {}).prodata_nr) + '</b>' : esc(x.gabimi || '')}</td></tr>`).join('');
 };

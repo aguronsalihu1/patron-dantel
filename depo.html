@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Depo Kryesore</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#f5f1ea">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Depo">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📦</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f5f1ea;--card:#fffdf9;--ink:#1d1b18;--mute:#77716a;--line:#e3dcd0;--in:#1f8a5b;--in-soft:#e2f3ea;--out:#d9482b;--out-soft:#fbe6e0;--reg:#2c5fd6;--reg-soft:#e3eafb;--all:#e0a100;--all-soft:#fbf0d2;
+  font-family:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",sans-serif}
+@media (prefers-color-scheme:dark){:root{--bg:#161513;--card:#201f1c;--ink:#f1ece4;--mute:#a19a90;--line:#35322d;--in-soft:#15352a;--out-soft:#3d1f18;--reg-soft:#1b2745;--all-soft:#3a2f10}}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-size:16px;line-height:1.45;padding-top:env(safe-area-inset-top,0);padding-bottom:env(safe-area-inset-bottom,0)}
+.wrap{max-width:900px;margin:0 auto;padding:18px 16px 48px}
+header{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:6px 0 18px;flex-wrap:wrap}
+h1{font-size:clamp(2rem,7vw,3.2rem);font-weight:800;margin:0;letter-spacing:-.03em}
+h2{font-size:1.6rem;font-weight:800;margin:0 0 12px}
+.sub{color:var(--mute);margin:2px 0 0;font-size:.95rem}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:10px 14px;font:inherit;font-weight:600;cursor:pointer}
+.btn.big{width:100%;padding:16px;font-size:1.15rem;border:0;color:#fff}
+.btn:disabled{opacity:.5}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.tile{border:0;border-radius:24px;min-height:170px;padding:22px;text-align:left;cursor:pointer;color:#fff;font:inherit;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 6px 0 rgba(0,0,0,.18)}
+.tile:active{transform:translateY(4px);box-shadow:0 2px 0 rgba(0,0,0,.18)}
+.tile .ic{font-size:2.2rem;line-height:1}.tile b{font-size:clamp(1.4rem,5vw,2rem);font-weight:800;display:block}.tile small{opacity:.9}
+.t-in{background:var(--in)}.t-out{background:var(--out)}.t-reg{background:var(--reg)}.t-all{background:var(--all);color:#2b2000}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;margin-bottom:14px}
+label{display:block;font-size:.85rem;color:var(--mute);font-weight:600;margin:0 0 4px}
+input,select,textarea{width:100%;font:inherit;font-size:17px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.row1{margin-bottom:10px}
+.srch{position:relative}
+.list{position:absolute;z-index:20;left:0;right:0;top:100%;background:var(--card);border:1px solid var(--line);border-radius:12px;max-height:55vh;overflow:auto;box-shadow:0 10px 30px rgba(0,0,0,.18)}
+.list div{padding:12px;border-bottom:1px solid var(--line);cursor:pointer}
+.mute{color:var(--mute);font-size:.88rem}
+.item{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.item input{width:90px;text-align:right}
+.x{border:0;background:none;color:var(--out);font-size:1.4rem;cursor:pointer}
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:.8rem;font-weight:700}
+.p-ok{background:var(--in-soft);color:var(--in)}.p-err{background:var(--out-soft);color:var(--out)}.p-wait{background:var(--all-soft);color:#8a6400}
+.msg{border-radius:14px;padding:14px;margin-top:12px;display:none;font-weight:600}
+.msg.ok{display:block;background:var(--in-soft);color:var(--in)}.msg.err{display:block;background:var(--out-soft);color:var(--out)}.msg.wait{display:block;background:var(--all-soft);color:#8a6400}
+.status{font-size:.82rem;color:var(--mute);display:flex;gap:12px;align-items:center}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#999;margin-right:4px}.dot.ok{background:#2fbf71}.dot.no{background:#e5483b}
+#login{position:fixed;inset:0;background:var(--bg);z-index:30;display:flex;align-items:center;justify-content:center;padding:20px}
+#login .box{width:100%;max-width:380px}
+#scan{position:fixed;inset:0;background:#000;z-index:40;display:none;flex-direction:column}
+#scan video{flex:1;width:100%;object-fit:cover}
+#scan .bar{padding:14px;display:flex;justify-content:space-between;align-items:center;color:#fff}
+table{width:100%;border-collapse:collapse}td,th{padding:9px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{font-size:.78rem;color:var(--mute);text-transform:uppercase}
+.num{text-align:right;white-space:nowrap}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<div id="login"><div class="box">
+  <h1 style="text-align:center;margin-bottom:22px">📦 Depo</h1>
+  <form id="flogin" class="card">
+    <div class="row1"><label>Numri i telefonit</label><input id="ltel" autocomplete="username" placeholder="p.sh. 044 123 456" required></div>
+    <div class="row1"><label>Fjalëkalimi</label><input id="lpass" type="password" autocomplete="current-password" required></div>
+    <button class="btn big" style="background:var(--ink);color:var(--bg)">Hyr</button>
+    <div class="msg" id="lmsg"></div>
+  </form>
+  <p class="mute" style="text-align:center">I njëjti numër telefoni dhe fjalëkalim si te Patron Dantel.</p>
+</div></div>
+
+<div id="scan"><div class="bar"><b>📷 Skano barkodin</b><button class="btn" id="scanClose">Mbyll</button></div><video id="video" playsinline muted></video></div>
+
+<div class="wrap">
+  <header>
+    <div><h1 id="titulli">Depo Kryesore</h1><p class="sub" id="nentitulli">Lidhur me Pro-Data përmes sistemit Patron</p></div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <span class="status"><span><span class="dot" id="dLexim"></span>Pro-Data</span><span><span class="dot" id="dShkrim"></span>Shkrimi</span></span>
+      <button class="btn hidden" id="back">← Kthehu</button><button class="btn" id="dil">Dil</button>
+    </div>
+  </header>
+
+  <!-- KRYEFAQJA -->
+  <section id="v-home">
+    <div class="grid">
+      <button class="tile t-in" data-go="hyrje"><span class="ic">📥</span><span><b>Hyrje Interne</b><small>Malli që hyn në depo</small></span></button>
+      <button class="tile t-out" data-go="dalje"><span class="ic">📤</span><span><b>Dalje Interne</b><small>Malli që del nga depo</small></span></button>
+      <button class="tile t-all" data-go="malli"><span class="ic">📦</span><span><b>Malli Plotë</b><small id="malliSub">Stoku në depo</small></span></button>
+      <button class="tile t-reg" data-go="historiku"><span class="ic">🕘</span><span><b>Historiku</b><small id="histSub">Lëvizjet e fundit</small></span></button>
+    </div>
+    <div class="card" style="margin-top:14px"><label>Depoja</label><select id="depoja"></select>
+      <p class="mute" style="margin:8px 0 0">Çdo hyrje/dalje regjistrohet në Pro-Data si transfer (lëvizje interne) nga/te kjo depo.</p></div>
+  </section>
+
+  <!-- HYRJE / DALJE -->
+  <section id="v-levizje" class="hidden">
+    <h2 id="lvTitulli"></h2>
+    <div class="card">
+      <div class="row"><div><label id="lvVendiL">Vendi</label><select id="lvVendi"></select></div><div><label>Personi</label><input id="lvPersoni" placeholder="kush e merr / e sjell"></div></div>
+      <div class="row1"><label>Shënim</label><input id="lvShenim" placeholder="opsionale"></div>
+    </div>
+    <div class="card">
+      <div class="srch"><label>Shto artikull</label>
+        <div style="display:flex;gap:8px"><input id="lvKerko" placeholder="barkodi, kodi ose emri…" autocomplete="off"><button class="btn" id="lvSkano" title="Skano me kamerë">📷</button></div>
+        <div class="list hidden" id="lvLista"></div>
+      </div>
+      <div id="lvRreshtat"></div>
+      <p class="mute" id="lvBosh">Ende asnjë artikull. Skano barkodin ose kërko.</p>
+    </div>
+    <button class="btn big" id="lvRegjistro"></button>
+    <div class="msg" id="lvMsg"></div>
+  </section>
+
+  <!-- MALLI PLOTË -->
+  <section id="v-malli" class="hidden">
+    <h2>Malli Plotë</h2>
+    <div class="card"><label>Kërko</label><div style="display:flex;gap:8px"><input id="mKerko" placeholder="barkodi, kodi ose emri…" autocomplete="off"><button class="btn" id="mSkano">📷</button></div></div>
+    <div class="card"><table><thead><tr><th>Artikulli</th><th class="num">Në depo</th><th>Të tjera</th></tr></thead><tbody id="mTabela"></tbody></table>
+      <p class="mute">Stoku i njëjtë me raportin "Stoqet" në Pro-Data (rifreskohet pasi Pro-Data të rillogarisë koston).</p></div>
+  </section>
+
+  <!-- HISTORIKU -->
+  <section id="v-historiku" class="hidden">
+    <h2>Historiku</h2>
+    <div class="card"><table><thead><tr><th>Koha</th><th>Lëvizja</th><th>Statusi</th></tr></thead><tbody id="hTabela"></tbody></table></div>
+  </section>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
+<script>
+// Depo Kryesore, lidhur me Pro-Data PËRMES sistemit Patron (Supabase → ura → Pro-Data). Nuk ka qasje direkte në Pro-Data.
+const sb = supabase.createClient('https://bzlqzlgwsrdnxudcvzfr.supabase.co', 'sb_publishable_M302XR4KDMylBFHhzGxHdA_muxNiev-');
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const fmt = (n) => (Math.round((+n || 0) * 100) / 100).toLocaleString('sq-AL');
+const pastro = (q) => q.replace(/[,()%*\\]/g, ' ').trim();
+const celes = () => 'PD-DP-' + Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => b.toString(16).padStart(2, '0')).join('');
+const ora = (d) => new Date(d).toLocaleString('sq-AL', { timeZone: 'Europe/Belgrade', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+let user = null, profili = null, magazinat = [], DEPO = localStorage.getItem('depo_kodi') || '001';
+
+// ---------- Hyrja (e njëjta llogari si Patron Dantel) ----------
+$('flogin').onsubmit = async (e) => {
+  e.preventDefault(); const m = $('lmsg'); m.className = 'msg wait'; m.textContent = 'Duke hyrë…';
+  const raw = $('ltel').value.trim(), pass = $('lpass').value;
+  let { error } = await sb.auth.signInWithPassword({ email: `p${raw.replace(/\D/g, '')}@patrondantel.local`, password: pass });
+  if (error && raw.includes('@')) ({ error } = await sb.auth.signInWithPassword({ email: raw, password: pass }));
+  if (error) { m.className = 'msg err'; m.textContent = 'Numri i telefonit ose fjalëkalimi gabim.'; return; }
+  m.className = 'msg'; $('lpass').value = '';
+};
+$('dil').onclick = () => sb.auth.signOut();
+let nisur = false;
+sb.auth.onAuthStateChange(async (_e, s) => {
+  user = s ? s.user : null; $('login').style.display = user ? 'none' : 'flex';
+  if (!user) { nisur = false; return; } if (nisur) return; nisur = true;
+  const { data } = await sb.from('prodata_perdoruesit').select('roli, emri').eq('user_id', user.id).maybeSingle();
+  profili = data;
+  if (!profili || !['depo', 'admin', 'arka'].includes(profili.roli)) {
+    document.querySelector('.wrap').innerHTML = '<div class="card" style="margin-top:40px"><h2>Pa qasje</h2><p>Kjo llogari nuk ka rolin "Depo". Kërko nga administratori.</p><button class="btn" onclick="sb.auth.signOut().then(()=>location.reload())">Dil</button></div>'; return;
+  }
+  const { data: mg } = await sb.from('prodata_magazinat').select('kodi, emri').order('kodi'); magazinat = mg || [];
+  $('depoja').innerHTML = magazinat.map((m) => `<option value="${esc(m.kodi)}">${esc(m.kodi)} – ${esc(m.emri)}</option>`).join('');
+  $('depoja').value = magazinat.some((m) => m.kodi === DEPO) ? DEPO : '001'; vendosDepon();
+  statusi(); setInterval(statusi, 20000); shko('home');
+});
+$('depoja').onchange = () => { DEPO = $('depoja').value; try { localStorage.setItem('depo_kodi', DEPO); } catch {} vendosDepon(); };
+function vendosDepon() { const m = magazinat.find((x) => x.kodi === DEPO); $('titulli').textContent = m ? m.emri : 'Depo'; }
+const emriMag = (k) => (magazinat.find((m) => m.kodi === k) || {}).emri || k;
+
+async function statusi() {
+  const [{ data: hb }, { data: cfg }, { data: mo }] = await Promise.all([
+    sb.from('prodata_ura_heartbeat').select('lidhja_prodata, shkrimi_lidhja').eq('id', 1).maybeSingle(),
+    sb.from('prodata_ura_config').select('aktiv, shkrimi_lejuar').eq('id', 1).maybeSingle(), sb.rpc('prodata_mosha_raporteve')]);
+  $('dLexim').className = 'dot ' + (hb && hb.lidhja_prodata && mo && mo.lexim_sek < 120 ? 'ok' : 'no');
+  $('dShkrim').className = 'dot ' + (hb && hb.shkrimi_lidhja && mo && mo.shkrim_sek < 180 && cfg && cfg.shkrimi_lejuar ? 'ok' : 'no');
+}
+
+// ---------- Navigimi ----------
+function shko(v) {
+  for (const s of ['home', 'levizje', 'malli', 'historiku']) $('v-' + s).classList.toggle('hidden', s !== v);
+  $('back').classList.toggle('hidden', v === 'home'); window.scrollTo(0, 0);
+  if (v === 'malli') malli(''); if (v === 'historiku') historiku();
+}
+$('back').onclick = () => shko('home');
+document.querySelectorAll('[data-go]').forEach((b) => b.onclick = () => { const g = b.dataset.go; if (g === 'hyrje' || g === 'dalje') hapLevizjen(g); else shko(g); });
+
+// ---------- Artikujt nga Pro-Data ----------
+async function kerko(q) {
+  q = pastro(q); if (q.length < 2) return [];
+  const { data: a } = await sb.from('prodata_artikujt').select('prodata_id, kodi, barkodi, emri, njesia')
+    .eq('aktiv', true).or(`kodi.eq.${q},barkodi.eq.${q},kodi.ilike.%${q}%,barkodi.ilike.%${q}%,emri.ilike.%${q}%`).limit(30);
+  if (!a || !a.length) return [];
+  a.sort((x, y) => ((y.kodi === q || y.barkodi === q) - (x.kodi === q || x.barkodi === q)) || x.emri.localeCompare(y.emri));
+  const { data: st } = await sb.from('prodata_stoku').select('prodata_artikull_id, magazina, sasia').in('prodata_artikull_id', a.map((x) => x.prodata_id)).neq('sasia', 0);
+  for (const x of a) { x.id = +x.prodata_id; x.stoku = (st || []).filter((s) => s.prodata_artikull_id === x.prodata_id); x.neDepo = +((x.stoku.find((s) => s.magazina === DEPO) || {}).sasia || 0); }
+  return a;
+}
+
+// ---------- Skanimi me kamerë ----------
+let lexuesi = null, kurSkanohet = null;
+async function hapSkanerin(cb) {
+  kurSkanohet = cb; $('scan').style.display = 'flex';
+  try {
+    lexuesi = lexuesi || new ZXing.BrowserMultiFormatReader();
+    await lexuesi.decodeFromVideoDevice(null, 'video', (r) => { if (r) { const t = r.getText(); mbyllSkanerin(); kurSkanohet && kurSkanohet(t); } });
+  } catch (e) { mbyllSkanerin(); alert('Kamera nuk u hap: ' + e.message); }
+}
+function mbyllSkanerin() { try { lexuesi && lexuesi.reset(); } catch {} $('scan').style.display = 'none'; }
+$('scanClose').onclick = mbyllSkanerin;
+
+// ---------- Hyrje / Dalje interne → transfer në Pro-Data ----------
+let lv = { tipi: 'dalje', rreshtat: [] };
+function hapLevizjen(tipi) {
+  lv = { tipi, rreshtat: [], celes: celes() };
+  const IN = tipi === 'hyrje';
+  $('lvTitulli').textContent = IN ? '📥 Hyrje Interne' : '📤 Dalje Interne';
+  $('lvVendiL').textContent = IN ? 'Nga vjen malli' : 'Ku shkon malli';
+  $('lvVendi').innerHTML = magazinat.filter((m) => m.kodi !== DEPO).map((m) => `<option value="${esc(m.kodi)}">${esc(m.kodi)} – ${esc(m.emri)}</option>`).join('');
+  $('lvRegjistro').textContent = IN ? 'Regjistro hyrjen' : 'Regjistro daljen';
+  $('lvRegjistro').style.background = IN ? 'var(--in)' : 'var(--out)';
+  $('lvPersoni').value = ''; $('lvShenim').value = ''; $('lvMsg').className = 'msg'; vizato(); shko('levizje');
+}
+function shto(a) {
+  const ek = lv.rreshtat.find((r) => r.id === a.id);
+  if (ek) ek.sasia += 1; else lv.rreshtat.push({ id: a.id, kodi: a.kodi, emri: a.emri, njesia: a.njesia, neDepo: a.neDepo, sasia: 1 });
+  vizato();
+}
+function vizato() {
+  $('lvBosh').classList.toggle('hidden', lv.rreshtat.length > 0);
+  $('lvRreshtat').innerHTML = '';
+  lv.rreshtat.forEach((r, i) => {
+    const d = document.createElement('div'); d.className = 'item';
+    const mungon = lv.tipi === 'dalje' && r.sasia > r.neDepo;
+    d.innerHTML = `<div><b>${esc(r.kodi)}</b> ${esc(r.emri)}<div class="mute">Në depo: ${fmt(r.neDepo)} ${esc(r.njesia || '')}${mungon ? ' · <span class="pill p-err">më shumë se stoku</span>' : ''}</div></div>
+      <input type="number" min="0" step="any" value="${r.sasia}" inputmode="decimal"><button class="x">✕</button>`;
+    d.querySelector('input').onchange = (e) => { r.sasia = +e.target.value; vizato(); };
+    d.querySelector('.x').onclick = () => { lv.rreshtat.splice(i, 1); vizato(); };
+    $('lvRreshtat').appendChild(d);
+  });
+}
+(() => { let t; const inp = $('lvKerko'), l = $('lvLista');
+  const zgjidh = (a) => { l.classList.add('hidden'); inp.value = ''; shto(a); };
+  inp.oninput = () => { clearTimeout(t); t = setTimeout(async () => {
+    const q = inp.value.trim(); if (q.length < 2) { l.classList.add('hidden'); return; }
+    const a = await kerko(q);
+    if (a.length && a.filter((x) => x.barkodi === q || x.kodi === q).length === 1 && (a[0].barkodi === q || a[0].kodi === q)) return zgjidh(a[0]);
+    l.innerHTML = a.length ? '' : '<div class="mute">Nuk u gjet në Pro-Data</div>';
+    for (const x of a) { const d = document.createElement('div'); d.innerHTML = `<b>${esc(x.kodi)}</b> ${esc(x.emri)}<div class="mute">${esc(x.barkodi || '')} · në depo: ${fmt(x.neDepo)} ${esc(x.njesia || '')}</div>`; d.onclick = () => zgjidh(x); l.appendChild(d); }
+    l.classList.remove('hidden'); }, 300); };
+})();
+$('lvSkano').onclick = () => hapSkanerin(async (kodi) => { const a = await kerko(kodi); const g = a.find((x) => x.barkodi === kodi || x.kodi === kodi); if (g) shto(g); else alert('Barkodi ' + kodi + ' nuk u gjet në Pro-Data.'); });
+document.addEventListener('click', (e) => { if (!e.target.closest('.srch')) $('lvLista').classList.add('hidden'); });
+
+$('lvRegjistro').onclick = async () => {
+  if (!lv.rreshtat.length) return alert('Shto të paktën një artikull.');
+  if (lv.rreshtat.some((r) => !(r.sasia > 0))) return alert('Sasia duhet të jetë më e madhe se 0.');
+  const IN = lv.tipi === 'hyrje', vendi = $('lvVendi').value;
+  const nga = IN ? vendi : DEPO, te = IN ? DEPO : vendi;
+  if (!confirm(`${IN ? 'Hyrje' : 'Dalje'}: ${lv.rreshtat.length} artikuj\n${emriMag(nga)} → ${emriMag(te)}\n\nRegjistrohet në Pro-Data si transfer. Vazhdo?`)) return;
+  const btn = $('lvRegjistro'), m = $('lvMsg'), k = lv.celes; btn.disabled = true;
+  const komenti = [IN ? 'Hyrje interne' : 'Dalje interne', $('lvPersoni').value.trim() && 'Personi: ' + $('lvPersoni').value.trim(), $('lvShenim').value.trim(), 'Depo: ' + (profili.emri || '')].filter(Boolean).join(' · ').slice(0, 100);   // Komenti i transferit në Pro-Data: max 100 shkronja
+  try {
+    const { error } = await sb.from('prodata_komandat').insert({ lloji: 'transfer', celesi_unik: k, krijuar_nga: user.id,
+      payload: { nga, te, komenti, burimi: 'depo', tipi: lv.tipi, personi: $('lvPersoni').value.trim() || null, perdoruesi: profili.emri || null,
+        rreshtat: lv.rreshtat.map((r) => ({ prodata_id: r.id, sasia: r.sasia })) } });
+    if (error && !/duplicate|unique/i.test(error.message)) throw new Error(error.message);
+    m.className = 'msg wait'; m.textContent = '⏳ Po regjistrohet në Pro-Data…';
+    for (let i = 0; i < 120; i++) {
+      await new Promise((r) => setTimeout(r, 2000));
+      const { data: x } = await sb.from('prodata_komandat').select('statusi, rezultati, gabimi').eq('celesi_unik', k).maybeSingle();
+      if (x && x.statusi === 'kryer') { m.className = 'msg ok'; m.innerHTML = `✅ U regjistrua në Pro-Data: <b>${esc(x.rezultati.prodata_nr)}</b>`; lv.rreshtat = []; lv.celes = celes(); vizato(); btn.disabled = false; return; }
+      if (x && x.statusi === 'gabim') { m.className = 'msg err'; m.textContent = '❌ ' + x.gabimi; btn.disabled = false; return; }
+    }
+    m.className = 'msg err'; m.textContent = '⚠️ Ura nuk u përgjigj. Lëvizja mbetet në radhë dhe regjistrohet kur ura të kthehet.';
+  } catch (e) { m.className = 'msg err'; m.textContent = '❌ ' + e.message; }
+  btn.disabled = false;
+};
+
+// ---------- Malli plotë ----------
+async function malli(q) {
+  const tb = $('mTabela');
+  let rreshta = [];
+  if (pastro(q).length >= 2) rreshta = await kerko(q);
+  else {
+    const { data: st } = await sb.from('prodata_stoku').select('prodata_artikull_id, sasia').eq('magazina', DEPO).gt('sasia', 0).order('sasia', { ascending: false }).limit(150);
+    if (st && st.length) {
+      const { data: a } = await sb.from('prodata_artikujt').select('prodata_id, kodi, barkodi, emri, njesia').in('prodata_id', st.map((s) => s.prodata_artikull_id));
+      rreshta = st.map((s) => { const x = (a || []).find((y) => y.prodata_id === s.prodata_artikull_id) || {}; return { ...x, neDepo: +s.sasia, stoku: [] }; });
+    }
+    $('malliSub').textContent = `${rreshta.length}+ artikuj në stok`;
+  }
+  tb.innerHTML = rreshta.map((x) => `<tr><td><b>${esc(x.kodi)}</b> ${esc(x.emri)}<div class="mute">${esc(x.barkodi || '')}</div></td><td class="num"><b>${fmt(x.neDepo)}</b> ${esc(x.njesia || '')}</td>
+    <td class="mute">${(x.stoku || []).filter((s) => s.magazina !== DEPO).map((s) => `${esc(emriMag(s.magazina))}: ${fmt(s.sasia)}`).join('<br>')}</td></tr>`).join('') || '<tr><td colspan="3" class="mute">Asnjë artikull</td></tr>';
+}
+(() => { let t; $('mKerko').oninput = () => { clearTimeout(t); t = setTimeout(() => malli($('mKerko').value), 300); }; })();
+$('mSkano').onclick = () => hapSkanerin((k) => { $('mKerko').value = k; malli(k); });
+
+// ---------- Historiku (transferet nga/te depo) ----------
+async function historiku() {
+  const { data } = await sb.from('prodata_komandat').select('krijuar, statusi, rezultati, gabimi, payload').eq('lloji', 'transfer')
+    .or(`payload->>nga.eq.${DEPO},payload->>te.eq.${DEPO}`).order('krijuar', { ascending: false }).limit(100);
+  const p = { kryer: ['✅ ', 'p-ok'], gabim: ['❌ Gabim', 'p-err'], ne_pritje: ['⏳ Në pritje', 'p-wait'], ne_proces: ['⏳ Në proces', 'p-wait'] };
+  $('hTabela').innerHTML = (data || []).map((x) => { const y = x.payload || {}; const IN = y.te === DEPO; const [t, c] = p[x.statusi] || [x.statusi, ''];
+    return `<tr><td>${ora(x.krijuar)}</td><td>${IN ? '📥' : '📤'} ${esc(emriMag(y.nga))} → ${esc(emriMag(y.te))}<div class="mute">${(y.rreshtat || []).length} artikuj${y.personi ? ' · ' + esc(y.personi) : ''}${y.perdoruesi ? ' · ' + esc(y.perdoruesi) : ''}</div></td>
+      <td><span class="pill ${c}">${t}${x.statusi === 'kryer' ? esc((x.rezultati || {}).prodata_nr) : ''}</span>${x.gabimi ? `<div class="mute">${esc(x.gabimi)}</div>` : ''}</td></tr>`; }).join('') || '<tr><td colspan="3" class="mute">Ende asnjë lëvizje</td></tr>';
+  $('histSub').textContent = `${(data || []).length} lëvizje`;
+}
+</script>
+</body>
+</html>
