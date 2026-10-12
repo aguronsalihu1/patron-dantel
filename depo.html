@@ -98,7 +98,7 @@ table{width:100%;border-collapse:collapse}td,th{padding:9px 6px;border-bottom:1p
   <section id="v-levizje" class="hidden">
     <h2 id="lvTitulli"></h2>
     <div class="card">
-      <div class="row"><div><label id="lvVendiL">Vendi</label><select id="lvVendi"></select></div><div><label>Personi</label><input id="lvPersoni" placeholder="kush e merr / e sjell"></div></div>
+      <div class="row"><div><label id="lvVendiL">Vendi</label><select id="lvVendi"></select></div><div><label id="lvPersoniL">Personi</label><input id="lvPersoni"></div></div>
       <div class="row1"><label>Shënim</label><input id="lvShenim" placeholder="opsionale"></div>
     </div>
     <div class="card">
@@ -124,6 +124,8 @@ table{width:100%;border-collapse:collapse}td,th{padding:9px 6px;border-bottom:1p
   <!-- HISTORIKU -->
   <section id="v-historiku" class="hidden">
     <h2>Historiku</h2>
+    <p class="sub" style="margin:-6px 0 12px">Çfarë ka ndodhur në 7 ditët e fundit</p>
+    <div class="grid" id="hPermbledhja" style="margin-bottom:14px"></div>
     <div class="card"><table><thead><tr><th>Koha</th><th>Lëvizja</th><th>Statusi</th></tr></thead><tbody id="hTabela"></tbody></table></div>
   </section>
 </div>
@@ -217,6 +219,8 @@ function hapLevizjen(tipi) {
   const IN = tipi === 'hyrje';
   $('lvTitulli').textContent = IN ? '📥 Hyrje Interne' : '📤 Dalje Interne';
   $('lvVendiL').textContent = IN ? 'Nga vjen malli' : 'Ku shkon malli';
+  $('lvPersoniL').textContent = IN ? 'Personi, kush e sjell' : 'Personi, kush e merr';
+  $('lvPersoni').placeholder = IN ? 'emri i personit që e sjell' : 'emri i personit që e merr';
   $('lvVendi').innerHTML = magazinat.filter((m) => m.kodi !== DEPO).map((m) => `<option value="${esc(m.kodi)}">${esc(m.kodi)} – ${esc(m.emri)}</option>`).join('');
   $('lvRegjistro').textContent = IN ? 'Regjistro hyrjen' : 'Regjistro daljen';
   $('lvRegjistro').style.background = IN ? 'var(--in)' : 'var(--out)';
@@ -264,7 +268,7 @@ $('lvRegjistro').onclick = async () => {
   try {
     const { error } = await sb.from('prodata_komandat').insert({ lloji: 'transfer', celesi_unik: k, krijuar_nga: user.id,
       payload: { nga, te, komenti, burimi: 'depo', tipi: lv.tipi, personi: $('lvPersoni').value.trim() || null, perdoruesi: profili.emri || null,
-        rreshtat: lv.rreshtat.map((r) => ({ prodata_id: r.id, sasia: r.sasia })) } });
+        rreshtat: lv.rreshtat.map((r) => ({ prodata_id: r.id, sasia: r.sasia, kodi: r.kodi, emri: r.emri, njesia: r.njesia || null })) } });
     if (error && !/duplicate|unique/i.test(error.message)) throw new Error(error.message);
     m.className = 'msg wait'; m.textContent = '⏳ Po regjistrohet në Pro-Data…';
     for (let i = 0; i < 120; i++) {
@@ -299,13 +303,20 @@ $('mSkano').onclick = () => hapSkanerin((k) => { $('mKerko').value = k; malli(k)
 
 // ---------- Historiku (transferet nga/te depo) ----------
 async function historiku() {
+  const prej = new Date(Date.now() - 7 * 864e5).toISOString();   // 7 ditët e fundit
   const { data } = await sb.from('prodata_komandat').select('krijuar, statusi, rezultati, gabimi, payload').eq('lloji', 'transfer')
-    .or(`payload->>nga.eq.${DEPO},payload->>te.eq.${DEPO}`).order('krijuar', { ascending: false }).limit(100);
+    .or(`payload->>nga.eq.${DEPO},payload->>te.eq.${DEPO}`).gte('krijuar', prej).order('krijuar', { ascending: false }).limit(500);
+  const hyrje = (data || []).filter((x) => (x.payload || {}).te === DEPO), dalje = (data || []).filter((x) => (x.payload || {}).nga === DEPO);
+  const sasia = (a) => a.reduce((t, x) => t + ((x.payload || {}).rreshtat || []).reduce((s, r) => s + (+r.sasia || 0), 0), 0);
+  $('hPermbledhja').innerHTML = `<div class="card" style="margin:0;border-left:6px solid var(--in)"><b style="font-size:1.6rem">${hyrje.length}</b><div class="mute">📥 hyrje · ${fmt(sasia(hyrje))} njësi</div></div>
+    <div class="card" style="margin:0;border-left:6px solid var(--out)"><b style="font-size:1.6rem">${dalje.length}</b><div class="mute">📤 dalje · ${fmt(sasia(dalje))} njësi</div></div>`;
   const p = { kryer: ['✅ ', 'p-ok'], gabim: ['❌ Gabim', 'p-err'], ne_pritje: ['⏳ Në pritje', 'p-wait'], ne_proces: ['⏳ Në proces', 'p-wait'] };
   $('hTabela').innerHTML = (data || []).map((x) => { const y = x.payload || {}; const IN = y.te === DEPO; const [t, c] = p[x.statusi] || [x.statusi, ''];
-    return `<tr><td>${ora(x.krijuar)}</td><td>${IN ? '📥' : '📤'} ${esc(emriMag(y.nga))} → ${esc(emriMag(y.te))}<div class="mute">${(y.rreshtat || []).length} artikuj${y.personi ? ' · ' + esc(y.personi) : ''}${y.perdoruesi ? ' · ' + esc(y.perdoruesi) : ''}</div></td>
-      <td><span class="pill ${c}">${t}${x.statusi === 'kryer' ? esc((x.rezultati || {}).prodata_nr) : ''}</span>${x.gabimi ? `<div class="mute">${esc(x.gabimi)}</div>` : ''}</td></tr>`; }).join('') || '<tr><td colspan="3" class="mute">Ende asnjë lëvizje</td></tr>';
-  $('histSub').textContent = `${(data || []).length} lëvizje`;
+    const artikujt = (y.rreshtat || []).map((r) => r.emri ? `${esc(r.kodi)} ${esc(r.emri)} × <b>${fmt(r.sasia)}</b> ${esc(r.njesia || '')}` : `artikulli ${esc(r.prodata_id)} × <b>${fmt(r.sasia)}</b>`).join('<br>');
+    return `<tr><td>${ora(x.krijuar)}</td><td><b>${IN ? '📥 Hyrje' : '📤 Dalje'}</b> · ${esc(emriMag(y.nga))} → ${esc(emriMag(y.te))}
+      <div class="mute">${y.personi ? (IN ? 'Solli: ' : 'Mori: ') + esc(y.personi) + ' · ' : ''}${y.perdoruesi ? 'Regjistroi: ' + esc(y.perdoruesi) : ''}</div><div style="font-size:.9rem;margin-top:4px">${artikujt}</div></td>
+      <td><span class="pill ${c}">${t}${x.statusi === 'kryer' ? esc((x.rezultati || {}).prodata_nr) : ''}</span>${x.gabimi ? `<div class="mute">${esc(x.gabimi)}</div>` : ''}</td></tr>`; }).join('') || '<tr><td colspan="3" class="mute">Asnjë lëvizje në 7 ditët e fundit</td></tr>';
+  $('histSub').textContent = `${(data || []).length} lëvizje (7 ditë)`;
 }
 </script>
 </body>
