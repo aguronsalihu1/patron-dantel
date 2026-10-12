@@ -192,8 +192,11 @@
       <label>Telefoni * <input id="onl-tel" inputmode="tel" autocomplete="off"></label>
       <label>Shteti * <select id="onl-shteti"><option>Kosovë</option><option>Maqedoni e Veriut</option><option>Shqipëri</option><option value="jashte">Jashtë vendit…</option></select></label>
       <label id="onl-shteti-tjeter-l" hidden>Cili shtet? * <input id="onl-shteti-tjeter" placeholder="p.sh. Gjermani"></label>
-      <label>Qyteti * <input id="onl-qyteti" autocomplete="off"></label>
+      <label>Qyteti * <input id="onl-qyteti" autocomplete="off" list="onl-qytetet" placeholder="zgjidh nga lista"></label>
+      <datalist id="onl-qytetet"></datalist>
       <label class="onl-gjere">Adresa * <input id="onl-adresa" autocomplete="off" placeholder="rruga, numri, fshati/lagjja"></label>
+      <label>Madhësia e pakos <select id="onl-pako"><option>S</option><option>M</option><option>L</option><option>XL</option><option>XXL</option></select></label>
+      <label style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="onl-hapet" style="width:auto"> Lejohet hapja e pakos</label>
     </div>
     <div class="udhezim" id="onl-eksport" hidden>🌍 Porosi jashtë Kosovës: regjistrohet në Pro-Data si <b>export</b> (TVSH 0%). Çmimet e shkruara janë çmimet finale.</div>
     <h3>Materialet</h3>
@@ -221,6 +224,8 @@
       <label style="flex:1">Kërko <input id="onl-p-kerko" placeholder="emri, mbiemri, telefoni, kodi, materiali, qyteti, nr…" autocomplete="off" style="width:100%"></label>
       <label>Periudha <select id="onl-p-periudha"><option value="sot">Sot</option><option value="dje">Dje</option><option value="7" selected>7 ditët e fundit</option><option value="muaj">Ky muaj</option></select></label>
     </div>
+    <div class="butona"><button class="kryesor" id="onl-p-excel" style="background:#c0392b">⬇ Excel për Telposta</button>
+      <span class="zbehte">Nxjerr porositë e listës që s'janë nxjerrë më parë → ngarkoje te app.tel-post.com/import</span></div>
     <div class="karta" id="onl-p-permb"></div>
     <div id="onl-p-lista"></div>
   </section>
@@ -780,6 +785,32 @@ document.querySelectorAll('[data-shko]').forEach((b) => b.onclick = () => hapFaq
 let onl = { rreshtat: [] };
 const onlEksport = () => $('onl-shteti').value !== 'Kosovë';
 const onlShteti = () => ($('onl-shteti').value === 'jashte' ? $('onl-shteti-tjeter').value.trim() : $('onl-shteti').value);
+// Qytetet e Tel-Post (fleta "Lists" e modelit të importit): qyteti jashtë listës e prish importin
+const TP_QYTETET = {
+  KS: 'Deçan,Dragash,Drenas,Ferizaj,Fushë Kosovë,Gjakovë,Gjilan,Graçanicë,Hani i Elezit,Istog,Junik,Kaçanik,Kamenicë,Klinë,Kllokot,Lipjan,Malishevë,Mamushë,Mitrovicë,Novobërdë,Obiliq,Partesh,Pejë,Podujevë,Prishtinë,Prizren,Rahovec,Ranillug,Shtërpcë,Shtime,Skënderaj,Suharekë,Viti,Vushtrri',
+  AL: 'Tirane,Durres,Elbasan,Korce,Lushnje,Fier,Berat,Shkoder,Vlore,Gjirokaster,Sarande,Tepelene,Kavaje,Pogradec,Kruje,Kuçove,Kukes,Lezhe,Librazhd,Permet,Erseke,Burrel,Divjake,Tropoje,Belsh,Bulqizë,Cerrik,Delvine,Devoll,Diber,Dropull,Finiq,FuArr,Gramsh,Has,Himarë,Kelcyre,Klos,Kolonje,Konispol,Kurbin,Libohove,Malesi e Madhe,Maliq,Mallakaster,Mat,Mirdite,Patos,Peqin,Polican,Perrenjas,Pustec,Roskovec,Rrogozhine,Selenice,Shijak,Skrapar,Ura Vajgurore,Vorë,PeT,Periferi Durres,Bajram Curri,Ballsh,Bilisht,Borsh,Çorovode,Fushe-Kruje,Kamez,Kerrabe,Koplik,Kraste,Krume,Ksamil,Leskovik,Mamurras,Memaliaj,Milot,Orikum,Peshkopi,Peze,Puke,Rreshen,Rubik,Shengjin,Shtermeni,Vaqarr,Sukth,Cakran,Lac',
+  MK: 'Skopje,Kumanovo,Tetovo,Debar,Delcevo,Demir Kapija,Demir Hisar,Gevgelija,Gostivar,Kavadarci,Kicevo,Kocani,Kratovo,Kriva Palanka,Krusevo,Bitola,Makedonski Brod,Makedonska Kamenica,Negotino,Ohrid,Pehcevo,Prilep,Probistip,Radovis,Resen,Sveti Nikole,Berovo,Struga,Strumica,Stip,Bogdanci,Valandovo,Veles,Vinica,Dojran,Gradsko,Rosoman,Krivogastani',
+};
+for (const k in TP_QYTETET) TP_QYTETET[k] = TP_QYTETET[k].split(',');
+const TP_SHTETI = { 'Kosovë': 'KS', 'Shqipëri': 'AL', 'Maqedoni e Veriut': 'MK' };
+const TP_ALIAS = { shkup: 'Skopje', shkodra: 'Shkoder', ohri: 'Ohrid', manastir: 'Bitola', kercov: 'Kicevo', strumic: 'Strumica', 'fushe arrez': 'FuArr', vitia: 'Viti', 'kosove fushe': 'Fushë Kosovë' };
+const tpNorm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z]+/g, ' ').trim();
+const tpRrenja = (s) => tpNorm(s).replace(/[aeiou]$/, '');
+function tpQyteti(emri, kodi) {   // → { emri, kodi } sipas listës së Tel-Post, ose null
+  const r = tpRrenja(emri); if (!r) return null;
+  const alias = TP_ALIAS[tpNorm(emri)] || TP_ALIAS[r];
+  for (const k of kodi ? [kodi] : Object.keys(TP_QYTETET)) {
+    const q = TP_QYTETET[k].find((x) => x === alias || tpNorm(x) === tpNorm(emri) || tpRrenja(x) === r);
+    if (q) return { emri: q, kodi: k };
+  }
+  return null;
+}
+function onlQytetetLista() {
+  const k = TP_SHTETI[$('onl-shteti').value];
+  $('onl-qytetet').innerHTML = (k ? TP_QYTETET[k] : []).slice().sort((a, b) => a.localeCompare(b, 'sq')).map((q) => `<option value="${esc(q)}">`).join('');
+}
+$('onl-qyteti').onchange = () => { const q = tpQyteti($('onl-qyteti').value, TP_SHTETI[$('onl-shteti').value]); if (q) $('onl-qyteti').value = q.emri; };
+onlQytetetLista();
 const NGJYRAT = ['e zeze', 'e bardhe', 'e kuqe', 'e verdhe', 'e gjelber', 'roze', 'blu', 'gold', 'silver', 'nude', 'krem', 'bezhe', 'kafe', 'gri', 'vjollce', 'portokalli',
   'black', 'white', 'red', 'pink', 'blue', 'royalblue', 'navy', 'green', 'beige', 'ivory', 'cream', 'champagne', 'purple', 'lilac', 'grey', 'gray', 'brown', 'babypink', 'fuschia', 'fuchsia', 'burgundy', 'emerald', 'mint', 'peach', 'coral', 'olive'];
 function ngjyraNgaEmri(emri) {   // Pro-Data s'ka fushë për ngjyrën: provohet nga emri ("Korpa me mbushje e zeze" → e zeze)
@@ -790,6 +821,7 @@ setInterval(() => { if ($('onl-ora')) $('onl-ora').textContent = new Date().toLo
 $('onl-shteti').onchange = () => {
   $('onl-shteti-tjeter-l').hidden = $('onl-shteti').value !== 'jashte';
   $('onl-eksport').hidden = !onlEksport();
+  onlQytetetLista();
   $('onl-cmimi-th').textContent = onlEksport() ? 'Çmimi € (pa TVSH)' : 'Çmimi € (me TVSH)';
   for (const r of onl.rreshtat) r.cmimi = onlEksport() ? Math.round(r.cmimiListe / 1.18 * 100) / 100 : r.cmimiListe;
   onlVizato();
@@ -823,6 +855,12 @@ function onlKontrollo() {
   const mungon = [['onl-emri', 'emri'], ['onl-mbiemri', 'mbiemri'], ['onl-tel', 'telefoni'], ['onl-qyteti', 'qyteti'], ['onl-adresa', 'adresa']].filter(([id]) => !$(id).value.trim()).map(([, n]) => n);
   if (!onlShteti()) mungon.push('shteti');
   if (mungon.length) { alert('Plotëso: ' + mungon.join(', ') + '.'); return false; }
+  const kodiSh = TP_SHTETI[$('onl-shteti').value];
+  if (kodiSh) {
+    const q = tpQyteti($('onl-qyteti').value, kodiSh);
+    if (!q) { alert(`Qyteti "${$('onl-qyteti').value.trim()}" nuk është në listën e Telpostës për ${$('onl-shteti').value}.\nZgjidhe qytetin nga lista; fshatin/lagjen shkruaje te adresa.`); $('onl-qyteti').focus(); return false; }
+    $('onl-qyteti').value = q.emri;
+  }
   if (!onl.rreshtat.length) { alert('Shto të paktën një material.'); return false; }
   if (onl.rreshtat.some((r) => !(r.sasia > 0))) { alert('Sasia duhet të jetë më e madhe se 0.'); return false; }
   return true;
@@ -832,11 +870,13 @@ function onlTeDhenat() {
     klienti_emri: $('onl-emri').value.trim(), klienti_mbiemri: $('onl-mbiemri').value.trim(), klienti_telefoni: $('onl-tel').value.trim(),
     adresa: $('onl-adresa').value.trim(), qyteti: $('onl-qyteti').value.trim(), shteti: onlShteti(), eksport: onlEksport(),
     shenim: $('onl-shenim').value.trim() || null, statusi: 'ne_arke', statusi_dergeses: 'regjistruar',
+    pako_madhesia: $('onl-pako').value, pako_hapet: $('onl-hapet').checked,
     rreshtat: onl.rreshtat.map((r) => ({ prodata_id: r.id, kodi: r.kodi, emri: r.emri, barkodi: r.barkodi, njesia: r.njesia, ngjyra: r.ngjyra || null, sasia: r.sasia, cmimi: Math.round(r.cmimi * 100) / 100 })),
     totali: Math.round(onl.rreshtat.reduce((s, r) => s + r.sasia * r.cmimi, 0) * 100) / 100 };
 }
 function onlPastro() {
   onl = { rreshtat: [] }; for (const id of ['onl-emri', 'onl-mbiemri', 'onl-tel', 'onl-qyteti', 'onl-adresa', 'onl-shenim', 'onl-shteti-tjeter']) $(id).value = '';
+  $('onl-pako').value = 'S'; $('onl-hapet').checked = false;
   $('onl-shteti').value = 'Kosovë'; $('onl-shteti').onchange(); $('onl-mesazh').className = 'mesazh'; onlVizato();
 }
 $('onl-pastro').onclick = () => { if (!onl.rreshtat.length || confirm('Ta pastroj porosinë?')) onlPastro(); };
@@ -899,7 +939,7 @@ NGARKUESIT.onl_home = async () => {
 
 // --- Porositë online: lista me kërkim dhe gjendjen e dërgesës ---
 const ONL_STATUSET = [['te_gjitha', 'Të gjitha'], ['regjistruar', '🆕 Të regjistruara'], ['gati', '📦 U bë gati'], ['marre_nga_posta', '🚚 U mor nga posta']];
-let onlP = [], onlPStatusi = 'te_gjitha';
+let onlP = [], onlPStatusi = 'te_gjitha', onlPShfaqur = [];
 $('onl-p-statusi').innerHTML = ONL_STATUSET.map(([k, t]) => `<button data-k="${k}" class="${k === onlPStatusi ? 'on' : ''}">${t}</button>`).join('');
 document.querySelectorAll('#onl-p-statusi button').forEach((b) => b.onclick = () => { onlPStatusi = b.dataset.k; document.querySelectorAll('#onl-p-statusi button').forEach((x) => x.classList.toggle('on', x === b)); onlPVizato(); });
 (() => { let t; $('onl-p-kerko').oninput = () => { clearTimeout(t); t = setTimeout(onlPVizato, 200); }; })();
@@ -916,6 +956,7 @@ function onlPVizato() {
   const rr = onlP.filter((f) => onlPStatusi === 'te_gjitha' || (f.statusi_dergeses || 'regjistruar') === onlPStatusi)
     .filter((f) => !q || [f.nr, f.porosia_nr, f.klienti_emri, f.klienti_mbiemri, f.klienti_telefoni, f.qyteti, f.shteti, f.adresa, f.posta_nr, f.shitesja_emri,
       ...(f.rreshtat || []).flatMap((r) => [r.kodi, r.emri, r.ngjyra, r.barkodi])].some((v) => String(v || '').toLowerCase().includes(q)));
+  onlPShfaqur = rr;
   const nr = (s) => onlP.filter((f) => (f.statusi_dergeses || 'regjistruar') === s).length;
   $('onl-p-permb').innerHTML = `<div class="karte"><div class="tit">🆕 Të regjistruara</div><div class="vl">${nr('regjistruar')}</div></div>
     <div class="karte"><div class="tit">📦 Gati</div><div class="vl">${nr('gati')}</div></div>
@@ -924,7 +965,7 @@ function onlPVizato() {
   const shenjaD = { regjistruar: ['🆕 E regjistruar', 's-hapur'], gati: ['📦 Gati', 's-pritje'], marre_nga_posta: ['🚚 Marrë nga posta', 's-ok'] };
   $('onl-p-lista').innerHTML = rr.map((f) => { const [t, c] = shenjaD[f.statusi_dergeses || 'regjistruar'];
     return `<div class="onl-porosi" data-id="${f.id}"><div class="krye"><div><b>#${f.nr}</b> · ${oraKS(f.krijuar)} · <b>${esc(emriPlote(f))}</b> · ${esc(f.klienti_telefoni || '')}
-        <div class="zbehte">${esc([f.adresa, f.qyteti, f.shteti].filter(Boolean).join(', '))}${f.eksport ? ' · 🌍 export' : ''} · Shitësja: ${esc(f.shitesja_emri || '')}${f.porosia_nr ? ' · Pro-Data: ' + esc(f.porosia_nr) : ' · ⏳ pa nr. Pro-Data'}${f.posta_nr ? ' · Posta: ' + esc(f.posta_nr) : ''}</div></div>
+        <div class="zbehte">${esc([f.adresa, f.qyteti, f.shteti].filter(Boolean).join(', '))}${f.eksport ? ' · 🌍 export' : ''} · Shitësja: ${esc(f.shitesja_emri || '')}${f.porosia_nr ? ' · Pro-Data: ' + esc(f.porosia_nr) : ' · ⏳ pa nr. Pro-Data'}${f.posta_nr ? ' · Posta: ' + esc(f.posta_nr) : ''}${f.telposta_excel ? ' · 📄 në Excel ' + oraKS(f.telposta_excel) : ''}</div></div>
         <div><span class="shenje ${c}">${t}</span> <b>${eur(f.totali)} €</b></div></div>
       <div class="art">${(f.rreshtat || []).map((r) => `${esc(r.kodi)} ${esc(r.emri)}${r.ngjyra ? ' · ' + esc(r.ngjyra) : ''} × <b>${r.sasia}</b> ${esc(r.njesia || '')}`).join('<br>')}</div>
       <div class="butona" style="margin-top:6px">
@@ -942,6 +983,54 @@ function onlPVizato() {
     el.querySelector('.op-telposta').onclick = () => kopjoTelposta(f);
   });
 }
+
+// --- Excel për importin e Tel-Post (app.tel-post.com/import), sipas modelit të tyre "Template.xlsx" ---
+const TP_KOKA = ['Nr.', 'Kodi', 'Ref.Id', 'Emri i blerësit', 'Nr. telefonit 1', 'Nr. telefonit 2', 'Adresa', 'Qyteti', 'Shteti', 'Emërtimi i pakos',
+  'Përshkrimi i pakos', 'Vlera e pakos', 'Madhësia e pakos', 'Thyhet', 'Hapet', 'Ndrrim', 'Koment'];
+// rreshti 2 i fshehur i modelit: lidh kolonat me fushat e Tel-Post (mos e ndrysho)
+const TP_LIDHJA = ['', 'Col0', 'Col9', 'Col1', 'Col5', 'Col6', 'Col4', 'Col3', 'Col2', 'Col7', 'Col8', 'Col14', 'Col13', 'Col10', 'Col11', 'Col12', 'Col16'];
+let ngarkimiXLSX;
+const ngarkoXLSX = () => ngarkimiXLSX ||= new Promise((ok, gab) => {
+  const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  s.onload = ok; s.onerror = () => { ngarkimiXLSX = null; gab(new Error('Nuk u ngarkua biblioteka e Excel-it (interneti?)')); }; document.head.appendChild(s);
+});
+const tpPorosia = (f) => (TP_SHTETI[f.shteti] ? tpQyteti(f.qyteti, TP_SHTETI[f.shteti]) : null);
+const shkurto = (s, n) => (s.length > n ? s.slice(0, n - 1) + '…' : s);
+function tpRreshti(f, i) {
+  const q = tpPorosia(f);
+  const rr = f.rreshtat || [];
+  const emertimi = rr.length ? shkurto(rr[0].emri + (rr.length > 1 ? ` +${rr.length - 1}` : ''), 60) : 'Material tekstili';
+  const pershkrimi = shkurto(rr.map((r) => `${r.kodi} ${r.emri}${r.ngjyra ? ' ' + r.ngjyra : ''} x${r.sasia}${r.njesia ? ' ' + r.njesia : ''}`).join('; '), 250);
+  return [i + 1, '', String(f.nr), emriPlote(f), String(f.klienti_telefoni || ''), '', f.adresa || '', q.emri, q.kodi, emertimi, pershkrimi,
+    Math.round(+f.totali || 0), f.pako_madhesia || 'S', '', f.pako_hapet ? 'X' : '', '', f.shenim || ''];
+}
+$('onl-p-excel').onclick = async () => {
+  let lista = onlPShfaqur.filter((f) => !f.telposta_excel);
+  if (!lista.length) {
+    if (!onlPShfaqur.length) return alert('Asnjë porosi në listë.');
+    if (!confirm(`Të gjitha ${onlPShfaqur.length} porositë e listës janë nxjerrë më parë në Excel. T'i nxjerr prapë?`)) return;
+    lista = onlPShfaqur.slice();
+  }
+  const pa = lista.filter((f) => !tpPorosia(f));
+  lista = lista.filter((f) => !pa.includes(f));
+  if (pa.length) alert(`${pa.length} porosi nuk hyjnë në Excel (shteti/qyteti jashtë listës së Telpostës):\n` + pa.map((f) => `#${f.nr} ${emriPlote(f)} · ${f.qyteti}, ${f.shteti}`).join('\n') + '\nKëto regjistroji me dorë te Telposta.');
+  if (!lista.length) return;
+  const btn = $('onl-p-excel'); btn.disabled = true;
+  try {
+    await ngarkoXLSX();
+    const ws = XLSX.utils.aoa_to_sheet([TP_KOKA, TP_LIDHJA, ...lista.map(tpRreshti)]);
+    ws['!rows'] = [{ hpt: 24 }, { hidden: true }];
+    ws['!cols'] = [7, 12, 14, 24, 18, 18, 32, 22, 8, 24, 32, 13, 15, 10, 10, 10, 28].map((w) => ({ wch: w }));
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+    const koha = new Date().toLocaleString('sv-SE', { timeZone: 'Europe/Belgrade' }).slice(0, 16).replace(' ', '_').replace(':', '');
+    XLSX.writeFile(wb, `Telposta_${koha}.xlsx`);
+    const { error } = await sb.from('app_faturat').update({ telposta_excel: new Date().toISOString() }).in('id', lista.map((f) => f.id));
+    if (error) alert('Excel-i u krijua, por shënimi "në Excel" nuk u ruajt: ' + error.message);
+    alert(`✅ U nxor Excel-i me ${lista.length} porosi.\nHap app.tel-post.com/import → zgjidh file-in → kontrollo rreshtat → Ruaj.`);
+    NGARKUESIT.onl_porosite();
+  } catch (e) { alert('❌ ' + e.message); }
+  btn.disabled = false;
+};
 
 // ---------- Periudhat ----------
 function periudha(v) {
