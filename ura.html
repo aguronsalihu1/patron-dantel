@@ -80,6 +80,15 @@
   .plus { color:var(--ok); font-weight:700; } .minus { color:var(--gabim); font-weight:700; }
   #dk-skaneri { position:fixed; inset:0; background:#000; z-index:50; display:none; flex-direction:column; }
   #dk-skaneri video { flex:1; width:100%; object-fit:cover; } .dk-skaneri-bar { display:flex; justify-content:space-between; align-items:center; padding:12px; color:#fff; }
+  .onl-butonat { display:flex; flex-direction:column; gap:16px; max-width:520px; margin:10px auto; }
+  .onl-buton { border:0; border-radius:22px; padding:26px 22px; color:#fff; font:inherit; font-size:2rem; cursor:pointer; text-align:left; display:flex; flex-direction:column; box-shadow:0 6px 0 rgba(0,0,0,.18); }
+  .onl-buton b { font-size:1.7rem; margin-top:4px; } .onl-buton small { font-size:1rem; opacity:.9; }
+  .onl-buton:active { transform:translateY(4px); box-shadow:0 2px 0 rgba(0,0,0,.18); }
+  .onl-forma { display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:10px 12px; margin-bottom:10px; }
+  .onl-forma input, .onl-forma select { width:100%; } .onl-gjere { grid-column:1 / -1; }
+  .onl-porosi { border:1px solid var(--vije); border-radius:12px; padding:12px 14px; margin-bottom:10px; background:#fff; }
+  .onl-porosi .krye { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .onl-porosi .art { font-size:14px; margin:6px 0; }
   #printimi { display:none; }
   @media print {
     body * { visibility:hidden; } #printimi, #printimi * { visibility:visible; }
@@ -162,6 +171,58 @@
     </div>
     <div class="mesazh" id="sh-mesazh"></div>
     <div class="barkodi" id="sh-barkodi" hidden></div>
+  </section>
+
+  <!-- ===== SHITJA ONLINE: KRYEFAQJA (3 butona) ===== -->
+  <section class="faqe" id="f-onl_home">
+    <div class="onl-butonat">
+      <button class="onl-buton" data-shko="onl_shitje" style="background:#7A2A78">🛒<b>Shitje</b><small>Porosi e re online</small></button>
+      <button class="onl-buton" data-shko="onl_porosite" style="background:#2c5fd6">📦<b>Porositë</b><small id="onl-home-nr">Porositë e regjistruara</small></button>
+      <button class="onl-buton" data-shko="llogaria" style="background:#1f8a5b">👤<b>Llogaria ime</b><small>Puna ime sot</small></button>
+    </div>
+  </section>
+
+  <!-- ===== SHITJA ONLINE: POROSI E RE ===== -->
+  <section class="faqe" id="f-onl_shitje">
+    <div class="rresht" style="justify-content:space-between"><h2 style="margin:0">🛒 Porosi online</h2><span class="zbehte" id="onl-ora"></span></div>
+    <h3>Klienti</h3>
+    <div class="onl-forma">
+      <label>Emri * <input id="onl-emri" autocomplete="off"></label>
+      <label>Mbiemri * <input id="onl-mbiemri" autocomplete="off"></label>
+      <label>Telefoni * <input id="onl-tel" inputmode="tel" autocomplete="off"></label>
+      <label>Shteti * <select id="onl-shteti"><option>Kosovë</option><option>Maqedoni e Veriut</option><option>Shqipëri</option><option value="jashte">Jashtë vendit…</option></select></label>
+      <label id="onl-shteti-tjeter-l" hidden>Cili shtet? * <input id="onl-shteti-tjeter" placeholder="p.sh. Gjermani"></label>
+      <label>Qyteti * <input id="onl-qyteti" autocomplete="off"></label>
+      <label class="onl-gjere">Adresa * <input id="onl-adresa" autocomplete="off" placeholder="rruga, numri, fshati/lagjja"></label>
+    </div>
+    <div class="udhezim" id="onl-eksport" hidden>🌍 Porosi jashtë Kosovës: regjistrohet në Pro-Data si <b>export</b> (TVSH 0%). Çmimet e shkruara janë çmimet finale.</div>
+    <h3>Materialet</h3>
+    <div class="rresht kerkimi">
+      <label>Shto material (kodi, barkodi ose emri) <input id="onl-kerko" placeholder="kërko ose skano…" autocomplete="off" style="width:min(420px, 72vw)"></label>
+      <div class="lista" id="onl-lista" hidden></div>
+    </div>
+    <div class="tabela"><table><thead><tr><th>Kodi</th><th>Materiali</th><th>Ngjyra</th><th class="num">Sasia</th><th class="num" id="onl-cmimi-th">Çmimi €</th><th class="num">Vlera €</th><th></th></tr></thead><tbody id="onl-rreshtat"></tbody></table></div>
+    <div class="rresht"><label style="flex:1">Shënim <input id="onl-shenim" style="width:100%" placeholder="p.sh. pagesa në dorëzim, orari i dërgesës"></label></div>
+    <div class="totali">Totali: <span id="onl-totali">0.00</span> €</div>
+    <div class="butona">
+      <button class="kryesor" id="onl-regjistro">✅ Regjistro si shitje</button>
+      <button class="dyte" id="onl-print">🖨️ Print</button>
+      <button class="dyte" id="onl-telposta">📮 Kopjo për Telposta</button>
+      <button class="rrezik" id="onl-pastro">Pastro</button>
+    </div>
+    <div class="mesazh" id="onl-mesazh"></div>
+  </section>
+
+  <!-- ===== SHITJA ONLINE: POROSITË ===== -->
+  <section class="faqe" id="f-onl_porosite">
+    <h2>📦 Porositë online</h2>
+    <div class="chips" id="onl-p-statusi"></div>
+    <div class="rresht" style="margin-top:10px">
+      <label style="flex:1">Kërko <input id="onl-p-kerko" placeholder="emri, mbiemri, telefoni, kodi, materiali, qyteti, nr…" autocomplete="off" style="width:100%"></label>
+      <label>Periudha <select id="onl-p-periudha"><option value="sot">Sot</option><option value="dje">Dje</option><option value="7" selected>7 ditët e fundit</option><option value="muaj">Ky muaj</option></select></label>
+    </div>
+    <div class="karta" id="onl-p-permb"></div>
+    <div id="onl-p-lista"></div>
   </section>
 
   <!-- ===== ARKA ===== -->
@@ -350,12 +411,12 @@ let profili = null, magazinat = [], perdoruesi = null;
 
 // ---------- Rolet dhe menytë ----------
 const MENYTE = {
-  admin: [['paneli', '📊 Paneli'], ['arka', '🧾 Arka'], ['shitjet', '🛒 Shitjet'], ['blerjet', '📦 Blerjet'], ['depo', '🏭 Depo'], ['pagesat', '💶 Arka dhe pagesat'],
+  admin: [['paneli', '📊 Paneli'], ['arka', '🧾 Arka'], ['shitjet', '🛒 Shitjet'], ['onl_porosite', '📦 Porositë online'], ['blerjet', '📦 Blerjet'], ['depo', '🏭 Depo'], ['pagesat', '💶 Arka dhe pagesat'],
           ['stafi', '👷 Burime njerëzore'], ['partneret', '🤝 Partnerët'], ['kontabiliteti', '📒 Kontabiliteti'], ['admin', '⚙️ Administrimi'], ['shitje', '➕ Faturë'], ['regjistrim', '📝 Regjistrim'], ['transfer', '🔁 Transfer']],
   depo: [['depo', '🏭 Depo']],
-  arka: [['arka', '🧾 Arka'], ['shitjet', '🛒 Shitjet'], ['blerjet', '📦 Blerjet'], ['depo', '🏭 Depo'], ['pagesat', '💶 Arka dhe pagesat'], ['stafi', '👷 Burime njerëzore'],
+  arka: [['arka', '🧾 Arka'], ['shitjet', '🛒 Shitjet'], ['onl_porosite', '📦 Porositë online'], ['blerjet', '📦 Blerjet'], ['depo', '🏭 Depo'], ['pagesat', '💶 Arka dhe pagesat'], ['stafi', '👷 Burime njerëzore'],
          ['partneret', '🤝 Partnerët'], ['kontabiliteti', '📒 Kontabiliteti'], ['admin', '⚙️ Administrimi'], ['shitje', '➕ Faturë'], ['regjistrim', '📝 Regjistrim'], ['transfer', '🔁 Transfer']],
-  shitese_online: [['shitje', '🛒 Shitje'], ['regjistrim', '📝 Regjistrim'], ['llogaria', '👤 Llogaria ime']],
+  shitese_online: [['onl_home', '🏠 Kryefaqja'], ['onl_shitje', '🛒 Shitje'], ['onl_porosite', '📦 Porositë'], ['llogaria', '👤 Llogaria ime']],
   shitese_fizike: [['shitje', '🛒 Shitje'], ['regjistrim', '📝 Regjistrim'], ['llogaria', '👤 Llogaria ime']],
 };
 const NEN_REGJISTRIM = { shitese_online: ['hyrje', 'dalje'], shitese_fizike: ['hyrje', 'dalje', 'shpenzim'], arka: ['hyrje', 'dalje', 'shpenzim'], admin: ['hyrje', 'dalje', 'shpenzim'] };
@@ -713,6 +774,174 @@ $('tr-dergo').onclick = async () => {
   } catch (e) { m.className = 'mesazh gabim'; m.textContent = '❌ ' + e.message; }
   btn.disabled = false;
 };
+
+// ================= SHITJA ONLINE (shitëset online: shitje direkte, pa arkë) =================
+document.querySelectorAll('[data-shko]').forEach((b) => b.onclick = () => hapFaqen(b.dataset.shko));
+let onl = { rreshtat: [] };
+const onlEksport = () => $('onl-shteti').value !== 'Kosovë';
+const onlShteti = () => ($('onl-shteti').value === 'jashte' ? $('onl-shteti-tjeter').value.trim() : $('onl-shteti').value);
+const NGJYRAT = ['e zeze', 'e bardhe', 'e kuqe', 'e verdhe', 'e gjelber', 'roze', 'blu', 'gold', 'silver', 'nude', 'krem', 'bezhe', 'kafe', 'gri', 'vjollce', 'portokalli',
+  'black', 'white', 'red', 'pink', 'blue', 'royalblue', 'navy', 'green', 'beige', 'ivory', 'cream', 'champagne', 'purple', 'lilac', 'grey', 'gray', 'brown', 'babypink', 'fuschia', 'fuchsia', 'burgundy', 'emerald', 'mint', 'peach', 'coral', 'olive'];
+function ngjyraNgaEmri(emri) {   // Pro-Data s'ka fushë për ngjyrën: provohet nga emri ("Korpa me mbushje e zeze" → e zeze)
+  const e = String(emri || '').toLowerCase().replace(/ë/g, 'e').replace(/ç/g, 'c');
+  return NGJYRAT.filter((n) => new RegExp(`(^|\\s)${n}(\\s|$)`).test(e)).sort((a, b) => b.length - a.length)[0] || '';
+}
+setInterval(() => { if ($('onl-ora')) $('onl-ora').textContent = new Date().toLocaleString('sq-AL', { timeZone: 'Europe/Belgrade', dateStyle: 'medium', timeStyle: 'short' }); }, 1000);
+$('onl-shteti').onchange = () => {
+  $('onl-shteti-tjeter-l').hidden = $('onl-shteti').value !== 'jashte';
+  $('onl-eksport').hidden = !onlEksport();
+  $('onl-cmimi-th').textContent = onlEksport() ? 'Çmimi € (pa TVSH)' : 'Çmimi € (me TVSH)';
+  for (const r of onl.rreshtat) r.cmimi = onlEksport() ? Math.round(r.cmimiListe / 1.18 * 100) / 100 : r.cmimiListe;
+  onlVizato();
+};
+function onlVizato() {
+  const tb = $('onl-rreshtat'); tb.innerHTML = ''; let tot = 0;
+  onl.rreshtat.forEach((r, i) => {
+    const v = r.sasia * r.cmimi; tot += v;
+    const t = document.createElement('tr');
+    t.innerHTML = `<td><b>${esc(r.kodi)}</b><br><span class="zbehte">${esc(r.barkodi || '')}</span></td><td>${esc(r.emri)}</td>
+      <td><input class="ngj" value="${esc(r.ngjyra)}" placeholder="ngjyra" style="width:110px;min-width:0"></td>
+      <td class="num"><input class="sasi" type="number" min="0" step="any" value="${r.sasia}"> <span class="zbehte">${esc(r.njesia || '')}</span></td>
+      <td class="num"><input class="cmim" type="number" min="0" step="0.01" value="${eur(r.cmimi)}"></td><td class="num">${eur(v)}</td><td><button class="heq">✕</button></td>`;
+    t.querySelector('.ngj').onchange = (e) => { r.ngjyra = e.target.value.trim(); };
+    t.querySelector('.sasi').onchange = (e) => { r.sasia = +e.target.value; onlVizato(); };
+    t.querySelector('.cmim').onchange = (e) => { r.cmimi = +e.target.value; onlVizato(); };
+    t.querySelector('.heq').onclick = () => { onl.rreshtat.splice(i, 1); onlVizato(); };
+    tb.appendChild(t);
+  });
+  if (!onl.rreshtat.length) tb.innerHTML = '<tr><td colspan="7" class="zbehte">Ende asnjë material. Kërko me kod, barkod ose emër.</td></tr>';
+  $('onl-totali').textContent = eur(tot);
+}
+kerkimArtikujsh('onl-kerko', 'onl-lista', (a) => {
+  const ek = onl.rreshtat.find((r) => r.id === a.id);
+  if (ek) ek.sasia += 1;
+  else onl.rreshtat.push({ id: a.id, kodi: a.kodi, emri: a.emri, barkodi: a.barkodi, njesia: a.njesia, ngjyra: ngjyraNgaEmri(a.emri), sasia: 1,
+    cmimiListe: a.cmimi, cmimi: onlEksport() ? Math.round(a.cmimi / 1.18 * 100) / 100 : a.cmimi });
+  onlVizato();
+});
+function onlKontrollo() {
+  const mungon = [['onl-emri', 'emri'], ['onl-mbiemri', 'mbiemri'], ['onl-tel', 'telefoni'], ['onl-qyteti', 'qyteti'], ['onl-adresa', 'adresa']].filter(([id]) => !$(id).value.trim()).map(([, n]) => n);
+  if (!onlShteti()) mungon.push('shteti');
+  if (mungon.length) { alert('Plotëso: ' + mungon.join(', ') + '.'); return false; }
+  if (!onl.rreshtat.length) { alert('Shto të paktën një material.'); return false; }
+  if (onl.rreshtat.some((r) => !(r.sasia > 0))) { alert('Sasia duhet të jetë më e madhe se 0.'); return false; }
+  return true;
+}
+function onlTeDhenat() {
+  return { shitesja_id: perdoruesi.id, shitesja_emri: profili.emri || null, kanali: 'online', magazina: '005', klienti_kodi: '13850',
+    klienti_emri: $('onl-emri').value.trim(), klienti_mbiemri: $('onl-mbiemri').value.trim(), klienti_telefoni: $('onl-tel').value.trim(),
+    adresa: $('onl-adresa').value.trim(), qyteti: $('onl-qyteti').value.trim(), shteti: onlShteti(), eksport: onlEksport(),
+    shenim: $('onl-shenim').value.trim() || null, statusi: 'ne_arke', statusi_dergeses: 'regjistruar',
+    rreshtat: onl.rreshtat.map((r) => ({ prodata_id: r.id, kodi: r.kodi, emri: r.emri, barkodi: r.barkodi, njesia: r.njesia, ngjyra: r.ngjyra || null, sasia: r.sasia, cmimi: Math.round(r.cmimi * 100) / 100 })),
+    totali: Math.round(onl.rreshtat.reduce((s, r) => s + r.sasia * r.cmimi, 0) * 100) / 100 };
+}
+function onlPastro() {
+  onl = { rreshtat: [] }; for (const id of ['onl-emri', 'onl-mbiemri', 'onl-tel', 'onl-qyteti', 'onl-adresa', 'onl-shenim', 'onl-shteti-tjeter']) $(id).value = '';
+  $('onl-shteti').value = 'Kosovë'; $('onl-shteti').onchange(); $('onl-mesazh').className = 'mesazh'; onlVizato();
+}
+$('onl-pastro').onclick = () => { if (!onl.rreshtat.length || confirm('Ta pastroj porosinë?')) onlPastro(); };
+const emriPlote = (f) => `${f.klienti_emri || ''} ${f.klienti_mbiemri || ''}`.trim();
+function textiTelposta(f) {
+  return [`Marrësi: ${emriPlote(f)}`, `Tel: ${f.klienti_telefoni || ''}`, `Adresa: ${f.adresa || ''}`, `Qyteti: ${f.qyteti || ''}`, `Shteti: ${f.shteti || ''}`,
+    `Porosia: ${f.nr}${f.porosia_nr ? ' / ' + f.porosia_nr : ''}`, `Vlera: ${eur(f.totali)} €`, f.shenim ? `Shënim: ${f.shenim}` : ''].filter(Boolean).join('\n');
+}
+async function kopjoTelposta(f) {
+  try { await navigator.clipboard.writeText(textiTelposta(f)); alert('U kopjua për Telposta. Ngjite (Ctrl+V / mbaj shtypur → Paste) te forma e Telpostës.'); }
+  catch { prompt('Kopjo këtë tekst për Telposta:', textiTelposta(f).replace(/\n/g, ' | ')); }
+}
+function printoOnline(f) {
+  const p = $('printimi'); p.className = 'e80';
+  p.innerHTML = `<div style="text-align:center"><b style="font-size:1.3em">MINNA · PATRON DANTEL</b><br>Porosi online nr. <b>${esc(f.nr || '—')}</b>${f.porosia_nr ? '<br>Pro-Data: ' + esc(f.porosia_nr) : ''}
+    <br>${new Date(f.krijuar || Date.now()).toLocaleString('sq-AL', { timeZone: 'Europe/Belgrade' })}</div>
+    <div style="border:2px solid #000;padding:6px;margin:8px 0"><b>MARRËSI</b><br><b style="font-size:1.2em">${esc(emriPlote(f))}</b><br>Tel: ${esc(f.klienti_telefoni || '')}<br>
+    ${esc(f.adresa || '')}<br><b>${esc(f.qyteti || '')}, ${esc(f.shteti || '')}</b></div>
+    <table><tr><th>Kodi</th><th>Materiali</th><th>Ngjyra</th><th>Sasia</th><th>€</th></tr>
+    ${(f.rreshtat || []).map((r) => `<tr><td>${esc(r.kodi)}</td><td>${esc(r.emri)}</td><td>${esc(r.ngjyra || '')}</td><td>${r.sasia} ${esc(r.njesia || '')}</td><td>${eur(r.sasia * r.cmimi)}</td></tr>`).join('')}</table>
+    <p style="text-align:right;font-size:1.3em"><b>Për pagesë: ${eur(f.totali)} €</b><br><span style="font-size:.75em">${f.eksport ? 'Export, TVSH 0%' : 'Çmimet përfshijnë TVSH-në'} · Nuk është dokument fiskal</span></p>
+    ${f.shenim ? `<p>Shënim: ${esc(f.shenim)}</p>` : ''}<p style="font-size:.8em">Shitësja: ${esc(f.shitesja_emri || '')}</p>`;
+  window.print();
+}
+$('onl-print').onclick = () => { if (!onlKontrollo()) return; printoOnline({ ...onlTeDhenat(), nr: onl.fatura ? onl.fatura.nr : '' }); };
+$('onl-telposta').onclick = () => { if (!onlKontrollo()) return; kopjoTelposta({ ...onlTeDhenat(), nr: onl.fatura ? onl.fatura.nr : '' }); };
+$('onl-regjistro').onclick = async () => {
+  if (!onlKontrollo()) return;
+  const d = onlTeDhenat();
+  if (!confirm(`Regjistro si shitje:\n${emriPlote(d)} · ${d.qyteti}, ${d.shteti}\n${d.rreshtat.length} materiale · ${eur(d.totali)} €${d.eksport ? ' (export, TVSH 0%)' : ''}\n\nRegjistrohet në Pro-Data. Vazhdo?`)) return;
+  const btn = $('onl-regjistro'), m = $('onl-mesazh'); btn.disabled = true;
+  try {
+    const { data: f, error } = await sb.from('app_faturat').insert(d).select('*').single();
+    if (error) throw new Error(error.message);
+    onl.fatura = f;
+    const celesi = `PD-F${f.nr}`;
+    m.className = 'mesazh pritje'; m.textContent = '⏳ Po regjistrohet në Pro-Data…';
+    const komenti = [`Online ${f.nr}`, emriPlote(f), f.klienti_telefoni, [f.adresa, f.qyteti, f.shteti].filter(Boolean).join(', '), f.shenim, f.shitesja_emri && 'Shitësja: ' + f.shitesja_emri]
+      .filter(Boolean).join(' · ').slice(0, 390);
+    await dergoKomande('porosi_shitje', celesi, { magazina: f.magazina, klienti_kodi: f.klienti_kodi, eksport: f.eksport, komenti,
+      rreshtat: f.rreshtat.map((r) => ({ prodata_id: r.prodata_id, sasia: r.sasia, cmimi_me_tvsh: r.cmimi })) });
+    await sb.from('app_faturat').update({ statusi: 'regjistruar', regjistruar_nga: perdoruesi.id, regjistruar_koha: new Date().toISOString(), komanda_celesi: celesi }).eq('id', f.id);
+    const k = await prisKomanden(celesi);
+    if (k && k.statusi === 'kryer') {
+      await sb.from('app_faturat').update({ porosia_nr: k.rezultati.prodata_nr }).eq('id', f.id);
+      const fP = { ...f, porosia_nr: k.rezultati.prodata_nr };
+      m.className = 'mesazh ok'; m.innerHTML = `✅ U regjistrua: porosia <b>${f.nr}</b> → Pro-Data <b>${esc(k.rezultati.prodata_nr)}</b>
+        <div class="butona"><button class="dyte" id="onl-pas-print">🖨️ Print</button><button class="dyte" id="onl-pas-telposta">📮 Kopjo për Telposta</button><button class="kryesor" id="onl-pas-re">+ Porosi e re</button></div>`;
+      $('onl-pas-print').onclick = () => printoOnline(fP); $('onl-pas-telposta').onclick = () => kopjoTelposta(fP);
+      $('onl-pas-re').onclick = () => onlPastro();
+    } else { m.className = 'mesazh gabim'; m.innerHTML = k ? '❌ Pro-Data nuk e pranoi: ' + esc(k.gabimi) : '⚠️ Ura nuk u përgjigj. Porosia mbetet në radhë dhe regjistrohet kur ura të kthehet.'; }
+  } catch (e) { m.className = 'mesazh gabim'; m.textContent = '❌ ' + e.message; }
+  btn.disabled = false;
+};
+NGARKUESIT.onl_shitje = (ngaRealtime) => { if (!ngaRealtime && !$('onl-rreshtat').children.length) onlVizato(); };
+NGARKUESIT.onl_home = async () => {
+  const { count } = await sb.from('app_faturat').select('id', { count: 'exact', head: true }).eq('kanali', 'online').gte('krijuar', new Date(Date.now() - 864e5).toISOString());
+  $('onl-home-nr').textContent = `${count || 0} porosi në 24 orët e fundit`;
+};
+
+// --- Porositë online: lista me kërkim dhe gjendjen e dërgesës ---
+const ONL_STATUSET = [['te_gjitha', 'Të gjitha'], ['regjistruar', '🆕 Të regjistruara'], ['gati', '📦 U bë gati'], ['marre_nga_posta', '🚚 U mor nga posta']];
+let onlP = [], onlPStatusi = 'te_gjitha';
+$('onl-p-statusi').innerHTML = ONL_STATUSET.map(([k, t]) => `<button data-k="${k}" class="${k === onlPStatusi ? 'on' : ''}">${t}</button>`).join('');
+document.querySelectorAll('#onl-p-statusi button').forEach((b) => b.onclick = () => { onlPStatusi = b.dataset.k; document.querySelectorAll('#onl-p-statusi button').forEach((x) => x.classList.toggle('on', x === b)); onlPVizato(); });
+(() => { let t; $('onl-p-kerko').oninput = () => { clearTimeout(t); t = setTimeout(onlPVizato, 200); }; })();
+$('onl-p-periudha').onchange = () => NGARKUESIT.onl_porosite();
+NGARKUESIT.onl_porosite = async () => {
+  const [prej] = periudha($('onl-p-periudha').value);
+  const { data } = await sb.from('app_faturat').select('*').eq('kanali', 'online').neq('statusi', 'anuluar')
+    .gte('krijuar', new Date(new Date(prej + 'T00:00:00Z').getTime() - 3 * 3600e3).toISOString()).order('krijuar', { ascending: false }).limit(1000);
+  onlP = (data || []).filter((f) => ditaKS(f.krijuar) >= prej);
+  onlPVizato();
+};
+function onlPVizato() {
+  const q = $('onl-p-kerko').value.trim().toLowerCase();
+  const rr = onlP.filter((f) => onlPStatusi === 'te_gjitha' || (f.statusi_dergeses || 'regjistruar') === onlPStatusi)
+    .filter((f) => !q || [f.nr, f.porosia_nr, f.klienti_emri, f.klienti_mbiemri, f.klienti_telefoni, f.qyteti, f.shteti, f.adresa, f.posta_nr, f.shitesja_emri,
+      ...(f.rreshtat || []).flatMap((r) => [r.kodi, r.emri, r.ngjyra, r.barkodi])].some((v) => String(v || '').toLowerCase().includes(q)));
+  const nr = (s) => onlP.filter((f) => (f.statusi_dergeses || 'regjistruar') === s).length;
+  $('onl-p-permb').innerHTML = `<div class="karte"><div class="tit">🆕 Të regjistruara</div><div class="vl">${nr('regjistruar')}</div></div>
+    <div class="karte"><div class="tit">📦 Gati</div><div class="vl">${nr('gati')}</div></div>
+    <div class="karte"><div class="tit">🚚 Marrë nga posta</div><div class="vl">${nr('marre_nga_posta')}</div></div>
+    <div class="karte"><div class="tit">Vlera</div><div class="vl">${eur(onlP.reduce((t, f) => t + +f.totali, 0))} €</div></div>`;
+  const shenjaD = { regjistruar: ['🆕 E regjistruar', 's-hapur'], gati: ['📦 Gati', 's-pritje'], marre_nga_posta: ['🚚 Marrë nga posta', 's-ok'] };
+  $('onl-p-lista').innerHTML = rr.map((f) => { const [t, c] = shenjaD[f.statusi_dergeses || 'regjistruar'];
+    return `<div class="onl-porosi" data-id="${f.id}"><div class="krye"><div><b>#${f.nr}</b> · ${oraKS(f.krijuar)} · <b>${esc(emriPlote(f))}</b> · ${esc(f.klienti_telefoni || '')}
+        <div class="zbehte">${esc([f.adresa, f.qyteti, f.shteti].filter(Boolean).join(', '))}${f.eksport ? ' · 🌍 export' : ''} · Shitësja: ${esc(f.shitesja_emri || '')}${f.porosia_nr ? ' · Pro-Data: ' + esc(f.porosia_nr) : ' · ⏳ pa nr. Pro-Data'}${f.posta_nr ? ' · Posta: ' + esc(f.posta_nr) : ''}</div></div>
+        <div><span class="shenje ${c}">${t}</span> <b>${eur(f.totali)} €</b></div></div>
+      <div class="art">${(f.rreshtat || []).map((r) => `${esc(r.kodi)} ${esc(r.emri)}${r.ngjyra ? ' · ' + esc(r.ngjyra) : ''} × <b>${r.sasia}</b> ${esc(r.njesia || '')}`).join('<br>')}</div>
+      <div class="butona" style="margin-top:6px">
+        ${(f.statusi_dergeses || 'regjistruar') === 'regjistruar' ? '<button class="kryesor op-gati" style="background:#e0a100;color:#2b2000">📦 U bë gati</button>' : ''}
+        ${(f.statusi_dergeses || 'regjistruar') !== 'marre_nga_posta' ? '<button class="kryesor op-posta" style="background:#1f8a5b">🚚 U mor nga posta</button>' : ''}
+        <button class="dyte op-print">🖨️ Print</button><button class="dyte op-telposta">📮 Telposta</button></div></div>`; }).join('')
+    || '<p class="zbehte">Asnjë porosi për këtë zgjedhje.</p>';
+  document.querySelectorAll('#onl-p-lista .onl-porosi').forEach((el) => {
+    const f = onlP.find((x) => x.id === el.dataset.id);
+    const ndrysho = async (fushat) => { const { error } = await sb.from('app_faturat').update(fushat).eq('id', f.id); if (error) alert(error.message); else NGARKUESIT.onl_porosite(); };
+    const g = el.querySelector('.op-gati'); if (g) g.onclick = () => ndrysho({ statusi_dergeses: 'gati', gati_koha: new Date().toISOString() });
+    const p = el.querySelector('.op-posta'); if (p) p.onclick = () => { const n = prompt('Numri i dërgesës në Telposta (opsional):', f.posta_nr || ''); if (n === null) return;
+      ndrysho({ statusi_dergeses: 'marre_nga_posta', posta_koha: new Date().toISOString(), posta_nr: n.trim() || f.posta_nr || null }); };
+    el.querySelector('.op-print').onclick = () => printoOnline(f);
+    el.querySelector('.op-telposta').onclick = () => kopjoTelposta(f);
+  });
+}
 
 // ---------- Periudhat ----------
 function periudha(v) {
