@@ -57,6 +57,11 @@ input,select,textarea{width:100%;font:inherit;font-size:17px;padding:12px;border
 table{width:100%;border-collapse:collapse}td,th{padding:9px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{font-size:.78rem;color:var(--mute);text-transform:uppercase}
 .num{text-align:right;white-space:nowrap}
 .hidden{display:none!important}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chips button{border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:8px 13px;font:inherit;font-size:.92rem;font-weight:600;cursor:pointer}
+.chips button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.htab{font-size:.9rem;min-width:760px}.htab td{white-space:nowrap}.htab td.wrap{white-space:normal;min-width:180px}
+.plus{color:var(--in);font-weight:800}.minus{color:var(--out);font-weight:800}
 </style>
 </head>
 <body>
@@ -124,9 +129,20 @@ table{width:100%;border-collapse:collapse}td,th{padding:9px 6px;border-bottom:1p
   <!-- HISTORIKU -->
   <section id="v-historiku" class="hidden">
     <h2>Historiku</h2>
-    <p class="sub" style="margin:-6px 0 12px">Çfarë ka ndodhur në 7 ditët e fundit</p>
+    <p class="sub" style="margin:-6px 0 12px">Të gjitha lëvizjet e stokut të depos në Pro-Data</p>
+    <div class="card">
+      <div class="chips" id="hKategorite"></div>
+      <div class="row" style="margin-top:10px">
+        <div><label>Kërko</label><input id="hKerko" placeholder="produkti, kodi, size, nr. dokumenti, personi…" autocomplete="off"></div>
+        <div><label>Periudha</label><select id="hPeriudha"><option value="0">Sot</option><option value="1">Dje dhe sot</option><option value="7" selected>7 ditët e fundit</option></select></div>
+      </div>
+    </div>
     <div class="grid" id="hPermbledhja" style="margin-bottom:14px"></div>
-    <div class="card"><table><thead><tr><th>Koha</th><th>Lëvizja</th><th>Statusi</th></tr></thead><tbody id="hTabela"></tbody></table></div>
+    <div id="hPritje"></div>
+    <div class="card" style="padding:8px 4px"><div style="overflow-x:auto"><table class="htab"><thead><tr>
+      <th>Koha</th><th>Lëvizja</th><th>Produkti</th><th>Size</th><th class="num">Sasia</th><th class="num">Çmimi €</th><th class="num">Vlera €</th><th>Kush</th>
+    </tr></thead><tbody id="hTabela"></tbody></table></div>
+    <p class="mute" id="hShenim" style="margin:8px"></p></div>
   </section>
 </div>
 
@@ -301,42 +317,79 @@ async function malli(q) {
 (() => { let t; $('mKerko').oninput = () => { clearTimeout(t); t = setTimeout(() => malli($('mKerko').value), 300); }; })();
 $('mSkano').onclick = () => hapSkanerin((k) => { $('mKerko').value = k; malli(k); });
 
-// ---------- Historiku: TË GJITHA lëvizjet e stokut të depos në Pro-Data, 7 ditët e fundit ----------
+// ---------- Historiku: TË GJITHA lëvizjet e stokut të depos në Pro-Data, me kategori dhe kërkim ----------
 const LLOJET = { LI001: 'Transfer', BLV01: 'Blerje vendore', BLS01: 'Blerje shpenzimesh', BLI01: 'Blerje import', SHV01: 'Shitje', SHE01: 'Shitje export',
   SHV02: 'Shitje POS', NOKR2: 'Kthim shitjeje', PR001: 'Prodhim', RS001: 'Rregullim stoku', SF001: 'Saldo fillestare' };
+const KATEGORITE = [
+  ['te_gjitha', 'Të gjitha', () => true],
+  ['levizjet', '🔁 Lëvizjet', (r) => r.txn === 'LI001'],
+  ['hyrjet', '📥 Hyrjet', (r) => +r.sasia > 0],
+  ['daljet', '📤 Daljet', (r) => +r.sasia < 0],
+  ['blerjet', '🛒 Blerjet', (r) => /^BL/.test(r.txn || '')],
+  ['shitjet', '💶 Shitjet', (r) => /^(SHV|SHE|NOKR)/.test(r.txn || '')],
+  ['prodhimi', '🧵 Prodhimi', (r) => r.txn === 'PR001'],
+  ['rregullimet', '⚖️ Rregullimet', (r) => r.txn === 'RS001' || r.txn === 'SF001'],
+];
+let hRreshtat = [], hKategoria = 'te_gjitha';
+// Madhësia: Pro-Data nuk ka fushë për size, ndaj merret nga fundi i emrit (p.sh. "Ollie RoyalBlue Dress 40" → 40)
+function size(emri) {
+  const m = String(emri || '').trim().match(/(?:^|\s)(\d{2}(?:[\/-]\d{2})?|XXS|XS|S|M|L|XL|XXL|XXXL|[2-5]XL|S\/M|M\/L|L\/XL|ONE ?SIZE)$/i);
+  return m ? m[1].toUpperCase() : '';
+}
+$('hKategorite').innerHTML = KATEGORITE.map(([k, t]) => `<button data-k="${k}" class="${k === hKategoria ? 'on' : ''}">${t}</button>`).join('');
+document.querySelectorAll('#hKategorite button').forEach((b) => b.onclick = () => {
+  hKategoria = b.dataset.k; document.querySelectorAll('#hKategorite button').forEach((x) => x.classList.toggle('on', x === b)); hVizato();
+});
+(() => { let t; $('hKerko').oninput = () => { clearTimeout(t); t = setTimeout(hVizato, 200); }; })();
+$('hPeriudha').onchange = historiku;
+
 async function historiku() {
-  const prej = new Date(Date.now() - 7 * 864e5).toLocaleDateString('sv-SE', { timeZone: 'Europe/Belgrade' });
+  const ditet = +$('hPeriudha').value;
+  const prej = new Date(Date.now() - ditet * 864e5).toLocaleDateString('sv-SE', { timeZone: 'Europe/Belgrade' });
+  $('hTabela').innerHTML = '<tr><td colspan="8" class="mute">Duke ngarkuar…</td></tr>';
   const [{ data: lv }, { data: pritje }] = await Promise.all([
-    sb.from('prodata_levizjet').select('nr, txn, data, koha, artikull_id, sasia, krijoi, komenti').eq('magazina', DEPO).gte('data', prej).order('koha', { ascending: false }).limit(3000),
+    sb.from('prodata_levizjet').select('nr, txn, data, koha, artikull_id, sasia, cmimi, cmimi_lloji, krijoi, komenti').eq('magazina', DEPO).gte('data', prej).order('koha', { ascending: false }).limit(5000),
     sb.from('prodata_komandat').select('krijuar, statusi, gabimi, payload').eq('lloji', 'transfer').in('statusi', ['ne_pritje', 'ne_proces', 'gabim'])
       .or(`payload->>nga.eq.${DEPO},payload->>te.eq.${DEPO}`).gte('krijuar', new Date(Date.now() - 7 * 864e5).toISOString())]);
-  // Grupo sipas dokumentit
-  const dok = new Map();
-  for (const r of lv || []) { const d = dok.get(r.nr) || { nr: r.nr, txn: r.txn, data: r.data, koha: r.koha, krijoi: r.krijoi, komenti: r.komenti, rreshtat: [] }; d.rreshtat.push(r); dok.set(r.nr, d); }
-  const lista = [...dok.values()].sort((a, b) => String(b.koha || b.data).localeCompare(String(a.koha || a.data)));
-  // Vendi tjetër i transfereve dhe emrat e artikujve
-  const trNr = lista.filter((d) => d.txn === 'LI001').map((d) => d.nr);
-  const [{ data: tjeter }, { data: art }] = await Promise.all([
-    trNr.length ? sb.from('prodata_levizjet').select('nr, magazina').in('nr', trNr.slice(0, 300)).neq('magazina', DEPO) : Promise.resolve({ data: [] }),
-    sb.from('prodata_artikujt').select('prodata_id, kodi, emri, njesia').in('prodata_id', [...new Set((lv || []).map((r) => r.artikull_id))].slice(0, 1000))]);
-  const artM = new Map((art || []).map((a) => [a.prodata_id, a])), tjM = new Map((tjeter || []).map((t) => [t.nr, t.magazina]));
-  let nH = 0, nD = 0, sH = 0, sD = 0;
-  const rreshtat = lista.map((d) => {
-    const neto = d.rreshtat.reduce((t, r) => t + +r.sasia, 0), IN = neto >= 0;
-    if (IN) { nH++; sH += neto; } else { nD++; sD += -neto; }
-    const vendi = tjM.get(d.nr) ? (IN ? `${esc(emriMag(tjM.get(d.nr)))} → ${esc(emriMag(DEPO))}` : `${esc(emriMag(DEPO))} → ${esc(emriMag(tjM.get(d.nr)))}`) : '';
-    const artikujt = d.rreshtat.map((r) => { const a = artM.get(r.artikull_id) || {}; return `${esc(a.kodi || r.artikull_id)} ${esc(a.emri || '')} <b>${+r.sasia > 0 ? '+' : ''}${fmt(r.sasia)}</b> ${esc(a.njesia || '')}`; }).join('<br>');
-    return `<tr><td>${d.koha ? ora(d.koha) : esc(d.data)}</td><td><b>${IN ? '📥' : '📤'} ${esc(LLOJET[d.txn] || d.txn)}</b> ${vendi ? '· ' + vendi : ''}
-      <div class="mute">${esc(d.nr)}${d.krijoi ? ' · ' + esc(d.krijoi) : ''}${d.komenti ? ' · ' + esc(d.komenti) : ''}</div><div style="font-size:.9rem;margin-top:4px">${artikujt}</div></td>
-      <td><span class="pill p-ok">✅ Pro-Data</span></td></tr>`;
+  const nrTr = [...new Set((lv || []).filter((r) => r.txn === 'LI001').map((r) => r.nr))];
+  const idArt = [...new Set((lv || []).map((r) => r.artikull_id))];
+  const tjeter = [], artikujt = [];
+  for (let i = 0; i < nrTr.length; i += 200) { const { data } = await sb.from('prodata_levizjet').select('nr, magazina').in('nr', nrTr.slice(i, i + 200)).neq('magazina', DEPO); tjeter.push(...(data || [])); }
+  for (let i = 0; i < idArt.length; i += 300) { const { data } = await sb.from('prodata_artikujt').select('prodata_id, kodi, emri, njesia, cmimi').in('prodata_id', idArt.slice(i, i + 300)); artikujt.push(...(data || [])); }
+  const tjM = new Map(tjeter.map((t) => [t.nr, t.magazina])), artM = new Map(artikujt.map((a) => [a.prodata_id, a]));
+  hRreshtat = (lv || []).map((r) => {
+    const a = artM.get(r.artikull_id) || {}, IN = +r.sasia >= 0, tj = tjM.get(r.nr);
+    const cmimi = r.cmimi != null ? +r.cmimi : (a.cmimi != null ? +a.cmimi : null);
+    return { ...r, kodi: a.kodi || r.artikull_id, emri: a.emri || '', njesia: a.njesia || '', size: size(a.emri), cmimi,
+      cmimiBurimi: r.cmimi != null ? r.cmimi_lloji : 'çmimi me pakicë',
+      vendi: tj ? (IN ? `${emriMag(tj)} → ${emriMag(DEPO)}` : `${emriMag(DEPO)} → ${emriMag(tj)}`) : '' };
   });
-  const rPritje = (pritje || []).map((x) => { const y = x.payload || {}; const IN = y.te === DEPO;
-    return `<tr><td>${ora(x.krijuar)}</td><td><b>${IN ? '📥' : '📤'} ${IN ? 'Hyrje' : 'Dalje'} (nga faqja)</b> · ${esc(emriMag(y.nga))} → ${esc(emriMag(y.te))}<div class="mute">${y.personi ? (IN ? 'Solli: ' : 'Mori: ') + esc(y.personi) : ''}</div></td>
-      <td><span class="pill ${x.statusi === 'gabim' ? 'p-err' : 'p-wait'}">${x.statusi === 'gabim' ? '❌ Gabim' : '⏳ Në pritje'}</span>${x.gabimi ? `<div class="mute">${esc(x.gabimi)}</div>` : ''}</td></tr>`; });
-  $('hPermbledhja').innerHTML = `<div class="card" style="margin:0;border-left:6px solid var(--in)"><b style="font-size:1.6rem">${nH}</b><div class="mute">📥 hyrje · ${fmt(sH)} njësi</div></div>
-    <div class="card" style="margin:0;border-left:6px solid var(--out)"><b style="font-size:1.6rem">${nD}</b><div class="mute">📤 dalje · ${fmt(sD)} njësi</div></div>`;
-  $('hTabela').innerHTML = rPritje.join('') + rreshtat.join('') || '<tr><td colspan="3" class="mute">Asnjë lëvizje në 7 ditët e fundit</td></tr>';
-  $('histSub').textContent = `${lista.length} lëvizje (7 ditë)`;
+  $('hPritje').innerHTML = (pritje || []).length ? `<div class="card" style="border-left:6px solid var(--all)"><b>Nga faqja, ende pa u regjistruar në Pro-Data:</b>${(pritje || []).map((x) => {
+    const y = x.payload || {}; return `<div class="mute" style="margin-top:6px">${ora(x.krijuar)} · ${esc(emriMag(y.nga))} → ${esc(emriMag(y.te))} · ${(y.rreshtat || []).length} artikuj ·
+      <span class="pill ${x.statusi === 'gabim' ? 'p-err' : 'p-wait'}">${x.statusi === 'gabim' ? '❌ ' + esc(x.gabimi || 'Gabim') : '⏳ Në pritje'}</span></div>`; }).join('')}</div>` : '';
+  hVizato();
+}
+
+function hVizato() {
+  const filtri = (KATEGORITE.find(([k]) => k === hKategoria) || KATEGORITE[0])[2];
+  const q = $('hKerko').value.trim().toLowerCase();
+  const rr = hRreshtat.filter(filtri).filter((r) => !q || [r.kodi, r.emri, r.size, r.nr, r.krijoi, r.komenti, r.vendi, LLOJET[r.txn]].some((v) => String(v || '').toLowerCase().includes(q)));
+  const hyrje = rr.filter((r) => +r.sasia > 0), dalje = rr.filter((r) => +r.sasia < 0);
+  const vlera = (a) => a.reduce((t, r) => t + Math.abs(+r.sasia) * (r.cmimi || 0), 0), sasia = (a) => a.reduce((t, r) => t + Math.abs(+r.sasia), 0);
+  const dok = (a) => new Set(a.map((r) => r.nr)).size;
+  $('hPermbledhja').innerHTML = `<div class="card" style="margin:0;border-left:6px solid var(--in)"><b style="font-size:1.5rem">${dok(hyrje)}</b> <span class="mute">dokumente</span><div class="mute">📥 hyrje · ${fmt(sasia(hyrje))} njësi · ${fmt(vlera(hyrje))} €</div></div>
+    <div class="card" style="margin:0;border-left:6px solid var(--out)"><b style="font-size:1.5rem">${dok(dalje)}</b> <span class="mute">dokumente</span><div class="mute">📤 dalje · ${fmt(sasia(dalje))} njësi · ${fmt(vlera(dalje))} €</div></div>`;
+  const MAX = 600;
+  $('hTabela').innerHTML = rr.slice(0, MAX).map((r) => {
+    const IN = +r.sasia > 0, v = r.cmimi != null ? Math.abs(+r.sasia) * r.cmimi : null;
+    return `<tr><td>${r.koha ? ora(r.koha) : esc(r.data)}</td>
+      <td class="wrap"><b>${IN ? '📥' : '📤'} ${esc(LLOJET[r.txn] || r.txn)}</b>${r.vendi ? '<br>' + esc(r.vendi) : ''}<div class="mute">${esc(r.nr)}${r.komenti ? ' · ' + esc(r.komenti) : ''}</div></td>
+      <td class="wrap"><b>${esc(r.kodi)}</b> ${esc(r.emri)}</td><td>${esc(r.size)}</td>
+      <td class="num ${IN ? 'plus' : 'minus'}">${IN ? '+' : ''}${fmt(r.sasia)} <span class="mute">${esc(r.njesia)}</span></td>
+      <td class="num" title="${esc(r.cmimiBurimi || '')}">${r.cmimi != null ? fmt(r.cmimi) : '—'}</td><td class="num">${v != null ? fmt(v) : '—'}</td><td>${esc(r.krijoi || '')}</td></tr>`;
+  }).join('') || '<tr><td colspan="8" class="mute">Asnjë lëvizje për këtë zgjedhje</td></tr>';
+  $('hShenim').textContent = `${rr.length} rreshta${rr.length > MAX ? ` (shfaqen ${MAX} të parët; ngushto kërkimin)` : ''} · Çmimi: blerjet me koston pa TVSH, shitjet me çmimin e shitjes, të tjerat me çmimin me pakicë · Size merret nga emri i artikullit.`;
+  $('histSub').textContent = `${dok(hRreshtat)} dokumente`;
 }
 </script>
 </body>
