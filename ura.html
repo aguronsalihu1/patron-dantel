@@ -117,9 +117,13 @@
   <section class="faqe" id="f-paneli">
     <div class="rresht" style="justify-content:space-between">
       <h2 style="margin:0">Paneli raportues <span class="live">LIVE</span></h2>
-      <label>Periudha <select id="p-periudha"><option value="sot">Sot</option><option value="dje">Dje</option><option value="7">7 ditët e fundit</option><option value="muaj">Ky muaj</option></select></label>
+      <div class="rresht" style="margin:0">
+        <label>Pika e shitjes <select id="p-pika"><option value="">Të gjitha pikat</option></select></label>
+        <label>Periudha <select id="p-periudha"><option value="sot">Sot</option><option value="dje">Dje</option><option value="7">7 ditët e fundit</option><option value="muaj">Ky muaj</option></select></label>
+      </div>
     </div>
     <p class="zbehte" id="p-rifreskuar"></p>
+    <div id="p-pikat-blloku"><h3>Sipas pikave të shitjes</h3><div class="karta" id="p-pikat"></div></div>
     <h3>Shitjet</h3><div class="karta" id="p-shitjet"></div>
     <h3>Pagesat e pranuara</h3><div class="karta" id="p-pagesat"></div>
     <h3>Shpenzimet dhe blerjet</h3><div class="karta" id="p-blerjet"></div>
@@ -721,18 +725,44 @@ function periudha(v) {
 const ditaKS = (ts) => dataKS(new Date(ts));
 
 // ---------- PANELI (Super Admin) ----------
+// Pikat e shitjes (tabela prodata_pikat): secila pikë = një ose më shumë magazina në një nga dy databazat e Pro-Data-s
+let pikat = [];
+const DB1 = 'MINNA SH.P.K.';
+const iPerket = (pika, db, mag) => (pika.magazinat || []).some((m) => m.db === (db || DB1) && m.mag === mag);
+async function ngarkoPikat() {
+  if (pikat.length) return;
+  const { data } = await sb.from('prodata_pikat').select('*').order('renditja');
+  pikat = data || [];
+  $('p-pika').innerHTML = '<option value="">Të gjitha pikat</option>' + pikat.map((p) => `<option value="${esc(p.kodi)}">${esc(p.emri)}</option>`).join('');
+}
 async function paneli() {
+  await ngarkoPikat();
   const [prej, deri] = periudha($('p-periudha').value);
+  const pika = pikat.find((p) => p.kodi === $('p-pika').value) || null;
   const fillim = new Date(new Date(prej + 'T00:00:00Z').getTime() - 3 * 3600e3).toISOString();
-  const [{ data: shPD }, { data: pag }, { data: bl }, { data: app }] = await Promise.all([
-    sb.from('prodata_shitjet').select('txn, magazina, agjenti, menyra_pagese, totali, data').gte('data', prej + 'T00:00:00+02:00').lte('data', deri + 'T23:59:59+02:00'),
-    sb.from('prodata_pagesat_ditore').select('*').gte('data', prej).lte('data', deri),
-    sb.from('prodata_blerjet_ditore').select('*').gte('data', prej).lte('data', deri),
-    sb.from('app_faturat').select('kanali, shitesja_emri, statusi, totali, krijuar, posta_nr').gte('krijuar', fillim)]);
-  const appP = (app || []).filter((f) => { const x = ditaKS(f.krijuar); return x >= prej && x <= deri; });
-  const s = shPD || []; const sum = (a, f = (x) => +x.totali) => a.reduce((t, x) => t + (f(x) || 0), 0);
-  const online = s.filter((x) => x.txn === 'SHE01' || x.magazina === '005'), vendore = s.filter((x) => !(x.txn === 'SHE01' || x.magazina === '005'));
+  let [{ data: shPD }, { data: pag }, { data: bl }, { data: app }] = await Promise.all([
+    sb.from('prodata_shitjet').select('databaza, txn, magazina, agjenti, menyra_pagese, totali, data').gte('data', prej + 'T00:00:00+02:00').lte('data', deri + 'T23:59:59+02:00').limit(10000),
+    sb.from('prodata_pagesat_ditore').select('*').gte('data', prej).lte('data', deri).limit(10000),
+    sb.from('prodata_blerjet_ditore').select('*').gte('data', prej).lte('data', deri).limit(10000),
+    sb.from('app_faturat').select('kanali, shitesja_emri, statusi, totali, krijuar, posta_nr, magazina').gte('krijuar', fillim)]);
+  const sum = (a, f = (x) => +x.totali) => a.reduce((t, x) => t + (f(x) || 0), 0);
   const karte = (tit, vl, det = '') => `<div class="karte"><div class="tit">${tit}</div><div class="vl">${vl}</div><div class="det">${det}</div></div>`;
+  const appGj = (app || []).filter((f) => { const x = ditaKS(f.krijuar); return x >= prej && x <= deri; });
+  // Përmbledhja sipas pikave (vetëm kur janë zgjedhur të gjitha)
+  $('p-pikat-blloku').hidden = !!pika;
+  if (!pika) {
+    const brenda = (x) => pikat.some((p) => iPerket(p, x.databaza, x.magazina));
+    const kartePike = (emri, sh, pg) => { const cash = sum(pg.filter((p) => p.lloji === 'PGH01' && p.grupi === 'Cash'), (x) => +x.shuma), tjera = sum(pg.filter((p) => p.lloji === 'PGH01' && p.grupi !== 'Cash'), (x) => +x.shuma);
+      return karte(esc(emri), eur(sum(sh)) + ' €', `${sh.length} shitje · arkëtuar: cash ${eur(cash)} €, kartë/bankë/online ${eur(tjera)} €`); };
+    $('p-pikat').innerHTML = pikat.map((p) => kartePike(p.emri, (shPD || []).filter((x) => iPerket(p, x.databaza, x.magazina)), (pag || []).filter((x) => iPerket(p, x.databaza, x.magazina)))).join('')
+      + kartePike('Të tjera (depo, online, wholesale…)', (shPD || []).filter((x) => !brenda(x)), (pag || []).filter((x) => !brenda(x)));
+  }
+  // Filtri sipas pikës së zgjedhur
+  const fP = (x) => !pika || iPerket(pika, x.databaza, x.magazina);
+  const s = (shPD || []).filter(fP), pagF = (pag || []).filter(fP), blF = (bl || []).filter(fP);
+  const appP = appGj.filter((f) => !pika || iPerket(pika, DB1, f.magazina));
+  pag = pagF; bl = blF;
+  const online = s.filter((x) => x.txn === 'SHE01' || x.magazina === '005'), vendore = s.filter((x) => !(x.txn === 'SHE01' || x.magazina === '005'));
   $('p-shitjet').innerHTML = karte('Shitje vendore (Pro-Data)', eur(sum(vendore)) + ' €', vendore.length + ' fatura')
     + karte('Shitje online / export (Pro-Data)', eur(sum(online)) + ' €', online.length + ' fatura')
     + karte('Faturat nga aplikacioni', eur(sum(appP.filter((f) => f.statusi === 'regjistruar'))) + ' €', `${appP.filter((f) => f.statusi === 'regjistruar').length} regjistruara · ${appP.filter((f) => f.statusi === 'ne_arke').length} në arkë`)
@@ -759,7 +789,7 @@ async function paneli() {
     + karte('Në pritje / gabime', `${dpP.filter((x) => x.statusi === 'ne_pritje' || x.statusi === 'ne_proces').length} / ${dpP.filter((x) => x.statusi === 'gabim').length}`, 'kontrollo Administrimi → Komandat');
   $('p-rifreskuar').textContent = `Rifreskuar: ${new Date().toLocaleTimeString('sq-AL', { timeZone: 'Europe/Belgrade' })} · të dhënat e Pro-Data-s vijnë çdo 1 minutë, faturat e aplikacionit menjëherë.`;
 }
-$('p-periudha').onchange = paneli;
+$('p-periudha').onchange = paneli; $('p-pika').onchange = paneli;
 NGARKUESIT.paneli = paneli;
 setInterval(() => { const a = document.querySelector('section.faqe.aktive'); if (a && a.id === 'f-paneli') paneli(); }, 30000);
 
@@ -771,7 +801,9 @@ NGARKUESIT.shitjet = async () => {
     sb.from('app_faturat').select('nr, krijuar, shitesja_emri, klienti_emri, totali, statusi, porosia_nr').gte('krijuar', fillim).order('krijuar', { ascending: false }).limit(300),
     sb.from('prodata_shitjet').select('*').gte('data', prej + 'T00:00:00+02:00').lte('data', deri + 'T23:59:59+02:00').order('data', { ascending: false }).limit(500)]);
   $('sl-app').innerHTML = (app || []).filter((f) => ditaKS(f.krijuar) <= deri).map((f) => `<tr><td>${f.nr}</td><td>${oraKS(f.krijuar)}</td><td>${esc(f.shitesja_emri || '')}</td><td>${esc(f.klienti_emri || 'Qytetar')}</td><td class="num">${eur(f.totali)}</td><td>${shenje(f.statusi)}</td><td>${esc(f.porosia_nr || '')}</td></tr>`).join('') || '<tr><td colspan="7" class="zbehte">Asnjë</td></tr>';
-  $('sl-pd').innerHTML = (pd || []).map((x) => `<tr><td>${dataKS(new Date(x.data))}</td><td>${esc(x.nr)}</td><td>${esc(x.txn || '')}</td><td>${esc(x.magazina)}</td><td>${esc(x.agjenti || '')}</td><td>${esc(x.menyra_pagese || '')}</td><td class="num">${eur(x.totali)}</td></tr>`).join('') || '<tr><td colspan="7" class="zbehte">Asnjë</td></tr>';
+  await ngarkoPikat();
+  const emriPikes = (x) => { const p = pikat.find((p) => iPerket(p, x.databaza, x.magazina)); return p ? p.emri : `${x.magazina}${x.databaza && x.databaza !== DB1 ? ' (' + x.databaza + ')' : ''}`; };
+  $('sl-pd').innerHTML = (pd || []).map((x) => `<tr><td>${dataKS(new Date(x.data))}</td><td>${esc(x.nr)}</td><td>${esc(x.txn || '')}</td><td>${esc(emriPikes(x))}</td><td>${esc(x.agjenti || '')}</td><td>${esc(x.menyra_pagese || '')}</td><td class="num">${eur(x.totali)}</td></tr>`).join('') || '<tr><td colspan="7" class="zbehte">Asnjë</td></tr>';
 };
 $('sl-periudha').onchange = NGARKUESIT.shitjet;
 
