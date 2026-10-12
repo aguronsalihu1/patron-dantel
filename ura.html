@@ -302,8 +302,19 @@
   <section class="faqe" id="f-admin">
     <h2>Administrimi</h2>
     <h3>Përdoruesit dhe rolet</h3>
-    <div class="udhezim" id="ad-udhezim">Këtu shfaqen të gjitha llogaritë e Patron Dantel. Llogari të reja krijohen te Patron Dantel me <b>"+ Punëtor i ri"</b>, pastaj u jep rolin këtu.
-      Vetëm llogaritë me rol hyjnë në këtë faqe dhe shohin të dhënat e Pro-Data-s.</div>
+    <div class="udhezim" id="ad-udhezim">Këtu shfaqen të gjitha llogaritë. Vetëm llogaritë me rol hyjnë në këtë faqe dhe shohin të dhënat e Pro-Data-s.
+      Fjalëkalimet nuk shfaqen kurrë (ruhen të koduara). Mund të vendosësh vetëm një fjalëkalim të ri me <b>🔑</b>.</div>
+    <div class="karte" id="ad-krijo" style="margin-bottom:14px">
+      <div class="tit">+ Përdorues i ri</div>
+      <div class="rresht" style="margin-top:8px">
+        <label>Emri <input id="ad-k-emri" placeholder="p.sh. Florjeta" style="width:170px"></label>
+        <label>Numri i telefonit <input id="ad-k-tel" inputmode="tel" placeholder="044 123 456" style="width:150px"></label>
+        <label>Fjalëkalimi <span style="display:flex;gap:6px"><input id="ad-k-pass" style="width:150px" autocomplete="new-password"><button class="dyte" type="button" id="ad-k-gjenero" title="Gjenero">↻</button></span></label>
+        <label>Roli <select id="ad-k-roli"></select></label>
+        <button class="kryesor" id="ad-k-krijo">Krijo llogarinë</button>
+      </div>
+      <div class="zbehte">Punëtori hyn me këtë numër telefoni dhe fjalëkalim, si te kjo faqe, ashtu edhe te Patron Dantel. Fjalëkalimi: të paktën 8 shenja.</div>
+    </div>
     <div class="rresht"><label>Kërko <input id="ad-kerko" placeholder="emri, telefoni ose emaili" style="width:260px"></label>
       <label>Shfaq <select id="ad-filtri"><option value="te_gjitha">Të gjitha</option><option value="me_qasje">Vetëm me qasje</option><option value="pa_qasje">Vetëm pa qasje</option></select></label></div>
     <div class="tabela"><table><thead><tr><th>Llogaria</th><th>Emri</th><th>Roli</th><th>Hyrja e fundit</th><th></th></tr></thead><tbody id="ad-perdoruesit"></tbody></table></div>
@@ -961,7 +972,7 @@ function adVizato() {
       <td><input class="ad-emri" value="${esc(x.emri || '')}" placeholder="emri" style="width:150px"></td>
       <td><select class="ad-roli" ${vetja ? 'disabled' : ''}><option value="">— pa qasje —</option>${Object.entries(ROLET).map(([k, t]) => `<option value="${k}" ${x.roli === k ? 'selected' : ''}>${t}</option>`).join('')}</select></td>
       <td>${x.hyrja_fundit ? oraKS(x.hyrja_fundit) : '—'}</td>
-      <td style="white-space:nowrap"><button class="dyte ad-ruaj">Ruaj</button> ${x.roli && !vetja ? '<button class="rrezik ad-hiq">Hiq qasjen</button>' : ''}</td></tr>`;
+      <td style="white-space:nowrap"><button class="dyte ad-ruaj">Ruaj</button> <button class="dyte ad-pass" title="Vendos fjalëkalim të ri">🔑</button> ${x.roli && !vetja ? '<button class="rrezik ad-hiq">Hiq qasjen</button>' : ''}</td></tr>`;
   }).join('') || '<tr><td colspan="5" class="zbehte">Asnjë llogari</td></tr>';
   document.querySelectorAll('#ad-perdoruesit tr[data-id]').forEach((tr) => {
     const id = tr.dataset.id, x = adLista.find((y) => y.user_id === id);
@@ -975,8 +986,40 @@ function adVizato() {
     };
     tr.querySelector('.ad-ruaj').onclick = () => ruaj(tr.querySelector('.ad-roli').disabled ? x.roli : tr.querySelector('.ad-roli').value);
     const h = tr.querySelector('.ad-hiq'); if (h) h.onclick = () => ruaj(null);
+    tr.querySelector('.ad-pass').onclick = async () => {
+      const fj = prompt(`Fjalëkalimi i ri për ${x.emri || x.llogaria} (të paktën 8 shenja):`, fjalekalimProvizor());
+      if (!fj) return;
+      const m = $('ad-mesazh'); m.className = 'mesazh pritje'; m.textContent = 'Duke e ndryshuar…';
+      const r = await thirrMenaxhimin({ veprimi: 'fjalekalim', user_id: id, fjalekalimi: fj });
+      m.className = 'mesazh ' + (r.ok ? 'ok' : 'gabim'); m.textContent = r.ok ? `✅ Fjalëkalimi i ${x.emri || x.llogaria} u ndryshua. Jepja personit.` : '❌ ' + r.error;
+    };
   });
 }
+function fjalekalimProvizor() {
+  const sh = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  return Array.from(crypto.getRandomValues(new Uint8Array(10)), (b) => sh[b % sh.length]).join('');
+}
+async function thirrMenaxhimin(trupi) {
+  const { data, error } = await sb.functions.invoke('ura-perdoruesit', { body: trupi });
+  if (error) { let msg = error.message; try { msg = (await error.context.json()).error || msg; } catch {} return { ok: false, error: msg }; }
+  return data;
+}
+$('ad-k-roli').innerHTML = Object.entries(ROLET).map(([k, t]) => `<option value="${k}" ${k === 'shitese_fizike' ? 'selected' : ''}>${t}</option>`).join('');
+$('ad-k-pass').value = fjalekalimProvizor();
+$('ad-k-gjenero').onclick = () => { $('ad-k-pass').value = fjalekalimProvizor(); };
+$('ad-k-krijo').onclick = async () => {
+  const emri = $('ad-k-emri').value.trim(), tel = $('ad-k-tel').value.trim(), pass = $('ad-k-pass').value, roli = $('ad-k-roli').value;
+  if (!emri || tel.replace(/\D/g, '').length < 8 || pass.length < 8) return alert('Plotëso emrin, numrin e telefonit dhe fjalëkalimin (të paktën 8 shenja).');
+  if (!confirm(`Krijo llogarinë:\n${emri} · ${tel} · ${ROLET[roli]}?`)) return;
+  const btn = $('ad-k-krijo'); btn.disabled = true;
+  const m = $('ad-mesazh'); m.className = 'mesazh pritje'; m.textContent = 'Duke krijuar llogarinë…';
+  const r = await thirrMenaxhimin({ veprimi: 'krijo', emri, telefoni: tel, fjalekalimi: pass, roli });
+  btn.disabled = false;
+  if (r.ok) {
+    m.className = 'mesazh ok'; m.innerHTML = `✅ ${esc(r.mesazhi)} Jepja personit: <b>${esc(tel)}</b> dhe fjalëkalimin që zgjodhe.`;
+    $('ad-k-emri').value = ''; $('ad-k-tel').value = ''; $('ad-k-pass').value = fjalekalimProvizor(); NGARKUESIT.admin();
+  } else { m.className = 'mesazh gabim'; m.textContent = '❌ ' + r.error; }
+};
 $('ad-kerko').oninput = adVizato; $('ad-filtri').onchange = adVizato;
 NGARKUESIT.admin = async () => {
   const uAdmin = profili.roli === 'admin';
@@ -984,7 +1027,7 @@ NGARKUESIT.admin = async () => {
     uAdmin ? sb.rpc('prodata_admin_lista') : sb.from('prodata_perdoruesit').select('user_id, emri, roli, shtuar').order('shtuar'),
     sb.from('prodata_komandat').select('krijuar, lloji, statusi, rezultati, gabimi').order('krijuar', { ascending: false }).limit(50)]);
   adLista = (lista.data || []).map((x) => ({ ...x, llogaria: x.llogaria || x.emri || '—', hyrja_fundit: x.hyrja_fundit || null }));
-  $('ad-udhezim').hidden = !uAdmin; $('ad-filtri').parentElement.hidden = !uAdmin;
+  $('ad-udhezim').hidden = !uAdmin; $('ad-filtri').parentElement.hidden = !uAdmin; $('ad-krijo').hidden = !uAdmin;
   adVizato();
   $('ad-komandat').innerHTML = (k || []).map((x) => `<tr><td>${oraKS(x.krijuar)}</td><td>${esc(x.lloji)}</td><td>${shenje(x.statusi)}</td><td>${x.statusi === 'kryer' ? '<b>' + esc((x.rezultati || {}).prodata_nr) + '</b>' : esc(x.gabimi || '')}</td></tr>`).join('');
 };
