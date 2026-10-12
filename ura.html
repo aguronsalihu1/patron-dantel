@@ -302,7 +302,12 @@
   <section class="faqe" id="f-admin">
     <h2>Administrimi</h2>
     <h3>Përdoruesit dhe rolet</h3>
-    <div class="tabela"><table><thead><tr><th>Emri</th><th>Roli</th><th>Shtuar</th></tr></thead><tbody id="ad-perdoruesit"></tbody></table></div>
+    <div class="udhezim" id="ad-udhezim">Këtu shfaqen të gjitha llogaritë e Patron Dantel. Llogari të reja krijohen te Patron Dantel me <b>"+ Punëtor i ri"</b>, pastaj u jep rolin këtu.
+      Vetëm llogaritë me rol hyjnë në këtë faqe dhe shohin të dhënat e Pro-Data-s.</div>
+    <div class="rresht"><label>Kërko <input id="ad-kerko" placeholder="emri, telefoni ose emaili" style="width:260px"></label>
+      <label>Shfaq <select id="ad-filtri"><option value="te_gjitha">Të gjitha</option><option value="me_qasje">Vetëm me qasje</option><option value="pa_qasje">Vetëm pa qasje</option></select></label></div>
+    <div class="tabela"><table><thead><tr><th>Llogaria</th><th>Emri</th><th>Roli</th><th>Hyrja e fundit</th><th></th></tr></thead><tbody id="ad-perdoruesit"></tbody></table></div>
+    <div class="mesazh" id="ad-mesazh"></div>
     <h3>Komandat drejt Pro-Data (50 të fundit)</h3>
     <div class="tabela"><table><thead><tr><th>Koha</th><th>Lloji</th><th>Statusi</th><th>Dokumenti / arsyeja</th></tr></thead><tbody id="ad-komandat"></tbody></table></div>
   </section>
@@ -943,12 +948,44 @@ NGARKUESIT.stafi = async () => {
   const { data: sh } = await sb.from('prodata_shiteset').select('emri');
   $('st-karta').innerHTML = `<div class="karte"><div class="tit">Shitëse aktive (6 muaj)</div><div class="vl">${(sh || []).length}</div></div>`;
 };
+// ---------- Administrimi: përdoruesit dhe rolet (vetëm Super Admin i ndryshon) ----------
+const ROLET = { admin: 'Super Admin', arka: 'ARKA', shitese_online: 'Shitëse online', shitese_fizike: 'Shitëse fizike', depo: 'Depo' };
+let adLista = [];
+function adVizato() {
+  const q = $('ad-kerko').value.trim().toLowerCase(), f = $('ad-filtri').value, uAdmin = profili.roli === 'admin';
+  const rr = adLista.filter((x) => (f === 'te_gjitha' || (f === 'me_qasje') === !!x.roli) && (!q || [x.llogaria, x.emri].some((v) => String(v || '').toLowerCase().includes(q))));
+  $('ad-perdoruesit').innerHTML = rr.map((x) => {
+    const vetja = x.user_id === perdoruesi.id;
+    if (!uAdmin) return `<tr><td>${esc(x.llogaria)}</td><td>${esc(x.emri || '')}</td><td>${ROLET[x.roli] || '<span class="zbehte">pa qasje</span>'}</td><td>${x.hyrja_fundit ? oraKS(x.hyrja_fundit) : '—'}</td><td></td></tr>`;
+    return `<tr data-id="${x.user_id}"><td>${esc(x.llogaria)}${vetja ? ' <span class="shenje s-ok">ti</span>' : ''}</td>
+      <td><input class="ad-emri" value="${esc(x.emri || '')}" placeholder="emri" style="width:150px"></td>
+      <td><select class="ad-roli" ${vetja ? 'disabled' : ''}><option value="">— pa qasje —</option>${Object.entries(ROLET).map(([k, t]) => `<option value="${k}" ${x.roli === k ? 'selected' : ''}>${t}</option>`).join('')}</select></td>
+      <td>${x.hyrja_fundit ? oraKS(x.hyrja_fundit) : '—'}</td>
+      <td style="white-space:nowrap"><button class="dyte ad-ruaj">Ruaj</button> ${x.roli && !vetja ? '<button class="rrezik ad-hiq">Hiq qasjen</button>' : ''}</td></tr>`;
+  }).join('') || '<tr><td colspan="5" class="zbehte">Asnjë llogari</td></tr>';
+  document.querySelectorAll('#ad-perdoruesit tr[data-id]').forEach((tr) => {
+    const id = tr.dataset.id, x = adLista.find((y) => y.user_id === id);
+    const ruaj = async (roli) => {
+      const emri = tr.querySelector('.ad-emri').value.trim();
+      const tekst = roli ? `${x.llogaria}: ${ROLET[roli]}${emri ? ' (' + emri + ')' : ''}` : `Hiq qasjen për ${x.llogaria}${x.emri ? ' (' + x.emri + ')' : ''}`;
+      if (!confirm(tekst + '?')) return;
+      const { data, error } = await sb.rpc('prodata_admin_cakto', { p_user: id, p_roli: roli || null, p_emri: emri || null });
+      const m = $('ad-mesazh'); m.className = 'mesazh ' + (error ? 'gabim' : 'ok'); m.textContent = error ? '❌ ' + error.message : '✅ ' + data + ': ' + x.llogaria;
+      NGARKUESIT.admin();
+    };
+    tr.querySelector('.ad-ruaj').onclick = () => ruaj(tr.querySelector('.ad-roli').disabled ? x.roli : tr.querySelector('.ad-roli').value);
+    const h = tr.querySelector('.ad-hiq'); if (h) h.onclick = () => ruaj(null);
+  });
+}
+$('ad-kerko').oninput = adVizato; $('ad-filtri').onchange = adVizato;
 NGARKUESIT.admin = async () => {
-  const [{ data: p }, { data: k }] = await Promise.all([
-    sb.from('prodata_perdoruesit').select('emri, roli, shtuar').order('shtuar'),
+  const uAdmin = profili.roli === 'admin';
+  const [lista, { data: k }] = await Promise.all([
+    uAdmin ? sb.rpc('prodata_admin_lista') : sb.from('prodata_perdoruesit').select('user_id, emri, roli, shtuar').order('shtuar'),
     sb.from('prodata_komandat').select('krijuar, lloji, statusi, rezultati, gabimi').order('krijuar', { ascending: false }).limit(50)]);
-  const rolet = { admin: 'Super Admin', arka: 'ARKA', shitese_online: 'Shitëse online', shitese_fizike: 'Shitëse fizike', depo: 'Depo' };
-  $('ad-perdoruesit').innerHTML = (p || []).map((x) => `<tr><td>${esc(x.emri || '—')}</td><td>${rolet[x.roli] || '<span class="zbehte">pa rol</span>'}</td><td>${oraKS(x.shtuar)}</td></tr>`).join('');
+  adLista = (lista.data || []).map((x) => ({ ...x, llogaria: x.llogaria || x.emri || '—', hyrja_fundit: x.hyrja_fundit || null }));
+  $('ad-udhezim').hidden = !uAdmin; $('ad-filtri').parentElement.hidden = !uAdmin;
+  adVizato();
   $('ad-komandat').innerHTML = (k || []).map((x) => `<tr><td>${oraKS(x.krijuar)}</td><td>${esc(x.lloji)}</td><td>${shenje(x.statusi)}</td><td>${x.statusi === 'kryer' ? '<b>' + esc((x.rezultati || {}).prodata_nr) + '</b>' : esc(x.gabimi || '')}</td></tr>`).join('');
 };
 </script>
