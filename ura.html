@@ -6,29 +6,39 @@
 <title>Patron ↔ Pro-Data</title>
 <meta name="robots" content="noindex, nofollow">
 <style>
-  :root { --bg:#f6f7f9; --kart:#fff; --tekst:#1d2330; --zbehte:#6b7385; --vije:#e1e4ea; --kryesor:#7A2A78; --kryesor2:#1f5fbf; --ok:#1d8a4b; --gabim:#c2372f; --pritje:#b7791f; }
+  :root { --bg:#f5f2f7; --kart:#fff; --tekst:#22182a; --zbehte:#6e6578; --vije:#e8e1ec; --kryesor:#7A2A78; --kryesor-err:#5c1f5b; --kryesor2:#2f5fd0;
+          --ok:#14804a; --gabim:#c2372f; --pritje:#b7791f; --hije:0 1px 2px rgba(40,20,50,.06), 0 6px 18px rgba(40,20,50,.06); }
   * { box-sizing: border-box; }
+  [hidden] { display:none !important; }
   body { margin:0; font-family: Segoe UI, system-ui, -apple-system, sans-serif; background:var(--bg); color:var(--tekst); font-size:15px; }
-  header { background:#2b1630; color:#fff; padding:10px 14px; display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  header { background:linear-gradient(120deg, #3a1240 0%, #7A2A78 100%); color:#fff; padding:12px 16px; display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+           box-shadow:0 2px 10px rgba(58,18,64,.25); position:sticky; top:0; z-index:20; }
   header h1 { font-size:16px; margin:0; font-weight:600; }
-  header .djathtas { margin-left:auto; font-size:13px; display:flex; gap:10px; align-items:center; }
-  header button { background:none; border:1px solid #8a6a90; color:#fff; border-radius:5px; padding:4px 10px; cursor:pointer; }
+  header .djathtas { margin-left:auto; font-size:15px; display:flex; gap:10px; align-items:center; font-weight:600; }
+  header .avatar { width:32px; height:32px; border-radius:50%; background:rgba(255,255,255,.2); display:inline-flex; align-items:center; justify-content:center; font-weight:700; }
+  header button { background:rgba(255,255,255,.16); border:0; color:#fff; border-radius:999px; padding:7px 16px; cursor:pointer; font-weight:600; font-size:14px; }
+  header button:hover { background:rgba(255,255,255,.26); }
+  header #shtepia { font-size:18px; padding:6px 12px; }
   .statusi { display:flex; gap:12px; font-size:12px; flex-wrap:wrap; }
   .drite { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:4px; background:#888; }
   .drite.ok { background:#3ddc84; } .drite.jo { background:#ff5a4e; }
-  nav { display:flex; gap:4px; padding:10px 12px 0; overflow-x:auto; }
-  nav button { border:1px solid var(--vije); border-bottom:none; background:#ece8ee; padding:9px 13px; border-radius:8px 8px 0 0; cursor:pointer; font-size:14px; white-space:nowrap; }
-  nav button.aktive { background:var(--kart); font-weight:600; }
+  nav { display:flex; gap:6px; padding:12px; overflow-x:auto; }
+  nav button { border:0; background:#fff; color:var(--tekst); padding:9px 14px; border-radius:999px; cursor:pointer; font-size:14px; white-space:nowrap; box-shadow:0 1px 2px rgba(40,20,50,.08); }
+  nav button:hover { background:#f3e9f3; }
+  nav button.aktive { background:var(--kryesor); color:#fff; font-weight:600; }
   main { padding:0 12px 30px; }
-  section.faqe { display:none; background:var(--kart); border:1px solid var(--vije); border-radius:0 8px 8px 8px; padding:16px; }
+  #aplikacioni.pa-meny main { padding-top:14px; }
+  section.faqe { display:none; background:var(--kart); border:0; border-radius:16px; padding:18px; box-shadow:var(--hije); }
   section.faqe.aktive { display:block; }
   h2 { font-size:18px; margin:0 0 12px; } h3 { font-size:15px; margin:16px 0 8px; }
   .rresht { display:flex; gap:12px; flex-wrap:wrap; margin-bottom:12px; align-items:flex-end; }
   label { display:flex; flex-direction:column; font-size:13px; color:var(--zbehte); gap:4px; }
-  input, select, textarea { font-size:16px; padding:8px 9px; border:1px solid #c7ccd6; border-radius:6px; min-width:110px; max-width:100%; font-family:inherit; }
+  input, select, textarea { font-size:16px; padding:9px 11px; border:1px solid #d9d0de; border-radius:10px; min-width:110px; max-width:100%; font-family:inherit; background:#fff; color:var(--tekst); }
+  input:focus, select:focus, textarea:focus { outline:none; border-color:var(--kryesor); box-shadow:0 0 0 3px rgba(122,42,120,.15); }
   input.sasi, input.cmim { width:88px; min-width:0; text-align:right; }
-  button.kryesor, button.dyte, button.rrezik { border:none; padding:11px 18px; border-radius:6px; font-size:15px; cursor:pointer; font-weight:600; }
-  button.kryesor { background:var(--kryesor); color:#fff; } button.dyte { background:#e7e2ea; color:var(--tekst); } button.rrezik { background:#fbeaea; color:var(--gabim); }
+  button.kryesor, button.dyte, button.rrezik { border:none; padding:11px 18px; border-radius:12px; font-size:15px; cursor:pointer; font-weight:600; transition:filter .15s, transform .05s; }
+  button.kryesor { background:var(--kryesor); color:#fff; box-shadow:0 2px 6px rgba(122,42,120,.25); } button.dyte { background:#f0e8f2; color:var(--kryesor-err); } button.rrezik { background:#fbeaea; color:var(--gabim); }
+  button.kryesor:hover, button.dyte:hover { filter:brightness(1.06); } button.kryesor:active, button.dyte:active { transform:translateY(1px); }
   button:disabled { opacity:.5; cursor:default; }
   button.heq { background:none; border:none; color:var(--gabim); cursor:pointer; font-size:18px; }
   .butona { display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
@@ -56,7 +66,7 @@
   .nenfaqet button { border:1px solid var(--vije); background:#f4f2f5; padding:7px 12px; border-radius:16px; cursor:pointer; }
   .nenfaqet button.aktive { background:var(--kryesor); color:#fff; border-color:var(--kryesor); }
   .karta { display:grid; grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); gap:12px; margin-bottom:14px; }
-  .karte { border:1px solid var(--vije); border-radius:10px; padding:12px 14px; background:#fff; }
+  .karte { border:1px solid var(--vije); border-radius:14px; padding:12px 14px; background:#fff; box-shadow:0 1px 2px rgba(40,20,50,.05); }
   .karte .tit { font-size:12px; color:var(--zbehte); text-transform:uppercase; font-weight:600; }
   .karte .vl { font-size:24px; font-weight:700; margin:4px 0; }
   .karte .det { font-size:13px; color:var(--zbehte); }
@@ -81,12 +91,17 @@
   #dk-skaneri { position:fixed; inset:0; background:#000; z-index:50; display:none; flex-direction:column; }
   #dk-skaneri video { flex:1; width:100%; object-fit:cover; } .dk-skaneri-bar { display:flex; justify-content:space-between; align-items:center; padding:12px; color:#fff; }
   .onl-butonat { display:flex; flex-direction:column; gap:16px; max-width:520px; margin:10px auto; }
-  .onl-buton { border:0; border-radius:22px; padding:26px 22px; color:#fff; font:inherit; font-size:2rem; cursor:pointer; text-align:left; display:flex; flex-direction:column; box-shadow:0 6px 0 rgba(0,0,0,.18); }
-  .onl-buton b { font-size:1.7rem; margin-top:4px; } .onl-buton small { font-size:1rem; opacity:.9; }
-  .onl-buton:active { transform:translateY(4px); box-shadow:0 2px 0 rgba(0,0,0,.18); }
+  .onl-buton { border:0; border-radius:24px; padding:26px 24px; color:#fff; font:inherit; font-size:2rem; cursor:pointer; text-align:left; display:flex; flex-direction:column;
+               box-shadow:0 10px 24px rgba(40,20,50,.18); transition:transform .08s, box-shadow .08s; }
+  .onl-buton b { font-size:1.7rem; margin-top:4px; } .onl-buton small { font-size:1rem; opacity:.92; }
+  .onl-buton:active { transform:translateY(3px); box-shadow:0 4px 10px rgba(40,20,50,.18); }
+  .onl-b-shitje { background:linear-gradient(135deg, #5c1f5b, #a8459f); }
+  .onl-b-porosite { background:linear-gradient(135deg, #1e3a8a, #3b82f6); }
+  .onl-b-llogaria { background:linear-gradient(135deg, #065f46, #10b981); }
+  #f-onl_home { background:transparent; box-shadow:none; padding:4px 0; }
   .onl-forma { display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:10px 12px; margin-bottom:10px; }
   .onl-forma input, .onl-forma select { width:100%; } .onl-gjere { grid-column:1 / -1; }
-  .onl-porosi { border:1px solid var(--vije); border-radius:12px; padding:12px 14px; margin-bottom:10px; background:#fff; }
+  .onl-porosi { border:1px solid var(--vije); border-radius:16px; padding:14px 16px; margin-bottom:12px; background:#fff; box-shadow:0 1px 3px rgba(40,20,50,.06); }
   .onl-porosi .krye { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; }
   .onl-porosi .art { font-size:14px; margin:6px 0; }
   .onl-foto-btn { display:inline-block; padding:10px 14px; border-radius:10px; cursor:pointer; }
@@ -112,12 +127,13 @@
 </head>
 <body>
 <header>
-  <h1>Patron Dantel ↔ Pro-Data</h1>
+  <button id="shtepia" hidden title="Kryefaqja">🏠</button>
+  <h1 id="titulli" hidden>Patron Dantel ↔ Pro-Data</h1>
   <div class="statusi" id="statusi" hidden>
     <span><span id="d-lexim" class="drite"></span><span id="t-lexim">Leximi…</span></span>
     <span><span id="d-shkrim" class="drite"></span><span id="t-shkrim">Shkrimi…</span></span>
   </div>
-  <div class="djathtas" id="perdoruesi" hidden><span id="emri-perdoruesit"></span><button id="dil">Dil</button></div>
+  <div class="djathtas" id="perdoruesi" hidden><span class="avatar" id="avatar"></span><span id="emri-perdoruesit"></span><button id="dil">Dil</button></div>
 </header>
 
 <div id="hyrja">
@@ -188,9 +204,9 @@
   <!-- ===== SHITJA ONLINE: KRYEFAQJA (3 butona) ===== -->
   <section class="faqe" id="f-onl_home">
     <div class="onl-butonat">
-      <button class="onl-buton" data-shko="onl_shitje" style="background:#7A2A78">🛒<b>Shitje</b><small>Porosi e re online</small></button>
-      <button class="onl-buton" data-shko="onl_porosite" style="background:#2c5fd6">📦<b>Porositë</b><small id="onl-home-nr">Porositë e regjistruara</small></button>
-      <button class="onl-buton" data-shko="llogaria" style="background:#1f8a5b">👤<b>Llogaria ime</b><small>Puna ime sot</small></button>
+      <button class="onl-buton onl-b-shitje" data-shko="onl_shitje">🛒<b>Shitje</b><small>Porosi e re online</small></button>
+      <button class="onl-buton onl-b-porosite" data-shko="onl_porosite">📦<b>Porositë</b><small id="onl-home-nr">Porositë e regjistruara</small></button>
+      <button class="onl-buton onl-b-llogaria" data-shko="llogaria">👤<b>Llogaria ime</b><small>Puna ime sot</small></button>
     </div>
   </section>
 
@@ -445,8 +461,11 @@ const NGARKUESIT = {};
 function hapFaqen(emri) {
   document.querySelectorAll('#menyja button').forEach((b) => b.classList.toggle('aktive', b.dataset.faqe === emri));
   document.querySelectorAll('section.faqe').forEach((s) => s.classList.toggle('aktive', s.id === 'f-' + emri));
+  $('shtepia').hidden = !(profili && profili.roli === 'shitese_online' && emri !== 'onl_home');
+  window.scrollTo(0, 0);
   if (NGARKUESIT[emri]) NGARKUESIT[emri]();
 }
+$('shtepia').onclick = () => hapFaqen('onl_home');
 
 // ---------- Hyrja ----------
 $('forma-hyrja').onsubmit = async (e) => {
@@ -464,7 +483,8 @@ sb.auth.onAuthStateChange(async (_n, ses) => {
   perdoruesi = ses ? ses.user : null;
   $('hyrja').style.display = perdoruesi ? 'none' : 'block';
   $('aplikacioni').style.display = perdoruesi ? 'block' : 'none';
-  $('statusi').hidden = $('perdoruesi').hidden = !perdoruesi;
+  $('perdoruesi').hidden = !perdoruesi;
+  $('statusi').hidden = $('titulli').hidden = $('shtepia').hidden = true;   // gjendja e urës dhe titulli: vetëm për Super Admin (më poshtë)
   if (!perdoruesi) { nisur = false; return; }
   if (nisur) return; nisur = true;
   const { data } = await sb.from('prodata_perdoruesit').select('roli, emri').eq('user_id', perdoruesi.id).maybeSingle();
@@ -472,7 +492,13 @@ sb.auth.onAuthStateChange(async (_n, ses) => {
   if (!profili || !profili.roli) {
     $('menyja').innerHTML = ''; document.querySelector('main').innerHTML = '<section class="faqe aktive"><div class="udhezim">Llogaria jote nuk ka ende rol. Kërko nga administratori të të caktojë rolin.</div></section>'; return;
   }
-  $('emri-perdoruesit').textContent = `${profili.emri || perdoruesi.email || ''} · ${({ admin: 'Super Admin', arka: 'ARKA', shitese_online: 'Shitëse online', shitese_fizike: 'Shitëse fizike', depo: 'Depo' })[profili.roli]}`;
+  const eAdmin = profili.roli === 'admin', emriP = profili.emri || (perdoruesi.email || '').split('@')[0];
+  $('emri-perdoruesit').textContent = eAdmin ? `${emriP} · Super Admin` : emriP;
+  $('avatar').textContent = (emriP[0] || '?').toUpperCase();
+  $('statusi').hidden = $('titulli').hidden = !eAdmin;
+  // shitëset online kanë 3 butonat e kryefaqes; menyja lart u hoq, kthimi bëhet me 🏠
+  const paMeny = profili.roli === 'shitese_online';
+  $('menyja').hidden = paMeny; $('aplikacioni').classList.toggle('pa-meny', paMeny);
   $('menyja').innerHTML = MENYTE[profili.roli].map(([k, t]) => `<button data-faqe="${k}">${t}</button>`).join('');
   document.querySelectorAll('#menyja button').forEach((b) => b.onclick = () => hapFaqen(b.dataset.faqe));
   await ngarkoListat();
