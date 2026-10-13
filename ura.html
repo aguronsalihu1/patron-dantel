@@ -795,6 +795,10 @@ const TP_QYTETET = {
 for (const k in TP_QYTETET) TP_QYTETET[k] = TP_QYTETET[k].split(',');
 const TP_SHTETI = { 'Kosovë': 'KS', 'Shqipëri': 'AL', 'Maqedoni e Veriut': 'MK' };
 const TP_ALIAS = { shkup: 'Skopje', shkodra: 'Shkoder', ohri: 'Ohrid', manastir: 'Bitola', kercov: 'Kicevo', strumic: 'Strumica', 'fushe arrez': 'FuArr', vitia: 'Viti', 'kosove fushe': 'Fushë Kosovë' };
+// Transporti i Tel-Post: e paguan klienti mbi çmimin (Tel-Post e zbret nga "Vlera e pakos"). I njëjtë me ura/telposta_lib.js.
+const TP_TRANSPORTI = { KS: 2.5, AL: 6, MK: 6 };
+const tpTransporti = (f) => { const k = TP_SHTETI[f.shteti]; return k && tpQyteti(f.qyteti, k) ? TP_TRANSPORTI[k] : 0; };
+const tpVlera = (f) => Math.round((+f.totali || 0) + tpTransporti(f));   // shuma që mbledh postieri (pa decimale)
 const tpNorm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z]+/g, ' ').trim();
 const tpRrenja = (s) => tpNorm(s).replace(/[aeiou]$/, '');
 function tpQyteti(emri, kodi) {   // → { emri, kodi } sipas listës së Tel-Post, ose null
@@ -810,7 +814,7 @@ function onlQytetetLista() {
   const k = TP_SHTETI[$('onl-shteti').value];
   $('onl-qytetet').innerHTML = (k ? TP_QYTETET[k] : []).slice().sort((a, b) => a.localeCompare(b, 'sq')).map((q) => `<option value="${esc(q)}">`).join('');
 }
-$('onl-qyteti').onchange = () => { const q = tpQyteti($('onl-qyteti').value, TP_SHTETI[$('onl-shteti').value]); if (q) $('onl-qyteti').value = q.emri; };
+$('onl-qyteti').onchange = () => { const q = tpQyteti($('onl-qyteti').value, TP_SHTETI[$('onl-shteti').value]); if (q) $('onl-qyteti').value = q.emri; onlVizato(); };
 onlQytetetLista();
 const NGJYRAT = ['e zeze', 'e bardhe', 'e kuqe', 'e verdhe', 'e gjelber', 'roze', 'blu', 'gold', 'silver', 'nude', 'krem', 'bezhe', 'kafe', 'gri', 'vjollce', 'portokalli',
   'black', 'white', 'red', 'pink', 'blue', 'royalblue', 'navy', 'green', 'beige', 'ivory', 'cream', 'champagne', 'purple', 'lilac', 'grey', 'gray', 'brown', 'babypink', 'fuschia', 'fuchsia', 'burgundy', 'emerald', 'mint', 'peach', 'coral', 'olive'];
@@ -843,7 +847,8 @@ function onlVizato() {
     tb.appendChild(t);
   });
   if (!onl.rreshtat.length) tb.innerHTML = '<tr><td colspan="7" class="zbehte">Ende asnjë material. Kërko me kod, barkod ose emër.</td></tr>';
-  $('onl-totali').textContent = eur(tot);
+  const tr = tpTransporti({ shteti: $('onl-shteti').value, qyteti: $('onl-qyteti').value, totali: tot });
+  $('onl-totali').textContent = tr ? `${eur(tot)} + transporti ${eur(tr)} = ${tpVlera({ shteti: $('onl-shteti').value, qyteti: $('onl-qyteti').value, totali: tot })}.00` : eur(tot);
 }
 kerkimArtikujsh('onl-kerko', 'onl-lista', (a) => {
   const ek = onl.rreshtat.find((r) => r.id === a.id);
@@ -898,7 +903,8 @@ function printoOnline(f) {
     ${esc(f.adresa || '')}<br><b>${esc(f.qyteti || '')}, ${esc(f.shteti || '')}</b></div>
     <table><tr><th>Kodi</th><th>Materiali</th><th>Ngjyra</th><th>Sasia</th><th>€</th></tr>
     ${(f.rreshtat || []).map((r) => `<tr><td>${esc(r.kodi)}</td><td>${esc(r.emri)}</td><td>${esc(r.ngjyra || '')}</td><td>${r.sasia} ${esc(r.njesia || '')}</td><td>${eur(r.sasia * r.cmimi)}</td></tr>`).join('')}</table>
-    <p style="text-align:right;font-size:1.3em"><b>Për pagesë: ${eur(f.totali)} €</b><br><span style="font-size:.75em">${f.eksport ? 'Export, TVSH 0%' : 'Çmimet përfshijnë TVSH-në'} · Nuk është dokument fiskal</span></p>
+    ${tpTransporti(f) ? `<p style="text-align:right">Materiali: ${eur(f.totali)} €<br>Transporti (Telposta): ${eur(tpTransporti(f))} €</p>` : ''}
+    <p style="text-align:right;font-size:1.3em"><b>Për pagesë: ${tpTransporti(f) ? tpVlera(f) + '.00' : eur(f.totali)} €</b>${f.telposta_kodi ? '<br>Telposta: ' + esc(f.telposta_kodi) : ''}<br><span style="font-size:.75em">${f.eksport ? 'Export, TVSH 0%' : 'Çmimet përfshijnë TVSH-në'} · Nuk është dokument fiskal</span></p>
     ${f.shenim ? `<p>Shënim: ${esc(f.shenim)}</p>` : ''}<p style="font-size:.8em">Shitësja: ${esc(f.shitesja_emri || '')}</p>`;
   window.print();
 }
@@ -925,13 +931,40 @@ $('onl-regjistro').onclick = async () => {
       await sb.from('app_faturat').update({ porosia_nr: k.rezultati.prodata_nr }).eq('id', f.id);
       const fP = { ...f, porosia_nr: k.rezultati.prodata_nr };
       m.className = 'mesazh ok'; m.innerHTML = `✅ U regjistrua: porosia <b>${f.nr}</b> → Pro-Data <b>${esc(k.rezultati.prodata_nr)}</b>
-        <div class="butona"><button class="dyte" id="onl-pas-print">🖨️ Print</button><button class="dyte" id="onl-pas-telposta">📮 Kopjo për Telposta</button><button class="kryesor" id="onl-pas-re">+ Porosi e re</button></div>`;
-      $('onl-pas-print').onclick = () => printoOnline(fP); $('onl-pas-telposta').onclick = () => kopjoTelposta(fP);
+        <div id="onl-tp-gjendja" style="margin-top:6px"></div>
+        <div class="butona"><button class="kryesor" id="onl-pas-letra" hidden style="background:#c0392b">🖨️ Letra e Telpostës</button><button class="dyte" id="onl-pas-print">🖨️ Print</button><button class="kryesor" id="onl-pas-re">+ Porosi e re</button></div>`;
+      $('onl-pas-print').onclick = () => printoOnline(fP);
       $('onl-pas-re').onclick = () => onlPastro();
+      pritTelposten(f, $('onl-tp-gjendja'), $('onl-pas-letra'));
     } else { m.className = 'mesazh gabim'; m.innerHTML = k ? '❌ Pro-Data nuk e pranoi: ' + esc(k.gabimi) : '⚠️ Ura nuk u përgjigj. Porosia mbetet në radhë dhe regjistrohet kur ura të kthehet.'; }
   } catch (e) { m.className = 'mesazh gabim'; m.textContent = '❌ ' + e.message; }
   btn.disabled = false;
 };
+// Letra e Tel-Post (PDF që e merr roboti nga Tel-Post) — dritarja hapet menjëherë nga klikimi, që shfletuesi të mos e bllokojë
+async function hapLetren(rruga) {
+  const w = window.open('', '_blank');
+  const { data, error } = await sb.storage.from('telposta-letrat').createSignedUrl(rruga, 600);
+  if (error) { if (w) w.close(); return alert('Letra nuk u hap: ' + error.message); }
+  if (w) w.location = data.signedUrl; else location.href = data.signedUrl;
+}
+// Pas regjistrimit: pret robotin derisa porosia të jetë te Tel-Post dhe letra gati (deri 3 minuta)
+async function pritTelposten(f, el, btn) {
+  if (!tpTransporti(f)) { el.innerHTML = '<span class="zbehte">Kjo porosi nuk shkon me Telposta (shteti/qyteti jashtë listës së tyre).</span>'; return; }
+  el.innerHTML = '📮 Po regjistrohet te Telposta… <span class="zbehte">(roboti, zakonisht brenda 1 minute)</span>';
+  for (let i = 0; i < 60; i++) {
+    await new Promise((r) => setTimeout(r, 3000));
+    if (!document.body.contains(el)) return;   // shitësja kaloi te porosia tjetër
+    const { data: x } = await sb.from('app_faturat').select('telposta_statusi, telposta_gabim, telposta_kodi, telposta_letra').eq('id', f.id).single();
+    if (!x) continue;
+    if (x.telposta_letra) {
+      el.innerHTML = `✅ Te Telposta: <b>${esc(x.telposta_kodi || '')}</b>. Printo letrën dhe ngjite te pakoja.`;
+      btn.hidden = false; btn.onclick = () => hapLetren(x.telposta_letra); return;
+    }
+    if (x.telposta_statusi === 'gabim') { el.innerHTML = `<span style="color:#c0392b">⚠️ Telposta: ${esc(x.telposta_gabim || 'gabim')}</span>`; return; }
+    if (x.telposta_statusi === 'derguar') el.innerHTML = `📮 Te Telposta${x.telposta_kodi ? ': <b>' + esc(x.telposta_kodi) + '</b>' : ''}. Po merret letra…`;
+  }
+  el.innerHTML = '<span class="zbehte">⏳ Roboti i Telpostës s\'u përgjigj ende. Letra do të dalë te 📦 Porositë sapo të jetë gati.</span>';
+}
 NGARKUESIT.onl_shitje = (ngaRealtime) => { if (!ngaRealtime && !$('onl-rreshtat').children.length) onlVizato(); };
 NGARKUESIT.onl_home = async () => {
   const { count } = await sb.from('app_faturat').select('id', { count: 'exact', head: true }).eq('kanali', 'online').gte('krijuar', new Date(Date.now() - 864e5).toISOString());
@@ -975,13 +1008,14 @@ function onlPVizato() {
   const shenjaD = { regjistruar: ['🆕 E regjistruar', 's-hapur'], gati: ['📦 Gati', 's-pritje'], marre_nga_posta: ['🚚 Marrë nga posta', 's-ok'] };
   $('onl-p-lista').innerHTML = rr.map((f) => { const [t, c] = shenjaD[f.statusi_dergeses || 'regjistruar'];
     return `<div class="onl-porosi" data-id="${f.id}"><div class="krye"><div><b>#${f.nr}</b> · ${oraKS(f.krijuar)} · <b>${esc(emriPlote(f))}</b> · ${esc(f.klienti_telefoni || '')}
-        <div class="zbehte">${esc([f.adresa, f.qyteti, f.shteti].filter(Boolean).join(', '))}${f.eksport ? ' · 🌍 export' : ''} · Shitësja: ${esc(f.shitesja_emri || '')}${f.porosia_nr ? ' · Pro-Data: ' + esc(f.porosia_nr) : ' · ⏳ pa nr. Pro-Data'}${f.posta_nr ? ' · Posta: ' + esc(f.posta_nr) : ''}${f.telposta_statusi === 'derguar' ? ' · 🤖 te Telposta ' + oraKS(f.telposta_excel) : f.telposta_excel ? ' · 📄 në Excel ' + oraKS(f.telposta_excel) : ''}</div>
+        <div class="zbehte">${esc([f.adresa, f.qyteti, f.shteti].filter(Boolean).join(', '))}${f.eksport ? ' · 🌍 export' : ''} · Shitësja: ${esc(f.shitesja_emri || '')}${f.porosia_nr ? ' · Pro-Data: ' + esc(f.porosia_nr) : ' · ⏳ pa nr. Pro-Data'}${f.posta_nr ? ' · Posta: ' + esc(f.posta_nr) : ''}${f.telposta_statusi === 'derguar' ? ' · 🤖 te Telposta ' + (f.telposta_kodi ? esc(f.telposta_kodi) + ' ' : '') + oraKS(f.telposta_excel) : f.telposta_excel ? ' · 📄 në Excel ' + oraKS(f.telposta_excel) : ''}</div>
         ${f.telposta_statusi === 'gabim' ? `<div class="mesazh gabim" style="display:block;margin-top:4px">⚠️ Telposta: ${esc(f.telposta_gabim || '')} <button class="dyte op-tp-riprovo">🔁 Provo prapë</button></div>` : ''}</div>
         <div><span class="shenje ${c}">${t}</span> <b>${eur(f.totali)} €</b></div></div>
       <div class="art">${(f.rreshtat || []).map((r) => `${esc(r.kodi)} ${esc(r.emri)}${r.ngjyra ? ' · ' + esc(r.ngjyra) : ''} × <b>${r.sasia}</b> ${esc(r.njesia || '')}`).join('<br>')}</div>
       <div class="butona" style="margin-top:6px">
         ${(f.statusi_dergeses || 'regjistruar') === 'regjistruar' ? '<button class="kryesor op-gati" style="background:#e0a100;color:#2b2000">📦 U bë gati</button>' : ''}
         ${(f.statusi_dergeses || 'regjistruar') !== 'marre_nga_posta' ? '<button class="kryesor op-posta" style="background:#1f8a5b">🚚 U mor nga posta</button>' : ''}
+        ${f.telposta_letra ? '<button class="kryesor op-letra" style="background:#c0392b">🖨️ Letra Telposta</button>' : ''}
         <button class="dyte op-print">🖨️ Print</button><button class="dyte op-telposta">📮 Telposta</button></div></div>`; }).join('')
     || '<p class="zbehte">Asnjë porosi për këtë zgjedhje.</p>';
   document.querySelectorAll('#onl-p-lista .onl-porosi').forEach((el) => {
@@ -992,6 +1026,7 @@ function onlPVizato() {
       ndrysho({ statusi_dergeses: 'marre_nga_posta', posta_koha: new Date().toISOString(), posta_nr: n.trim() || f.posta_nr || null }); };
     el.querySelector('.op-print').onclick = () => printoOnline(f);
     el.querySelector('.op-telposta').onclick = () => kopjoTelposta(f);
+    const lt = el.querySelector('.op-letra'); if (lt) lt.onclick = () => hapLetren(f.telposta_letra);
     const tp = el.querySelector('.op-tp-riprovo');
     if (tp) tp.onclick = () => { if (confirm(`Ta dërgojë roboti prapë porosinë #${f.nr} te Telposta?\nBëje vetëm nëse porosia NUK është atje, përndryshe del dyfish.`)) ndrysho({ telposta_statusi: null, telposta_gabim: null }); };
   });
@@ -1014,8 +1049,8 @@ function tpRreshti(f, i) {
   const rr = f.rreshtat || [];
   const emertimi = rr.length ? shkurto(rr[0].emri + (rr.length > 1 ? ` +${rr.length - 1}` : ''), 60) : 'Material tekstili';
   const pershkrimi = shkurto(rr.map((r) => `${r.kodi} ${r.emri}${r.ngjyra ? ' ' + r.ngjyra : ''} x${r.sasia}${r.njesia ? ' ' + r.njesia : ''}`).join('; '), 250);
-  return ['', emriPlote(f), q.kodi, q.emri, f.adresa || '', String(f.klienti_telefoni || ''), '', emertimi, pershkrimi, String(f.nr),
-    '', f.pako_hapet ? 'X' : '', '', f.pako_madhesia || 'S', Math.round(+f.totali || 0), '', f.shenim || ''];
+  return ['', emriPlote(f), q.kodi, q.emri, f.adresa || '', String(f.klienti_telefoni || ''), '', emertimi, pershkrimi, 'PD' + f.nr,
+    '', f.pako_hapet ? 'X' : '', '', f.pako_madhesia || 'S', tpVlera(f), '', f.shenim || ''];
 }
 $('onl-p-excel').onclick = async () => {
   let lista = onlPShfaqur.filter((f) => !f.telposta_excel);
