@@ -18,7 +18,8 @@
   header .avatar { width:32px; height:32px; border-radius:50%; background:rgba(255,255,255,.2); display:inline-flex; align-items:center; justify-content:center; font-weight:700; }
   header button { background:rgba(255,255,255,.16); border:0; color:#fff; border-radius:999px; padding:7px 16px; cursor:pointer; font-weight:600; font-size:14px; }
   header button:hover { background:rgba(255,255,255,.26); }
-  header #shtepia { font-size:18px; padding:6px 12px; }
+  header #shtepia { background:#fff; color:var(--kryesor); font-size:15px; padding:8px 16px; }
+  header #shtepia:hover { background:#f3e9f3; }
   .statusi { display:flex; gap:12px; font-size:12px; flex-wrap:wrap; }
   .drite { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:4px; background:#888; }
   .drite.ok { background:#3ddc84; } .drite.jo { background:#ff5a4e; }
@@ -127,7 +128,7 @@
 </head>
 <body>
 <header>
-  <button id="shtepia" hidden title="Kryefaqja">🏠</button>
+  <button id="shtepia" hidden title="Kthehu te kryefaqja">← Kryefaqja</button>
   <h1 id="titulli" hidden>Patron Dantel ↔ Pro-Data</h1>
   <div class="statusi" id="statusi" hidden>
     <span><span id="d-lexim" class="drite"></span><span id="t-lexim">Leximi…</span></span>
@@ -461,11 +462,14 @@ const NGARKUESIT = {};
 function hapFaqen(emri) {
   document.querySelectorAll('#menyja button').forEach((b) => b.classList.toggle('aktive', b.dataset.faqe === emri));
   document.querySelectorAll('section.faqe').forEach((s) => s.classList.toggle('aktive', s.id === 'f-' + emri));
-  $('shtepia').hidden = !(profili && profili.roli === 'shitese_online' && emri !== 'onl_home');
+  const meKthim = !!(profili && profili.roli === 'shitese_online' && emri !== 'onl_home');
+  $('shtepia').hidden = !meKthim;
+  if (meKthim && !(history.state && history.state.faqe)) history.pushState({ faqe: emri }, '');   // butoni "prapa" i telefonit → kryefaqja
   window.scrollTo(0, 0);
   if (NGARKUESIT[emri]) NGARKUESIT[emri]();
 }
-$('shtepia').onclick = () => hapFaqen('onl_home');
+$('shtepia').onclick = () => { if (history.state && history.state.faqe) history.back(); else hapFaqen('onl_home'); };
+window.addEventListener('popstate', () => { if (profili && profili.roli === 'shitese_online') hapFaqen('onl_home'); });
 
 // ---------- Hyrja ----------
 $('forma-hyrja').onsubmit = async (e) => {
@@ -484,8 +488,8 @@ sb.auth.onAuthStateChange(async (_n, ses) => {
   $('hyrja').style.display = perdoruesi ? 'none' : 'block';
   $('aplikacioni').style.display = perdoruesi ? 'block' : 'none';
   $('perdoruesi').hidden = !perdoruesi;
-  $('statusi').hidden = $('titulli').hidden = $('shtepia').hidden = true;   // gjendja e urës dhe titulli: vetëm për Super Admin (më poshtë)
-  if (!perdoruesi) { nisur = false; return; }
+  // Supabase e thërret këtë edhe kur rifreskon hyrjen në sfond: koka fshihet vetëm kur dikush del
+  if (!perdoruesi) { $('statusi').hidden = $('titulli').hidden = $('shtepia').hidden = true; nisur = false; return; }
   if (nisur) return; nisur = true;
   const { data } = await sb.from('prodata_perdoruesit').select('roli, emri').eq('user_id', perdoruesi.id).maybeSingle();
   profili = data;
