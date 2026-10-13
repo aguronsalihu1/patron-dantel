@@ -226,6 +226,7 @@
     </div>
     <div class="butona"><button class="kryesor" id="onl-p-excel" style="background:#c0392b">⬇ Excel për Telposta</button>
       <span class="zbehte">Nxjerr porositë e listës që s'janë nxjerrë më parë → ngarkoje te app.tel-post.com/import</span></div>
+    <div class="udhezim" id="onl-p-robot" hidden></div>
     <div class="karta" id="onl-p-permb"></div>
     <div id="onl-p-lista"></div>
   </section>
@@ -950,6 +951,15 @@ NGARKUESIT.onl_porosite = async () => {
     .gte('krijuar', new Date(new Date(prej + 'T00:00:00Z').getTime() - 3 * 3600e3).toISOString()).order('krijuar', { ascending: false }).limit(1000);
   onlP = (data || []).filter((f) => ditaKS(f.krijuar) >= prej);
   onlPVizato();
+  const { data: rb } = await sb.from('telposta_robot').select('*').eq('id', 1).maybeSingle();
+  const r = $('onl-p-robot'); r.hidden = !rb || !rb.koha;
+  if (rb && rb.koha) {
+    const iVdekur = Date.now() - new Date(rb.koha) > 10 * 60e3;
+    const [shenja, tekst] = !rb.aktiv ? ['⏸️', 'Roboti i Telpostës është i ndalur.'] : iVdekur ? ['🔴', 'Roboti i Telpostës nuk po përgjigjet (PC-ja e zyrës e fikur ose në gjumë?).']
+      : rb.statusi === 'duhet_hyrje' ? ['🔴', 'Tel-Post kërkon hyrje: hyni te dritarja e robotit në PC-në e zyrës.'] : rb.statusi === 'gabim' ? ['🟠', 'Roboti i Telpostës: ' + (rb.mesazhi || 'gabim')]
+      : rb.statusi === 'prove' ? ['🟡', 'Roboti i Telpostës në PROVË (verifikon, por nuk ruan). ' + (rb.mesazhi || '')] : ['🟢', 'Roboti i Telpostës aktiv: porositë e reja dërgohen vetë. ' + (rb.mesazhi || '')];
+    r.innerHTML = `${shenja} ${esc(tekst)} <span class="zbehte">(${oraKS(rb.koha)})</span>`;
+  }
 };
 function onlPVizato() {
   const q = $('onl-p-kerko').value.trim().toLowerCase();
@@ -965,7 +975,8 @@ function onlPVizato() {
   const shenjaD = { regjistruar: ['🆕 E regjistruar', 's-hapur'], gati: ['📦 Gati', 's-pritje'], marre_nga_posta: ['🚚 Marrë nga posta', 's-ok'] };
   $('onl-p-lista').innerHTML = rr.map((f) => { const [t, c] = shenjaD[f.statusi_dergeses || 'regjistruar'];
     return `<div class="onl-porosi" data-id="${f.id}"><div class="krye"><div><b>#${f.nr}</b> · ${oraKS(f.krijuar)} · <b>${esc(emriPlote(f))}</b> · ${esc(f.klienti_telefoni || '')}
-        <div class="zbehte">${esc([f.adresa, f.qyteti, f.shteti].filter(Boolean).join(', '))}${f.eksport ? ' · 🌍 export' : ''} · Shitësja: ${esc(f.shitesja_emri || '')}${f.porosia_nr ? ' · Pro-Data: ' + esc(f.porosia_nr) : ' · ⏳ pa nr. Pro-Data'}${f.posta_nr ? ' · Posta: ' + esc(f.posta_nr) : ''}${f.telposta_excel ? ' · 📄 në Excel ' + oraKS(f.telposta_excel) : ''}</div></div>
+        <div class="zbehte">${esc([f.adresa, f.qyteti, f.shteti].filter(Boolean).join(', '))}${f.eksport ? ' · 🌍 export' : ''} · Shitësja: ${esc(f.shitesja_emri || '')}${f.porosia_nr ? ' · Pro-Data: ' + esc(f.porosia_nr) : ' · ⏳ pa nr. Pro-Data'}${f.posta_nr ? ' · Posta: ' + esc(f.posta_nr) : ''}${f.telposta_statusi === 'derguar' ? ' · 🤖 te Telposta ' + oraKS(f.telposta_excel) : f.telposta_excel ? ' · 📄 në Excel ' + oraKS(f.telposta_excel) : ''}</div>
+        ${f.telposta_statusi === 'gabim' ? `<div class="mesazh gabim" style="display:block;margin-top:4px">⚠️ Telposta: ${esc(f.telposta_gabim || '')} <button class="dyte op-tp-riprovo">🔁 Provo prapë</button></div>` : ''}</div>
         <div><span class="shenje ${c}">${t}</span> <b>${eur(f.totali)} €</b></div></div>
       <div class="art">${(f.rreshtat || []).map((r) => `${esc(r.kodi)} ${esc(r.emri)}${r.ngjyra ? ' · ' + esc(r.ngjyra) : ''} × <b>${r.sasia}</b> ${esc(r.njesia || '')}`).join('<br>')}</div>
       <div class="butona" style="margin-top:6px">
@@ -981,14 +992,16 @@ function onlPVizato() {
       ndrysho({ statusi_dergeses: 'marre_nga_posta', posta_koha: new Date().toISOString(), posta_nr: n.trim() || f.posta_nr || null }); };
     el.querySelector('.op-print').onclick = () => printoOnline(f);
     el.querySelector('.op-telposta').onclick = () => kopjoTelposta(f);
+    const tp = el.querySelector('.op-tp-riprovo');
+    if (tp) tp.onclick = () => { if (confirm(`Ta dërgojë roboti prapë porosinë #${f.nr} te Telposta?\nBëje vetëm nëse porosia NUK është atje, përndryshe del dyfish.`)) ndrysho({ telposta_statusi: null, telposta_gabim: null }); };
   });
 }
 
 // --- Excel për importin e Tel-Post (app.tel-post.com/import), sipas modelit të tyre "Template.xlsx" ---
-const TP_KOKA = ['Nr.', 'Kodi', 'Ref.Id', 'Emri i blerësit', 'Nr. telefonit 1', 'Nr. telefonit 2', 'Adresa', 'Qyteti', 'Shteti', 'Emërtimi i pakos',
-  'Përshkrimi i pakos', 'Vlera e pakos', 'Madhësia e pakos', 'Thyhet', 'Hapet', 'Ndrrim', 'Koment'];
-// rreshti 2 i fshehur i modelit: lidh kolonat me fushat e Tel-Post (mos e ndrysho)
-const TP_LIDHJA = ['', 'Col0', 'Col9', 'Col1', 'Col5', 'Col6', 'Col4', 'Col3', 'Col2', 'Col7', 'Col8', 'Col14', 'Col13', 'Col10', 'Col11', 'Col12', 'Col16'];
+// Lexuesi i Tel-Post NUK ndjek titujt e modelit të tyre: kolona A..Q = fusha Col0..Col16, të dhënat nga rreshti 2,
+// leximi ndalet te rreshti i parë pa emër (kolona B). U verifikua 12.10.2026 (shih ura/telposta_lib.js, i njëjti format).
+const TP_KOKA = ['Kodi', 'Emri i blerësit', 'Shteti', 'Qyteti', 'Adresa', 'Nr. telefonit 1', 'Nr. telefonit 2', 'Emërtimi i pakos', 'Përshkrimi i pakos',
+  'Ref.Id', 'Thyhet', 'Hapet', 'Ndrrim', 'Madhësia e pakos', 'Vlera e pakos', '', 'Koment'];
 let ngarkimiXLSX;
 const ngarkoXLSX = () => ngarkimiXLSX ||= new Promise((ok, gab) => {
   const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
@@ -1001,8 +1014,8 @@ function tpRreshti(f, i) {
   const rr = f.rreshtat || [];
   const emertimi = rr.length ? shkurto(rr[0].emri + (rr.length > 1 ? ` +${rr.length - 1}` : ''), 60) : 'Material tekstili';
   const pershkrimi = shkurto(rr.map((r) => `${r.kodi} ${r.emri}${r.ngjyra ? ' ' + r.ngjyra : ''} x${r.sasia}${r.njesia ? ' ' + r.njesia : ''}`).join('; '), 250);
-  return [i + 1, '', String(f.nr), emriPlote(f), String(f.klienti_telefoni || ''), '', f.adresa || '', q.emri, q.kodi, emertimi, pershkrimi,
-    Math.round(+f.totali || 0), f.pako_madhesia || 'S', '', f.pako_hapet ? 'X' : '', '', f.shenim || ''];
+  return ['', emriPlote(f), q.kodi, q.emri, f.adresa || '', String(f.klienti_telefoni || ''), '', emertimi, pershkrimi, String(f.nr),
+    '', f.pako_hapet ? 'X' : '', '', f.pako_madhesia || 'S', Math.round(+f.totali || 0), '', f.shenim || ''];
 }
 $('onl-p-excel').onclick = async () => {
   let lista = onlPShfaqur.filter((f) => !f.telposta_excel);
@@ -1018,9 +1031,8 @@ $('onl-p-excel').onclick = async () => {
   const btn = $('onl-p-excel'); btn.disabled = true;
   try {
     await ngarkoXLSX();
-    const ws = XLSX.utils.aoa_to_sheet([TP_KOKA, TP_LIDHJA, ...lista.map(tpRreshti)]);
-    ws['!rows'] = [{ hpt: 24 }, { hidden: true }];
-    ws['!cols'] = [7, 12, 14, 24, 18, 18, 32, 22, 8, 24, 32, 13, 15, 10, 10, 10, 28].map((w) => ({ wch: w }));
+    const ws = XLSX.utils.aoa_to_sheet([TP_KOKA, ...lista.map(tpRreshti)]);
+    ws['!cols'] = [8, 24, 7, 18, 32, 16, 16, 24, 40, 10, 7, 7, 7, 10, 10, 4, 28].map((w) => ({ wch: w }));
     const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
     const koha = new Date().toLocaleString('sv-SE', { timeZone: 'Europe/Belgrade' }).slice(0, 16).replace(' ', '_').replace(':', '');
     XLSX.writeFile(wb, `Telposta_${koha}.xlsx`);
