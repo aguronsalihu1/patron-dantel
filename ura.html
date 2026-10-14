@@ -871,6 +871,7 @@ setInterval(() => { if ($('onl-ora')) $('onl-ora').textContent = new Date().toLo
 $('onl-shteti').onchange = () => {
   $('onl-shteti-tjeter-l').hidden = $('onl-shteti').value !== 'jashte';
   $('onl-eksport').hidden = !onlEksport();
+  $('onl-telposta').hidden = !TP_SHTETI[$('onl-shteti').value];   // jashtë vendit: DHL/postë tjetër, jo Telposta
   onlQytetetLista();
   $('onl-cmimi-th').textContent = onlEksport() ? 'Çmimi € (pa TVSH)' : 'Çmimi € (me TVSH)';
   for (const r of onl.rreshtat) r.cmimi = onlEksport() ? Math.round(r.cmimiListe / 1.18 * 100) / 100 : r.cmimiListe;
@@ -1044,7 +1045,7 @@ async function hapLetren(rruga) {
 }
 // Pas regjistrimit: pret robotin derisa porosia të jetë te Tel-Post dhe letra gati (deri 3 minuta)
 async function pritTelposten(f, el, btn) {
-  if (!tpTransporti(f)) { el.innerHTML = '<span class="zbehte">Kjo porosi nuk shkon me Telposta (shteti/qyteti jashtë listës së tyre).</span>'; return; }
+  if (!tpTransporti(f)) { el.innerHTML = '🌍 Porosi jashtë vendit: dërgohet me <b>DHL ose postë tjetër</b>. Printo faturën tonë për pakon; kur të dërgohet, shëno te 📦 Porositë "U dërgua" me numrin e dërgesës.'; return; }
   el.innerHTML = '📮 Po regjistrohet te Telposta… <span class="zbehte">(roboti, zakonisht brenda 1 minute)</span>';
   for (let i = 0; i < 60; i++) {
     await new Promise((r) => setTimeout(r, 3000));
@@ -1114,10 +1115,11 @@ function onlPVizato() {
   const shenjaD = { regjistruar: ['1 · E regjistruar', 's-hapur'], gati: ['2 · Gati', 's-pritje'], marre_nga_posta: ['3 · Te posta', 's-pritje'],
     dorezuar: ['4 · Dorëzuar', 's-ok'], refuzuar: ['4 · Refuzuar', 's-gabim'], ndrrim: ['4 · Ndrrim', 's-gabim'], paguar: ['5 · Paguar', 's-ok'] };
   $('onl-p-lista').innerHTML = rr.map((f) => { const sd = f.statusi_dergeses || 'regjistruar', [t, c] = shenjaD[sd] || [sd, ''];
-    const meTelposta = !!(f.telposta_kodi || tpTransporti(f));
+    const meTelposta = !!(f.telposta_kodi || TP_SHTETI[f.shteti]);   // jashtë KS/AL/MK: DHL ose postë tjetër, fazat me dorë
+    const gjurmo = f.posta_nr && /dhl/i.test(f.posta_kompania || '') ? `https://www.dhl.com/global-en/home/tracking/tracking-express.html?submit=1&tracking-id=${encodeURIComponent(f.posta_nr)}` : '';
     return `<div class="onl-porosi" data-id="${f.id}"><div class="krye"><div><b>#${f.nr}</b> · ${oraKS(f.krijuar)} · <b>${esc(emriPlote(f))}</b> · ${esc(f.klienti_telefoni || '')}
-        <div class="zbehte">${esc([f.adresa, f.qyteti, f.shteti].filter(Boolean).join(', '))}${f.eksport ? ' · 🌍 export' : ''} · Shitësja: ${esc(f.shitesja_emri || '')}${f.porosia_nr ? ' · Pro-Data: ' + esc(f.porosia_nr) : ' · ⏳ pa nr. Pro-Data'}${f.posta_nr ? ' · Posta: ' + esc(f.posta_nr) : ''}${f.telposta_statusi === 'derguar' ? ' · 🤖 te Telposta ' + (f.telposta_kodi ? esc(f.telposta_kodi) + ' ' : '') + oraKS(f.telposta_excel) : f.telposta_excel ? ' · 📄 në Excel ' + oraKS(f.telposta_excel) : ''}</div>
-        ${f.telposta_statusi === 'gabim' ? `<div class="mesazh gabim" style="display:block;margin-top:4px">⚠️ Telposta: ${esc(f.telposta_gabim || '')} <button class="dyte op-tp-riprovo">🔁 Provo prapë</button></div>` : ''}</div>
+        <div class="zbehte">${esc([f.adresa, f.qyteti, f.shteti].filter(Boolean).join(', '))}${f.eksport ? ' · 🌍 export' : ''} · Shitësja: ${esc(f.shitesja_emri || '')}${f.porosia_nr ? ' · Pro-Data: ' + esc(f.porosia_nr) : ' · ⏳ pa nr. Pro-Data'}${!meTelposta ? ' · 🌍 jashtë vendit' + (f.posta_kompania ? ' · ' + esc(f.posta_kompania) : '') : ''}${f.posta_nr ? ' · Nr. i dërgesës: ' + (gjurmo ? `<a href="${gjurmo}" target="_blank" rel="noopener">${esc(f.posta_nr)} 🔎</a>` : esc(f.posta_nr)) : ''}${f.telposta_statusi === 'derguar' ? ' · 🤖 te Telposta ' + (f.telposta_kodi ? esc(f.telposta_kodi) + ' ' : '') + oraKS(f.telposta_excel) : f.telposta_excel ? ' · 📄 në Excel ' + oraKS(f.telposta_excel) : ''}</div>
+        ${meTelposta && f.telposta_statusi === 'gabim' ? `<div class="mesazh gabim" style="display:block;margin-top:4px">⚠️ Telposta: ${esc(f.telposta_gabim || '')} <button class="dyte op-tp-riprovo">🔁 Provo prapë</button></div>` : ''}</div>
         <div><span class="shenje ${c}">${t}</span> <b>${eur(f.totali)} €</b>${tpTransporti(f) ? `<div class="zbehte" style="text-align:right">klienti paguan ${tpVlera(f)} €</div>` : ''}</div></div>
       ${fazatHTML(f)}
       ${f.telposta_gjendja ? `<div class="zbehte">Tel-Post: <b>${esc(f.telposta_gjendja)}</b>${f.telposta_gjendja_koha ? ' · ' + oraKS(f.telposta_gjendja_koha) : ''}${f.telposta_barazimi ? ' · 💶 barazimi ' + esc(f.telposta_barazimi) : ''}</div>` : ''}
@@ -1125,9 +1127,11 @@ function onlPVizato() {
       <div class="butona" style="margin-top:6px">
         ${f.telposta_letra ? '<button class="kryesor op-letra" style="background:#c0392b">🖨️ Letra Telposta</button>' : ''}
         ${sd === 'regjistruar' ? '<button class="kryesor op-gati" style="background:#e0a100;color:#2b2000">📦 U bë gati</button>' : ''}
-        ${!meTelposta && ['regjistruar', 'gati'].includes(sd) ? '<button class="kryesor op-posta" style="background:#1f8a5b">🚚 U mor nga posta</button>' : ''}
+        ${!meTelposta && ['regjistruar', 'gati'].includes(sd) ? '<button class="kryesor op-posta" style="background:#1e3a8a">🚚 U dërgua (DHL / postë)</button>' : ''}
+        ${!meTelposta && sd === 'marre_nga_posta' ? '<button class="kryesor op-dorezuar" style="background:#14804a">✅ U dorëzua</button><button class="rrezik op-refuzuar">↩️ U refuzua</button>' : ''}
+        ${!meTelposta && sd === 'dorezuar' ? '<button class="kryesor op-paguar" style="background:#14804a">💶 Paratë erdhën</button>' : ''}
         ${(f.fotot || []).length ? `<button class="dyte op-fotot">📷 Fotot (${f.fotot.length})</button>` : ''}
-        <button class="dyte op-print">🖨️ Print</button><button class="dyte op-telposta">📮 Telposta</button></div></div>`; }).join('')
+        <button class="dyte op-print">🖨️ Print</button>${meTelposta ? '<button class="dyte op-telposta">📮 Telposta</button>' : ''}</div></div>`; }).join('')
     || '<p class="zbehte">Asnjë porosi për këtë zgjedhje.</p>';
   document.querySelectorAll('#onl-p-lista .onl-porosi').forEach((el) => {
     const f = onlP.find((x) => x.id === el.dataset.id);
@@ -1135,10 +1139,16 @@ function onlPVizato() {
     const g = el.querySelector('.op-gati'); if (g) g.onclick = () => {
       if (f.telposta_kodi && !confirm(`Porosia #${f.nr} u paketua dhe letra e Telpostës (${f.telposta_kodi}) u ngjit te pakoja?`)) return;
       ndrysho({ statusi_dergeses: 'gati', gati_koha: new Date().toISOString() }); };
-    const p = el.querySelector('.op-posta'); if (p) p.onclick = () => { const n = prompt('Numri i dërgesës në Telposta (opsional):', f.posta_nr || ''); if (n === null) return;
-      ndrysho({ statusi_dergeses: 'marre_nga_posta', posta_koha: new Date().toISOString(), posta_nr: n.trim() || f.posta_nr || null }); };
+    // Faza 3–5 me dorë për porositë jashtë vendit (DHL / postë tjetër, pa lidhje me sistemin)
+    const p = el.querySelector('.op-posta'); if (p) p.onclick = () => {
+      const k = prompt('Me cilën postë u dërgua? (p.sh. DHL, Posta e Kosovës, EMS)', f.posta_kompania || 'DHL'); if (k === null || !k.trim()) return;
+      const n = prompt(`Numri i dërgesës (tracking) te ${k.trim()} (opsional):`, f.posta_nr || ''); if (n === null) return;
+      ndrysho({ statusi_dergeses: 'marre_nga_posta', posta_koha: new Date().toISOString(), posta_kompania: k.trim(), posta_nr: n.trim() || null }); };
+    const dz = el.querySelector('.op-dorezuar'); if (dz) dz.onclick = () => { if (confirm(`Porosia #${f.nr} iu dorëzua klientit?`)) ndrysho({ statusi_dergeses: 'dorezuar', dorezuar_koha: new Date().toISOString() }); };
+    const rf = el.querySelector('.op-refuzuar'); if (rf) rf.onclick = () => { if (confirm(`Porosia #${f.nr} u refuzua / u kthye?`)) ndrysho({ statusi_dergeses: 'refuzuar' }); };
+    const pg = el.querySelector('.op-paguar'); if (pg) pg.onclick = () => { if (confirm(`Paratë e porosisë #${f.nr} (${eur(f.totali)} €) erdhën te ne?`)) ndrysho({ statusi_dergeses: 'paguar', paguar_koha: new Date().toISOString() }); };
     el.querySelector('.op-print').onclick = () => printoOnline(f);
-    el.querySelector('.op-telposta').onclick = () => kopjoTelposta(f);
+    const kt = el.querySelector('.op-telposta'); if (kt) kt.onclick = () => kopjoTelposta(f);
     const lt = el.querySelector('.op-letra'); if (lt) lt.onclick = () => hapLetren(f.telposta_letra);
     const ft = el.querySelector('.op-fotot'); if (ft) ft.onclick = () => shikoFotot(f.fotot);
     const tp = el.querySelector('.op-tp-riprovo');
