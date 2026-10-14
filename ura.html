@@ -510,6 +510,7 @@ sb.auth.onAuthStateChange(async (_n, ses) => {
   $('menyja').innerHTML = MENYTE[profili.roli].map(([k, t]) => `<button data-faqe="${k}">${t}</button>`).join('');
   document.querySelectorAll('#menyja button').forEach((b) => b.onclick = () => hapFaqen(b.dataset.faqe));
   await ngarkoListat();
+  ngarkoQytetetTP();
   statusi(); setInterval(statusi, 15000);
   const ngaLinku = location.hash.slice(1);   // p.sh. ura.html#depo (nga linku i vjetër depo.html)
   hapFaqen(MENYTE[profili.roli].some(([k]) => k === ngaLinku) ? ngaLinku : MENYTE[profili.roli][0][0]);
@@ -858,6 +859,13 @@ function tpQyteti(emri, kodi) {   // → { emri, kodi } sipas listës së Tel-Po
     if (q) return { emri: q, kodi: k };
   }
   return null;
+}
+// Lista e saktë merret nga Tel-Post (roboti e rifreskon çdo ditë te tabela telposta_qytetet); lista më sipër është vetëm rezervë
+async function ngarkoQytetetTP() {
+  const { data } = await sb.from('telposta_qytetet').select('kodi, emri').eq('aktiv', true);
+  const re = { KS: [], AL: [], MK: [] };
+  for (const r of data || []) if (re[r.kodi]) re[r.kodi].push(r.emri);
+  if (re.KS.length && re.AL.length && re.MK.length) { Object.assign(TP_QYTETET, re); onlQytetetLista(); }
 }
 function onlQytetetLista() {
   const k = TP_SHTETI[$('onl-shteti').value];
