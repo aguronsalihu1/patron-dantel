@@ -189,6 +189,7 @@
       <label>Shto produkt (barkodi, kodi ose emri)
         <input id="sh-artikulli" placeholder="skano barkodin ose shkruaj…" autocomplete="off" style="width:min(420px, 88vw)">
       </label>
+      <button class="kryesor btn-skano" type="button" data-per="sh-artikulli">📷 Skano</button>
       <div class="lista" id="sh-artikulli-lista" hidden></div>
     </div>
     <div class="tabela"><table><thead><tr><th>Produkti</th><th class="num">Sasia</th><th class="num">Çmimi</th><th class="num">Vlera</th><th></th></tr></thead><tbody id="sh-rreshtat"></tbody></table></div>
@@ -234,6 +235,7 @@
     <h3>Materialet</h3>
     <div class="rresht kerkimi">
       <label>Shto material (kodi, barkodi ose emri) <input id="onl-kerko" placeholder="kërko ose skano…" autocomplete="off" style="width:min(420px, 72vw)"></label>
+      <button class="kryesor btn-skano" type="button" data-per="onl-kerko">📷 Skano</button>
       <div class="lista" id="onl-lista" hidden></div>
     </div>
     <div class="tabela"><table><thead><tr><th>Kodi</th><th>Materiali</th><th>Ngjyra</th><th class="num">Sasia</th><th class="num" id="onl-cmimi-th">Çmimi €</th><th class="num">Vlera €</th><th></th></tr></thead><tbody id="onl-rreshtat"></tbody></table></div>
@@ -290,6 +292,7 @@
     <div id="rg-artikuj">
       <div class="rresht kerkimi">
         <label>Shto artikull <input id="rg-artikulli" placeholder="barkodi, kodi ose emri…" autocomplete="off" style="width:min(420px, 88vw)"></label>
+        <button class="kryesor btn-skano" type="button" data-per="rg-artikulli">📷 Skano</button>
         <div class="lista" id="rg-artikulli-lista" hidden></div>
       </div>
       <div class="tabela"><table><thead><tr><th>Artikulli</th><th class="num">Sasia</th><th class="num" id="rg-cmimi-th">Çmimi me TVSH</th><th></th></tr></thead><tbody id="rg-rreshtat"></tbody></table></div>
@@ -322,6 +325,7 @@
     </div>
     <div class="rresht kerkimi">
       <label>Shto artikull <input id="tr-artikulli" placeholder="barkodi, kodi ose emri…" autocomplete="off" style="width:min(420px, 88vw)"></label>
+      <button class="kryesor btn-skano" type="button" data-per="tr-artikulli">📷 Skano</button>
       <div class="lista" id="tr-artikulli-lista" hidden></div>
     </div>
     <div class="tabela"><table><thead><tr><th>Artikulli</th><th>Stoku në "nga"</th><th class="num">Sasia</th><th></th></tr></thead><tbody id="tr-rreshtat"></tbody></table></div>
@@ -1379,6 +1383,11 @@ async function dkSkaneri(cb) {
 }
 function dkMbyllSkanerin() { try { dkLexuesi && dkLexuesi.reset(); } catch {} $('dk-skaneri').style.display = 'none'; }
 $('dk-skaneri-mbyll').onclick = dkMbyllSkanerin;
+// Butonat "📷 Skano" te shitja: kamera e telefonit lexon barkodin dhe e fut te kërkimi (një artikull i vetëm shtohet menjëherë)
+document.querySelectorAll('.btn-skano').forEach((b) => b.onclick = () => dkSkaneri((kodi) => {
+  if (navigator.vibrate) navigator.vibrate(80);
+  const inp = $(b.dataset.per); inp.value = kodi.trim(); inp.dispatchEvent(new Event('input'));
+}));
 
 // --- Hyrje / Dalje interne ---
 function dkHapLevizjen(tipi) {
