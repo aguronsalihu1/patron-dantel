@@ -90,7 +90,10 @@
   .htab { font-size:14px; min-width:780px; } .htab td { white-space:nowrap; } .htab td.wrap { white-space:normal; min-width:180px; }
   .plus { color:var(--ok); font-weight:700; } .minus { color:var(--gabim); font-weight:700; }
   #dk-skaneri { position:fixed; inset:0; background:#000; z-index:50; display:none; flex-direction:column; }
-  #dk-skaneri video { flex:1; width:100%; object-fit:cover; } .dk-skaneri-bar { display:flex; justify-content:space-between; align-items:center; padding:12px; color:#fff; }
+  .dk-kamera { position:relative; flex:1; display:flex; overflow:hidden; }
+  #dk-skaneri video { flex:1; width:100%; object-fit:cover; }
+  .dk-korniza { position:absolute; left:8%; right:8%; top:38%; height:24%; border:3px solid rgba(255,255,255,.9); border-radius:12px; box-shadow:0 0 0 2000px rgba(0,0,0,.35); pointer-events:none; }
+  .dk-korniza span { position:absolute; left:4%; right:4%; top:50%; height:2px; background:#ff3b30; box-shadow:0 0 8px #ff3b30; } .dk-skaneri-bar { display:flex; justify-content:space-between; align-items:center; padding:12px; color:#fff; }
   .onl-butonat { display:flex; flex-direction:column; gap:16px; max-width:520px; margin:10px auto; }
   .onl-buton { border:0; border-radius:24px; padding:26px 24px; color:#fff; font:inherit; font-size:2rem; cursor:pointer; text-align:left; display:flex; flex-direction:column;
                box-shadow:0 10px 24px rgba(40,20,50,.18); transition:transform .08s, box-shadow .08s; }
@@ -398,7 +401,8 @@
       <p class="zbehte" id="dk-h-shenim"></p>
     </div>
   </section>
-  <div id="dk-skaneri"><div class="dk-skaneri-bar"><b>📷 Skano barkodin</b><button class="dyte" id="dk-skaneri-mbyll">Mbyll</button></div><video id="dk-video" playsinline muted></video></div>
+  <div id="dk-skaneri"><div class="dk-skaneri-bar"><b>📷 Drejtoje vijën e kuqe mbi barkod</b><button class="dyte" id="dk-skaneri-mbyll">Mbyll</button></div>
+    <div class="dk-kamera"><video id="dk-video" playsinline muted></video><div class="dk-korniza"><span></span></div></div></div>
 
   <!-- ===== ARKA DHE PAGESAT ===== -->
   <section class="faqe" id="f-pagesat">
@@ -1373,12 +1377,21 @@ NGARKUESIT.depo = (ngaRealtime) => {
 };
 
 // --- Skanimi me kamerë ---
+// Vetëm barkode me vija (EAN, Code 128, Code 39, UPC…), jo QR: më i shpejtë dhe s'lexon gabimisht kode të tjera
 let dkLexuesi = null;
+function lexuesiBarkodeve() {
+  const F = ZXing.BarcodeFormat, hints = new Map();
+  hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [F.EAN_13, F.EAN_8, F.CODE_128, F.CODE_39, F.CODE_93, F.UPC_A, F.UPC_E, F.ITF, F.CODABAR]);
+  hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+  return new ZXing.BrowserMultiFormatReader(hints, 300);
+}
 async function dkSkaneri(cb) {
   $('dk-skaneri').style.display = 'flex';
   try {
-    dkLexuesi = dkLexuesi || new ZXing.BrowserMultiFormatReader();
-    await dkLexuesi.decodeFromVideoDevice(null, 'dk-video', (r) => { if (r) { const t = r.getText(); dkMbyllSkanerin(); cb(t); } });
+    dkLexuesi = dkLexuesi || lexuesiBarkodeve();
+    // kamera e pasme me rezolucion të lartë: vijat e holla të barkodit lexohen më mirë
+    const kamera = { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 }, advanced: [{ focusMode: 'continuous' }] } };
+    await dkLexuesi.decodeFromConstraints(kamera, 'dk-video', (r) => { if (r) { const t = r.getText(); dkMbyllSkanerin(); cb(t); } });
   } catch (e) { dkMbyllSkanerin(); alert('Kamera nuk u hap: ' + e.message); }
 }
 function dkMbyllSkanerin() { try { dkLexuesi && dkLexuesi.reset(); } catch {} $('dk-skaneri').style.display = 'none'; }
