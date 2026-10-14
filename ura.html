@@ -105,7 +105,10 @@
   .onl-porosi { border:1px solid var(--vije); border-radius:16px; padding:14px 16px; margin-bottom:12px; background:#fff; box-shadow:0 1px 3px rgba(40,20,50,.06); }
   .onl-porosi .krye { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; }
   .onl-porosi .art { font-size:14px; margin:6px 0; }
-  .onl-foto-btn { display:inline-block; padding:10px 14px; border-radius:10px; cursor:pointer; }
+  .foto-zona { display:flex; flex-direction:column; align-items:center; gap:2px; padding:18px 14px; border:2px dashed var(--kryesor); border-radius:16px;
+               background:#faf3fa; color:var(--kryesor-err); cursor:pointer; text-align:center; margin-bottom:6px; }
+  .foto-zona .ikona { font-size:2rem; } .foto-zona b { font-size:1.1rem; } .foto-zona small { color:var(--zbehte); font-size:13px; }
+  .foto-zona:active { background:#f3e6f3; }
   .onl-fotot { display:flex; flex-wrap:wrap; gap:8px; margin:6px 0 12px; }
   .onl-fotot .foto { position:relative; }
   .onl-fotot img { width:84px; height:84px; object-fit:cover; border-radius:8px; border:1px solid var(--vije); display:block; }
@@ -235,8 +238,9 @@
     </div>
     <div class="tabela"><table><thead><tr><th>Kodi</th><th>Materiali</th><th>Ngjyra</th><th class="num">Sasia</th><th class="num" id="onl-cmimi-th">Çmimi €</th><th class="num">Vlera €</th><th></th></tr></thead><tbody id="onl-rreshtat"></tbody></table></div>
     <div class="rresht"><label style="flex:1">Shënim <input id="onl-shenim" style="width:100%" placeholder="p.sh. pagesa në dorëzim, orari i dërgesës"></label></div>
-    <h3>Fotot e bisedës me klientin * <span class="zbehte" style="font-weight:normal">(2 deri 5 screenshot ku klienti i porosit materialet)</span></h3>
-    <div class="rresht"><label class="dyte onl-foto-btn">📷 Shto foto <input type="file" id="onl-foto" accept="image/*" multiple hidden></label><span class="zbehte" id="onl-foto-nr">0 / 5</span></div>
+    <h3>Fotot e bisedës me klientin *</h3>
+    <label class="foto-zona" for="onl-foto"><span class="ikona">📷</span><b>Shto fotot e bisedës</b><small>2 deri 5 screenshot ku klienti i porosit materialet · <span id="onl-foto-nr">0 / 5</span></small></label>
+    <input type="file" id="onl-foto" accept="image/*" multiple hidden>
     <div class="onl-fotot" id="onl-foto-lista"></div>
     <div class="totali">Totali: <span id="onl-totali">0.00</span> €</div>
     <div class="butona">
@@ -945,9 +949,9 @@ $('onl-foto').onchange = async (e) => {
   }
   onlFototVizato();
 };
-async function ngarkoFotot() {   // → rrugët në bucket porosi-fotot
+async function ngarkoFotot(lista = onl.fotot) {   // → rrugët në bucket porosi-fotot
   const muaji = new Date().toISOString().slice(0, 7), rruget = [];
-  for (const f of onl.fotot) {
+  for (const f of lista) {
     const id = [...crypto.getRandomValues(new Uint8Array(12))].map((x) => x.toString(16).padStart(2, '0')).join('');
     const rruga = `${muaji}/${id}.jpg`;
     const { error } = await sb.storage.from('porosi-fotot').upload(rruga, f.blob, { contentType: 'image/jpeg' });
@@ -1126,19 +1130,32 @@ function onlPVizato() {
       <div class="art">${(f.rreshtat || []).map((r) => `${esc(r.kodi)} ${esc(r.emri)}${r.ngjyra ? ' · ' + esc(r.ngjyra) : ''} × <b>${r.sasia}</b> ${esc(r.njesia || '')}`).join('<br>')}</div>
       <div class="butona" style="margin-top:6px">
         ${f.telposta_letra ? '<button class="kryesor op-letra" style="background:#c0392b">🖨️ Letra Telposta</button>' : ''}
-        ${sd === 'regjistruar' ? '<button class="kryesor op-gati" style="background:#e0a100;color:#2b2000">📦 U bë gati</button>' : ''}
+        ${sd === 'regjistruar' ? '<button class="kryesor op-gati" style="background:#e0a100;color:#2b2000">📦 U bë gati (foto e pakos)</button>' : ''}
         ${!meTelposta && ['regjistruar', 'gati'].includes(sd) ? '<button class="kryesor op-posta" style="background:#1e3a8a">🚚 U dërgua (DHL / postë)</button>' : ''}
         ${!meTelposta && sd === 'marre_nga_posta' ? '<button class="kryesor op-dorezuar" style="background:#14804a">✅ U dorëzua</button><button class="rrezik op-refuzuar">↩️ U refuzua</button>' : ''}
         ${!meTelposta && sd === 'dorezuar' ? '<button class="kryesor op-paguar" style="background:#14804a">💶 Paratë erdhën</button>' : ''}
-        ${(f.fotot || []).length ? `<button class="dyte op-fotot">📷 Fotot (${f.fotot.length})</button>` : ''}
+        ${(f.fotot || []).length ? `<button class="dyte op-fotot">💬 Biseda (${f.fotot.length})</button>` : ''}
+        ${(f.fotot_gati || []).length ? `<button class="dyte op-fotot-gati">📦 Foto e pakos (${f.fotot_gati.length})</button>` : ''}
         <button class="dyte op-print">🖨️ Print</button>${meTelposta ? '<button class="dyte op-telposta">📮 Telposta</button>' : ''}</div></div>`; }).join('')
     || '<p class="zbehte">Asnjë porosi për këtë zgjedhje.</p>';
   document.querySelectorAll('#onl-p-lista .onl-porosi').forEach((el) => {
     const f = onlP.find((x) => x.id === el.dataset.id);
     const ndrysho = async (fushat) => { const { error } = await sb.from('app_faturat').update(fushat).eq('id', f.id); if (error) alert(error.message); else NGARKUESIT.onl_porosite(); };
+    // Faza 2: "U bë gati" kërkon 1–3 foto të pakos së përgatitur (me letrën e ngjitur) si konfirmim
     const g = el.querySelector('.op-gati'); if (g) g.onclick = () => {
-      if (f.telposta_kodi && !confirm(`Porosia #${f.nr} u paketua dhe letra e Telpostës (${f.telposta_kodi}) u ngjit te pakoja?`)) return;
-      ndrysho({ statusi_dergeses: 'gati', gati_koha: new Date().toISOString() }); };
+      const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*'; inp.multiple = true;   // telefoni ofron kamerën ose galerinë
+      inp.onchange = async () => {
+        const fajllat = [...inp.files].slice(0, 3); if (!fajllat.length) return;
+        if (!confirm(`Porosia #${f.nr} u paketua${f.telposta_kodi ? ` dhe letra e Telpostës (${f.telposta_kodi}) u ngjit te pakoja` : ''}?\n${fajllat.length} foto e pakos do të ruhet si konfirmim.`)) return;
+        g.disabled = true; g.textContent = '⏳ Po ngarkohet fotoja…';
+        try {
+          const lista = []; for (const x of fajllat) lista.push({ blob: await zvogelo(x) });
+          const rruget = await ngarkoFotot(lista);
+          await ndrysho({ statusi_dergeses: 'gati', gati_koha: new Date().toISOString(), fotot_gati: rruget });
+        } catch (e) { alert('❌ ' + e.message); g.disabled = false; g.textContent = '📦 U bë gati (foto e pakos)'; }
+      };
+      inp.click();
+    };
     // Faza 3–5 me dorë për porositë jashtë vendit (DHL / postë tjetër, pa lidhje me sistemin)
     const p = el.querySelector('.op-posta'); if (p) p.onclick = () => {
       const k = prompt('Me cilën postë u dërgua? (p.sh. DHL, Posta e Kosovës, EMS)', f.posta_kompania || 'DHL'); if (k === null || !k.trim()) return;
@@ -1151,6 +1168,7 @@ function onlPVizato() {
     const kt = el.querySelector('.op-telposta'); if (kt) kt.onclick = () => kopjoTelposta(f);
     const lt = el.querySelector('.op-letra'); if (lt) lt.onclick = () => hapLetren(f.telposta_letra);
     const ft = el.querySelector('.op-fotot'); if (ft) ft.onclick = () => shikoFotot(f.fotot);
+    const fg = el.querySelector('.op-fotot-gati'); if (fg) fg.onclick = () => shikoFotot(f.fotot_gati);
     const tp = el.querySelector('.op-tp-riprovo');
     if (tp) tp.onclick = () => { if (confirm(`Ta dërgojë roboti prapë porosinë #${f.nr} te Telposta?\nBëje vetëm nëse porosia NUK është atje, përndryshe del dyfish.`)) ndrysho({ telposta_statusi: null, telposta_gabim: null }); };
   });
