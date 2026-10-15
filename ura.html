@@ -103,6 +103,28 @@
   .onl-b-porosite { background:linear-gradient(135deg, #1e3a8a, #3b82f6); }
   .onl-b-llogaria { background:linear-gradient(135deg, #065f46, #10b981); }
   #f-onl_home { background:transparent; box-shadow:none; padding:4px 0; }
+  .tp-forma { display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:14px 22px; margin-bottom:12px; }
+  .tp-kolona { display:flex; flex-direction:column; gap:10px; }
+  .tp-kolona input, .tp-kolona select, .tp-kolona textarea { width:100%; }
+  .tp-tit { color:#e8590c; margin:0 0 2px; font-size:16px; }
+  .tp-fusha { display:flex; flex-direction:column; gap:4px; position:relative; }
+  .tp-etiketa { font-size:13px; color:var(--zbehte); }
+  .tp-shtetet { display:grid; grid-template-columns:repeat(2, 1fr); gap:8px; }
+  .tp-shtetet button { display:flex; align-items:center; gap:8px; padding:10px 10px; border:1px solid var(--vije); border-radius:12px; background:#fff; font:inherit; font-weight:600; cursor:pointer; color:var(--tekst); }
+  .tp-shtetet button i { font-style:normal; background:#eef0f3; border-radius:8px; padding:3px 7px; font-size:12px; }
+  .tp-shtetet button.on { background:#f76707; border-color:#f76707; color:#fff; box-shadow:0 4px 12px rgba(247,103,7,.3); }
+  .tp-shtetet button.on i { background:rgba(255,255,255,.25); }
+  #onl-qyteti:disabled { background:#f1eef3; color:#999; }
+  .tp-qytetet { width:100%; max-height:260px; }
+  .tp-qytetet div { padding:9px 12px; } .tp-qytetet mark { background:#ffe066; padding:0; }
+  .tp-qytetet .tit { font-weight:700; background:#f6f4f7; cursor:default; }
+  .tp-kuti { flex-direction:row !important; align-items:center; gap:10px; color:var(--tekst) !important; font-size:15px !important; font-weight:600; }
+  .tp-kuti input { width:20px !important; height:20px; min-width:0; }
+  .tp-transporti { background:#fff7f0; border:1px dashed #f8a76a; border-radius:16px; padding:14px; align-self:start; }
+  .tp-transporti .rr { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .tp-transporti .v { display:flex; flex-direction:column; gap:3px; font-size:13px; color:var(--zbehte); }
+  .tp-transporti .v b { background:#fff; border:1px solid var(--vije); border-radius:10px; padding:9px 11px; font-size:16px; color:var(--tekst); }
+  .tp-transporti .v.total b { font-size:20px; color:#e8590c; }
   .onl-forma { display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:10px 12px; margin-bottom:10px; }
   .onl-forma input, .onl-forma select { width:100%; } .onl-gjere { grid-column:1 / -1; }
   .onl-porosi { border:1px solid var(--vije); border-radius:16px; padding:14px 16px; margin-bottom:12px; background:#fff; box-shadow:0 1px 3px rgba(40,20,50,.06); }
@@ -221,18 +243,39 @@
   <!-- ===== SHITJA ONLINE: POROSI E RE ===== -->
   <section class="faqe" id="f-onl_shitje">
     <div class="rresht" style="justify-content:space-between"><h2 style="margin:0">🛒 Porosi online</h2><span class="zbehte" id="onl-ora"></span></div>
-    <h3>Klienti</h3>
-    <div class="onl-forma">
-      <label>Emri * <input id="onl-emri" autocomplete="off"></label>
-      <label>Mbiemri * <input id="onl-mbiemri" autocomplete="off"></label>
-      <label>Telefoni * <input id="onl-tel" inputmode="tel" autocomplete="off"></label>
-      <label>Shteti * <select id="onl-shteti"><option>Kosovë</option><option>Maqedoni e Veriut</option><option>Shqipëri</option><option value="jashte">Jashtë vendit…</option></select></label>
-      <label id="onl-shteti-tjeter-l" hidden>Cili shtet? * <input id="onl-shteti-tjeter" placeholder="p.sh. Gjermani"></label>
-      <label>Qyteti * <input id="onl-qyteti" autocomplete="off" list="onl-qytetet" placeholder="zgjidh nga lista"></label>
-      <datalist id="onl-qytetet"></datalist>
-      <label class="onl-gjere">Adresa * <input id="onl-adresa" autocomplete="off" placeholder="rruga, numri, fshati/lagjja"></label>
-      <label>Madhësia e pakos <select id="onl-pako"><option>S</option><option>M</option><option>L</option><option>XL</option><option>XXL</option></select></label>
-      <label style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="onl-hapet" style="width:auto"> Lejohet hapja e pakos</label>
+    <!-- si "Porosi e re" te Tel-Post: Blerësi | Pakoja | Kosto e transportit -->
+    <div class="tp-forma">
+      <div class="tp-kolona">
+        <h3 class="tp-tit">Blerësi:</h3>
+        <label>Emri i blerësit * <input id="onl-emri" autocomplete="off" placeholder="emri dhe mbiemri"></label>
+        <div class="tp-fusha"><span class="tp-etiketa">Shteti *</span>
+          <div class="tp-shtetet" id="onl-shtetet">
+            <button type="button" data-sh="Kosovë"><i>KS</i>Kosovë</button>
+            <button type="button" data-sh="Shqipëri"><i>AL</i>Shqipëria</button>
+            <button type="button" data-sh="Maqedoni e Veriut"><i>MK</i>Maqedonia</button>
+            <button type="button" data-sh="jashte"><i>🌍</i>Jashtë vendit</button>
+          </div>
+          <input type="hidden" id="onl-shteti" value="">
+        </div>
+        <label id="onl-shteti-tjeter-l" hidden>Cili shtet? * <input id="onl-shteti-tjeter" placeholder="p.sh. Gjermani"></label>
+        <div class="tp-fusha kerkimi"><span class="tp-etiketa">Qyteti *</span>
+          <input id="onl-qyteti" autocomplete="off" placeholder="Zgjidhe shtetin së pari" disabled>
+          <div class="lista tp-qytetet" id="onl-qytetet-lista" hidden></div>
+        </div>
+        <label>Adresa * <textarea id="onl-adresa" rows="3" placeholder="rruga, numri, fshati/lagjja"></textarea></label>
+        <label>Telefoni * <input id="onl-tel" inputmode="tel" autocomplete="off"></label>
+        <label>Telefoni tjetër <input id="onl-tel2" inputmode="tel" autocomplete="off"></label>
+      </div>
+      <div class="tp-kolona">
+        <h3 class="tp-tit">Të dhënat e pakos:</h3>
+        <label>Madhësia e pakos <select id="onl-pako"><option>S</option><option>M</option><option>L</option><option>XL</option><option>XXL</option></select></label>
+        <label class="tp-kuti"><input type="checkbox" id="onl-thyhet"> Pako është e thyeshme</label>
+        <label class="tp-kuti"><input type="checkbox" id="onl-hapet"> Pako mund të hapet</label>
+        <label class="tp-kuti"><input type="checkbox" id="onl-ndrrim"> Ndrrim</label>
+        <label>Koment / shënim <textarea id="onl-shenim" rows="3" placeholder="p.sh. orari i dërgesës, telefono para se të vish"></textarea></label>
+        <p class="zbehte">Emërtimi dhe përshkrimi i pakos plotësohen vetë nga materialet.</p>
+      </div>
+      <div class="tp-kolona tp-transporti" id="onl-tp-panel"></div>
     </div>
     <div class="udhezim" id="onl-eksport" hidden>🌍 Porosi jashtë Kosovës: regjistrohet në Pro-Data si <b>export</b> (TVSH 0%). Çmimet e shkruara janë çmimet finale.</div>
     <h3>Materialet</h3>
@@ -242,7 +285,6 @@
       <div class="lista" id="onl-lista" hidden></div>
     </div>
     <div class="tabela"><table><thead><tr><th>Kodi</th><th>Materiali</th><th>Ngjyra</th><th class="num">Sasia</th><th class="num" id="onl-cmimi-th">Çmimi €</th><th class="num">Vlera €</th><th></th></tr></thead><tbody id="onl-rreshtat"></tbody></table></div>
-    <div class="rresht"><label style="flex:1">Shënim <input id="onl-shenim" style="width:100%" placeholder="p.sh. pagesa në dorëzim, orari i dërgesës"></label></div>
     <h3>Fotot e bisedës me klientin *</h3>
     <label class="foto-zona" for="onl-foto"><span class="ikona">📷</span><b>Shto fotot e bisedës</b><small>2 deri 5 screenshot ku klienti i porosit materialet · <span id="onl-foto-nr">0 / 5</span></small></label>
     <input type="file" id="onl-foto" accept="image/*" multiple hidden>
@@ -842,7 +884,7 @@ $('tr-dergo').onclick = async () => {
 // ================= SHITJA ONLINE (shitëset online: shitje direkte, pa arkë) =================
 document.querySelectorAll('[data-shko]').forEach((b) => b.onclick = () => hapFaqen(b.dataset.shko));
 let onl = { rreshtat: [], fotot: [] };
-const onlEksport = () => $('onl-shteti').value !== 'Kosovë';
+const onlEksport = () => { const v = $('onl-shteti').value; return !!v && v !== 'Kosovë'; };
 const onlShteti = () => ($('onl-shteti').value === 'jashte' ? $('onl-shteti-tjeter').value.trim() : $('onl-shteti').value);
 // Qytetet e Tel-Post (fleta "Lists" e modelit të importit): qyteti jashtë listës e prish importin
 const TP_QYTETET = {
@@ -854,8 +896,13 @@ for (const k in TP_QYTETET) TP_QYTETET[k] = TP_QYTETET[k].split(',');
 const TP_SHTETI = { 'Kosovë': 'KS', 'Shqipëri': 'AL', 'Maqedoni e Veriut': 'MK' };
 const TP_ALIAS = { shkup: 'Skopje', shkodra: 'Shkoder', ohri: 'Ohrid', manastir: 'Bitola', kercov: 'Kicevo', strumic: 'Strumica', 'fushe arrez': 'FuArr', vitia: 'Viti', 'kosove fushe': 'Fushë Kosovë' };
 // Transporti i Tel-Post: e paguan klienti mbi çmimin (Tel-Post e zbret nga "Vlera e pakos"). I njëjtë me ura/telposta_lib.js.
-const TP_TRANSPORTI = { KS: 2.5, AL: 6, MK: 6 };
-const tpTransporti = (f) => { const k = TP_SHTETI[f.shteti]; return k && tpQyteti(f.qyteti, k) ? TP_TRANSPORTI[k] : 0; };
+// Varet nga madhësia e pakos (e mësuar nga Tel-Post më 14.10.2026; thyhet/hapet/ndrrim s'e ndryshojnë)
+const TP_TRANSPORTI = {
+  KS: { S: 2.5, M: 2, L: 3.5, XL: 5, XXL: 10 },
+  AL: { S: 6, M: 7, L: 12, XL: 22, XXL: 42 },
+  MK: { S: 6, M: 7, L: 12, XL: 22, XXL: 42 },
+};
+const tpTransporti = (f) => { const k = TP_SHTETI[f.shteti]; return k && tpQyteti(f.qyteti, k) ? TP_TRANSPORTI[k][f.pako_madhesia || 'S'] ?? TP_TRANSPORTI[k].S : 0; };
 const tpVlera = (f) => Math.round((+f.totali || 0) + tpTransporti(f));   // shuma që mbledh postieri (pa decimale)
 const tpNorm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z]+/g, ' ').trim();
 const tpRrenja = (s) => tpNorm(s).replace(/[aeiou]$/, '');
@@ -875,11 +922,37 @@ async function ngarkoQytetetTP() {
   for (const r of data || []) if (re[r.kodi]) re[r.kodi].push(r.emri);
   if (re.KS.length && re.AL.length && re.MK.length) { Object.assign(TP_QYTETET, re); onlQytetetLista(); }
 }
+// Qyteti si te Tel-Post: i mbyllur derisa të zgjidhet shteti, pastaj listë me kërkim (vetëm qytetet e Tel-Post)
 function onlQytetetLista() {
-  const k = TP_SHTETI[$('onl-shteti').value];
-  $('onl-qytetet').innerHTML = (k ? TP_QYTETET[k] : []).slice().sort((a, b) => a.localeCompare(b, 'sq')).map((q) => `<option value="${esc(q)}">`).join('');
+  const v = $('onl-shteti').value, k = TP_SHTETI[v], q = $('onl-qyteti');
+  q.disabled = !v;
+  q.placeholder = !v ? 'Zgjidhe shtetin së pari' : k ? 'Shkruaj ose zgjidh qytetin…' : 'Qyteti';
+  if (k && q.value && !TP_QYTETET[k].includes(q.value)) q.value = '';
+  $('onl-qytetet-lista').hidden = true;
 }
-$('onl-qyteti').onchange = () => { const q = tpQyteti($('onl-qyteti').value, TP_SHTETI[$('onl-shteti').value]); if (q) $('onl-qyteti').value = q.emri; onlVizato(); };
+function onlQytetetShfaq() {
+  const k = TP_SHTETI[$('onl-shteti').value], l = $('onl-qytetet-lista');
+  if (!k) { l.hidden = true; return; }
+  const shkruar = $('onl-qyteti').value.trim(), kerko = tpNorm(shkruar);
+  const rr = TP_QYTETET[k].slice().sort((a, b) => a.localeCompare(b, 'sq')).filter((x) => !kerko || tpNorm(x).includes(kerko));
+  const theks = (x) => { const i = shkruar ? x.toLowerCase().indexOf(shkruar.toLowerCase()) : -1;
+    return i < 0 ? esc(x) : esc(x.slice(0, i)) + '<mark>' + esc(x.slice(i, i + shkruar.length)) + '</mark>' + esc(x.slice(i + shkruar.length)); };
+  l.innerHTML = '<div class="tit">Qyteti</div>' + (rr.map((x) => `<div data-q="${esc(x)}">${theks(x)}</div>`).join('')
+    || '<div class="zbehte">Ky qytet nuk është te lista e Telpostës. Fshatin shkruaje te adresa.</div>');
+  l.querySelectorAll('[data-q]').forEach((d) => d.onmousedown = (e) => { e.preventDefault(); $('onl-qyteti').value = d.dataset.q; l.hidden = true; onlVizato(); });
+  l.hidden = false;
+}
+$('onl-qyteti').onfocus = onlQytetetShfaq;
+$('onl-qyteti').oninput = onlQytetetShfaq;
+$('onl-qyteti').onblur = () => {
+  setTimeout(() => { $('onl-qytetet-lista').hidden = true; }, 150);
+  const q = tpQyteti($('onl-qyteti').value, TP_SHTETI[$('onl-shteti').value]); if (q) $('onl-qyteti').value = q.emri;
+  onlVizato();
+};
+// Shteti me butona (KS / AL / MK / jashtë vendit), si te Tel-Post
+const PREFIKSI = { 'Shqipëri': '+355', 'Maqedoni e Veriut': '+389' };
+document.querySelectorAll('#onl-shtetet button').forEach((b) => b.onclick = () => { $('onl-shteti').value = b.dataset.sh; $('onl-shteti').onchange(); });
+$('onl-pako').onchange = () => onlVizato();   // madhësia e pakos ndryshon transportin e Tel-Post
 onlQytetetLista();
 const NGJYRAT = ['e zeze', 'e bardhe', 'e kuqe', 'e verdhe', 'e gjelber', 'roze', 'blu', 'gold', 'silver', 'nude', 'krem', 'bezhe', 'kafe', 'gri', 'vjollce', 'portokalli',
   'black', 'white', 'red', 'pink', 'blue', 'royalblue', 'navy', 'green', 'beige', 'ivory', 'cream', 'champagne', 'purple', 'lilac', 'grey', 'gray', 'brown', 'babypink', 'fuschia', 'fuchsia', 'burgundy', 'emerald', 'mint', 'peach', 'coral', 'olive'];
@@ -889,7 +962,12 @@ function ngjyraNgaEmri(emri) {   // Pro-Data s'ka fushë për ngjyrën: provohet
 }
 setInterval(() => { if ($('onl-ora')) $('onl-ora').textContent = new Date().toLocaleString('sq-AL', { timeZone: 'Europe/Belgrade', dateStyle: 'medium', timeStyle: 'short' }); }, 1000);
 $('onl-shteti').onchange = () => {
-  $('onl-shteti-tjeter-l').hidden = $('onl-shteti').value !== 'jashte';
+  const v = $('onl-shteti').value;
+  document.querySelectorAll('#onl-shtetet button').forEach((b) => b.classList.toggle('on', b.dataset.sh === v));
+  for (const id of ['onl-tel', 'onl-tel2']) {   // prefiksi i shtetit te telefoni, si te Tel-Post (vetëm kur fusha është bosh ose ka vetëm prefiks)
+    const t = $(id).value.trim(); if (!t || Object.values(PREFIKSI).includes(t)) $(id).value = PREFIKSI[v] || '';
+  }
+  $('onl-shteti-tjeter-l').hidden = v !== 'jashte';
   $('onl-eksport').hidden = !onlEksport();
   $('onl-telposta').hidden = !TP_SHTETI[$('onl-shteti').value];   // jashtë vendit: DHL/postë tjetër, jo Telposta
   onlQytetetLista();
@@ -913,8 +991,18 @@ function onlVizato() {
     tb.appendChild(t);
   });
   if (!onl.rreshtat.length) tb.innerHTML = '<tr><td colspan="7" class="zbehte">Ende asnjë material. Kërko me kod, barkod ose emër.</td></tr>';
-  const tr = tpTransporti({ shteti: $('onl-shteti').value, qyteti: $('onl-qyteti').value, totali: tot });
-  $('onl-totali').textContent = tr ? `${eur(tot)} + transporti ${eur(tr)} = ${tpVlera({ shteti: $('onl-shteti').value, qyteti: $('onl-qyteti').value, totali: tot })}.00` : eur(tot);
+  const p = { shteti: $('onl-shteti').value, qyteti: $('onl-qyteti').value, totali: tot, pako_madhesia: $('onl-pako').value };
+  const tr = tpTransporti(p);
+  $('onl-totali').textContent = tr ? `${eur(tot)} + transporti ${eur(tr)} = ${tpVlera(p)}.00` : eur(tot);
+  // "Kosto e transportit" si te Tel-Post: Total (paguan klienti) = materialet + transporti
+  const panel = $('onl-tp-panel'), v = (e, x, kl = '') => `<div class="v ${kl}">${e}<b>${x}</b></div>`;
+  if (!p.shteti) panel.innerHTML = '<h3 class="tp-tit">📍 Zgjidhe shtetin</h3><p class="zbehte">Kostoja e transportit shfaqet pasi të zgjidhet shteti dhe qyteti i dërgesës.</p>';
+  else if (!TP_SHTETI[p.shteti]) panel.innerHTML = `<h3 class="tp-tit">🌍 Jashtë vendit</h3><p class="zbehte">Dërgohet me DHL ose postë tjetër; transporti llogaritet veç.</p>
+    <div class="rr">${v('Materialet', eur(tot) + ' €', 'total')}${v('Valuta', 'EUR')}</div>`;
+  else if (!tr) panel.innerHTML = `<h3 class="tp-tit">Kosto e transportit:</h3><p class="zbehte">Zgjidhe qytetin nga lista që të llogaritet transporti (${eur(TP_TRANSPORTI[TP_SHTETI[p.shteti]][p.pako_madhesia])} € për pako ${esc(p.pako_madhesia)} në ${esc(p.shteti)}).</p>`;
+  else panel.innerHTML = `<h3 class="tp-tit">Kosto e transportit:</h3>
+    <div class="rr">${v('Total (paguan klienti)', tpVlera(p) + '.00 €', 'total')}${v('Valuta', 'EUR')}</div>
+    <div class="rr" style="margin-top:8px">${v('Transporti', eur(tr) + ' €')}${v('Vlera e produktit', eur(tot) + ' €')}</div>`;
 }
 kerkimArtikujsh('onl-kerko', 'onl-lista', (a) => {
   const ek = onl.rreshtat.find((r) => r.id === a.id);
@@ -924,8 +1012,9 @@ kerkimArtikujsh('onl-kerko', 'onl-lista', (a) => {
   onlVizato();
 });
 function onlKontrollo(meFoto) {
-  const mungon = [['onl-emri', 'emri'], ['onl-mbiemri', 'mbiemri'], ['onl-tel', 'telefoni'], ['onl-qyteti', 'qyteti'], ['onl-adresa', 'adresa']].filter(([id]) => !$(id).value.trim()).map(([, n]) => n);
-  if (!onlShteti()) mungon.push('shteti');
+  const bosh = (id) => { const x = $(id).value.trim(); return !x || Object.values(PREFIKSI).includes(x); };   // vetëm prefiksi = bosh
+  const mungon = [['onl-emri', 'emri i blerësit'], ['onl-tel', 'telefoni'], ['onl-qyteti', 'qyteti'], ['onl-adresa', 'adresa']].filter(([id]) => bosh(id)).map(([, n]) => n);
+  if (!onlShteti()) mungon.unshift('shteti');
   if (mungon.length) { alert('Plotëso: ' + mungon.join(', ') + '.'); return false; }
   const kodiSh = TP_SHTETI[$('onl-shteti').value];
   if (kodiSh) {
@@ -985,18 +1074,19 @@ async function shikoFotot(rruget) {
 }
 function onlTeDhenat() {
   return { shitesja_id: perdoruesi.id, shitesja_emri: profili.emri || null, kanali: 'online', magazina: '005', klienti_kodi: '13850',
-    klienti_emri: $('onl-emri').value.trim(), klienti_mbiemri: $('onl-mbiemri').value.trim(), klienti_telefoni: $('onl-tel').value.trim(),
+    klienti_emri: $('onl-emri').value.trim(), klienti_mbiemri: null, klienti_telefoni: $('onl-tel').value.trim(),
+    klienti_telefoni2: Object.values(PREFIKSI).includes($('onl-tel2').value.trim()) ? null : ($('onl-tel2').value.trim() || null),
     adresa: $('onl-adresa').value.trim(), qyteti: $('onl-qyteti').value.trim(), shteti: onlShteti(), eksport: onlEksport(),
     shenim: $('onl-shenim').value.trim() || null, statusi: 'ne_arke', statusi_dergeses: 'regjistruar',
-    pako_madhesia: $('onl-pako').value, pako_hapet: $('onl-hapet').checked,
+    pako_madhesia: $('onl-pako').value, pako_hapet: $('onl-hapet').checked, pako_thyhet: $('onl-thyhet').checked, pako_ndrrim: $('onl-ndrrim').checked,
     rreshtat: onl.rreshtat.map((r) => ({ prodata_id: r.id, kodi: r.kodi, emri: r.emri, barkodi: r.barkodi, njesia: r.njesia, ngjyra: r.ngjyra || null, sasia: r.sasia, cmimi: Math.round(r.cmimi * 100) / 100 })),
     totali: Math.round(onl.rreshtat.reduce((s, r) => s + r.sasia * r.cmimi, 0) * 100) / 100 };
 }
 function onlPastro() {
   for (const f of onl.fotot || []) URL.revokeObjectURL(f.url);
-  onl = { rreshtat: [], fotot: [] }; onlFototVizato(); for (const id of ['onl-emri', 'onl-mbiemri', 'onl-tel', 'onl-qyteti', 'onl-adresa', 'onl-shenim', 'onl-shteti-tjeter']) $(id).value = '';
-  $('onl-pako').value = 'S'; $('onl-hapet').checked = false;
-  $('onl-shteti').value = 'Kosovë'; $('onl-shteti').onchange(); $('onl-mesazh').className = 'mesazh'; onlVizato();
+  onl = { rreshtat: [], fotot: [] }; onlFototVizato(); for (const id of ['onl-emri', 'onl-tel', 'onl-tel2', 'onl-qyteti', 'onl-adresa', 'onl-shenim', 'onl-shteti-tjeter']) $(id).value = '';
+  $('onl-pako').value = 'S'; for (const id of ['onl-hapet', 'onl-thyhet', 'onl-ndrrim']) $(id).checked = false;
+  $('onl-shteti').value = ''; $('onl-shteti').onchange(); $('onl-mesazh').className = 'mesazh'; onlVizato();
 }
 $('onl-pastro').onclick = () => { if (!onl.rreshtat.length || confirm('Ta pastroj porosinë?')) onlPastro(); };
 const emriPlote = (f) => `${f.klienti_emri || ''} ${f.klienti_mbiemri || ''}`.trim();
@@ -1207,8 +1297,8 @@ function tpRreshti(f, i) {
   const rr = f.rreshtat || [];
   const emertimi = rr.length ? shkurto(rr[0].emri + (rr.length > 1 ? ` +${rr.length - 1}` : ''), 60) : 'Material tekstili';
   const pershkrimi = shkurto(rr.map((r) => `${r.kodi} ${r.emri}${r.ngjyra ? ' ' + r.ngjyra : ''} x${r.sasia}${r.njesia ? ' ' + r.njesia : ''}`).join('; '), 250);
-  return ['', emriPlote(f), q.kodi, q.emri, f.adresa || '', String(f.klienti_telefoni || ''), '', emertimi, pershkrimi, 'PD' + f.nr,
-    '', f.pako_hapet ? 'X' : '', '', f.pako_madhesia || 'S', tpVlera(f), '', f.shenim || ''];
+  return ['', emriPlote(f), q.kodi, q.emri, f.adresa || '', String(f.klienti_telefoni || ''), String(f.klienti_telefoni2 || ''), emertimi, pershkrimi, 'PD' + f.nr,
+    f.pako_thyhet ? 'X' : '', f.pako_hapet ? 'X' : '', f.pako_ndrrim ? 'X' : '', f.pako_madhesia || 'S', tpVlera(f), '', f.shenim || ''];
 }
 $('onl-p-excel').onclick = async () => {
   let lista = onlPShfaqur.filter((f) => !f.telposta_excel);
