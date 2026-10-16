@@ -282,6 +282,7 @@
     <div class="rresht kerkimi">
       <label>Shto material (kodi, barkodi ose emri) <input id="onl-kerko" placeholder="kërko ose skano…" autocomplete="off" style="width:min(420px, 72vw)"></label>
       <button class="kryesor btn-skano" type="button" data-per="onl-kerko">📷 Skano</button>
+      <button class="dyte" type="button" id="onl-dantella">➕ Material me dantella të gjata</button>
       <div class="lista" id="onl-lista" hidden></div>
     </div>
     <div class="tabela"><table><thead><tr><th>Kodi</th><th>Materiali</th><th>Ngjyra</th><th class="num">Sasia</th><th class="num" id="onl-cmimi-th">Çmimi €</th><th class="num">Vlera €</th><th></th></tr></thead><tbody id="onl-rreshtat"></tbody></table></div>
@@ -981,7 +982,7 @@ function onlVizato() {
     const v = r.sasia * r.cmimi; tot += v;
     const t = document.createElement('tr');
     t.innerHTML = `<td><b>${esc(r.kodi)}</b><br><span class="zbehte">${esc(r.barkodi || '')}</span></td><td>${esc(r.emri)}</td>
-      <td><input class="ngj" value="${esc(r.ngjyra)}" placeholder="ngjyra" style="width:110px;min-width:0"></td>
+      <td><input class="ngj" value="${esc(r.ngjyra)}" placeholder="${r.kodi === KODI_DANTELLA ? 'përshkrimi, p.sh. e bardhë me rruaza' : 'ngjyra'}" style="width:${r.kodi === KODI_DANTELLA ? 190 : 110}px;min-width:0"></td>
       <td class="num"><input class="sasi" type="number" min="0" step="any" value="${r.sasia}"> <span class="zbehte">${esc(r.njesia || '')}</span></td>
       <td class="num"><input class="cmim" type="number" min="0" step="0.01" value="${eur(r.cmimi)}"></td><td class="num">${eur(v)}</td><td><button class="heq">✕</button></td>`;
     t.querySelector('.ngj').onchange = (e) => { r.ngjyra = e.target.value.trim(); };
@@ -1011,6 +1012,16 @@ kerkimArtikujsh('onl-kerko', 'onl-lista', (a) => {
     cmimiListe: a.cmimi, cmimi: onlEksport() ? Math.round(a.cmimi / 1.18 * 100) / 100 : a.cmimi });
   onlVizato();
 });
+// Artikulli i përgjithshëm në Pro-Data (ID 276088, Malli pa stoqe): çmimin për metër e shkruan shitësja te çdo shitje
+const KODI_DANTELLA = 'DANTELLA-GJATA';
+$('onl-dantella').onclick = async () => {
+  const a = (await kerkoArtikuj(KODI_DANTELLA)).find((x) => x.kodi === KODI_DANTELLA);
+  if (!a) return alert('Artikulli "Material me dantella te gjata" nuk ka ardhur ende nga Pro-Data. Provo pas pak minutash.');
+  onl.rreshtat.push({ id: a.id, kodi: a.kodi, emri: a.emri, barkodi: a.barkodi, njesia: a.njesia, ngjyra: '', sasia: 1, cmimiListe: 0, cmimi: 0 });
+  onlVizato();
+  const cmimet = $('onl-rreshtat').querySelectorAll('.cmim'); const c = cmimet[cmimet.length - 1];
+  if (c) { c.focus(); c.select(); }
+};
 function onlKontrollo(meFoto) {
   const bosh = (id) => { const x = $(id).value.trim(); return !x || Object.values(PREFIKSI).includes(x); };   // vetëm prefiksi = bosh
   const mungon = [['onl-emri', 'emri i blerësit'], ['onl-tel', 'telefoni'], ['onl-qyteti', 'qyteti'], ['onl-adresa', 'adresa']].filter(([id]) => bosh(id)).map(([, n]) => n);
@@ -1024,6 +1035,8 @@ function onlKontrollo(meFoto) {
   }
   if (!onl.rreshtat.length) { alert('Shto të paktën një material.'); return false; }
   if (onl.rreshtat.some((r) => !(r.sasia > 0))) { alert('Sasia duhet të jetë më e madhe se 0.'); return false; }
+  const paCmim = onl.rreshtat.filter((r) => !(r.cmimi > 0));
+  if (paCmim.length) { alert('Shkruaj çmimin për: ' + paCmim.map((r) => r.emri).join(', ') + '.'); return false; }
   if (meFoto && onl.fotot.length < 2) { alert('Shto 2 deri 5 foto (screenshot) të bisedës me klientin ku i porosit materialet.'); return false; }
   return true;
 }
