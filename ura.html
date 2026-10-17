@@ -145,6 +145,14 @@
   .fazat span.keq { background:#c0392b; color:#fff; font-weight:600; }
   #fotot-shikues { position:fixed; inset:0; background:rgba(0,0,0,.85); z-index:999; overflow:auto; padding:16px; text-align:center; }
   #fotot-shikues img { max-width:min(100%, 720px); margin:8px auto; display:block; border-radius:8px; }
+  .st-bar-lista { display:flex; flex-direction:column; gap:7px; }
+  .st-bar { display:grid; grid-template-columns:minmax(120px, 190px) 1fr minmax(120px, auto); gap:10px; align-items:center; font-size:14px; }
+  .st-bar .gjat { background:#efe8f1; border-radius:8px; height:16px; overflow:hidden; }
+  .st-bar .gjat span { display:block; height:100%; border-radius:8px; background:linear-gradient(90deg, #7A2A78, #b04a9e); }
+  .st-bar .v { text-align:right; white-space:nowrap; } .rritje { color:var(--ok); font-weight:600; } .renie { color:var(--gabim); font-weight:600; }
+  .st-mujore td, .st-mujore th { text-align:right; white-space:nowrap; } .st-mujore td:first-child, .st-mujore th:first-child { text-align:left; }
+  .kat-sel { min-width:0; padding:5px 6px; font-size:14px; }
+  .sugj { background:#fff4d6; color:#8a5a00; border-radius:8px; padding:1px 6px; font-size:11px; font-weight:600; white-space:nowrap; }
   #printimi { display:none; }
   @media print {
     body * { visibility:hidden; } #printimi, #printimi * { visibility:visible; }
@@ -455,7 +463,40 @@
 
   <!-- ===== MODULET NË NDËRTIM ===== -->
   <section class="faqe" id="f-stafi"><h2>Burime njerëzore / stafi dhe pagat</h2><div class="udhezim">Moduli i produktivitetit të stafit ndërtohet këtu, në Patron Dantel, pa prekur Pro-Data-n. Pret specifikimin: kë matim dhe si.</div><div class="karta" id="st-karta"></div></section>
-  <section class="faqe" id="f-partneret"><h2>Partnerët</h2><div class="udhezim">Në ndërtim: kartelat e klientëve dhe furnitorëve, saldot dhe borxhet.</div></section>
+  <!-- ===== KARTELA E KLIENTËVE (Super Admin, ARKA) ===== -->
+  <section class="faqe" id="f-klientet">
+    <div class="rresht" style="justify-content:space-between"><h2 style="margin:0">👥 Kartela e klientëve</h2>
+      <label>Periudha <select class="st-periudha" id="kl-periudha"></select></label></div>
+    <div class="karta" id="kl-permb"></div>
+    <h3>Sipas kategorisë</h3><div class="st-bar-lista" id="kl-kategorite"></div>
+    <div class="chips" id="kl-filtri" style="margin-top:14px"></div>
+    <div class="rresht" style="margin-top:10px"><label style="flex:1">Kërko <input id="kl-kerko" placeholder="emri, kodi, telefoni, qyteti…" autocomplete="off" style="width:100%"></label></div>
+    <div class="tabela"><table><thead><tr><th>#</th><th>Klienti</th><th>Telefoni</th><th>Qyteti</th><th>Kategoria</th><th class="num">Fatura</th><th class="num">Vlera €</th><th class="num">Mesatarja €</th><th>Blerja e fundit</th></tr></thead>
+      <tbody id="kl-tabela"></tbody></table></div>
+    <p class="zbehte" id="kl-shenim"></p>
+    <div id="kl-kartela"></div>
+  </section>
+
+  <!-- ===== KARTELA E PRODUKTEVE (Super Admin, ARKA) ===== -->
+  <section class="faqe" id="f-produktet">
+    <div class="rresht" style="justify-content:space-between"><h2 style="margin:0">🧵 Kartela e produkteve</h2>
+      <div class="rresht" style="margin:0">
+        <label>Periudha <select class="st-periudha" id="pr-periudha"></select></label>
+        <label>Pika <select id="pr-pika"><option value="">Të gjitha pikat</option></select></label>
+      </div></div>
+    <div class="karta" id="pr-permb"></div>
+    <h3>Kategoritë <span class="zbehte" style="font-weight:normal">(krahasuar me periudhën e mëparshme të njëjtë)</span></h3><div class="st-bar-lista" id="pr-kategorite"></div>
+    <h3>Kategoritë muaj pas muaji (€)</h3><div class="tabela" id="pr-mujore"></div>
+    <h3>Produktet më të shitura</h3>
+    <div class="chips" id="pr-kat-filtri"></div>
+    <div class="rresht" style="margin-top:10px">
+      <label style="flex:1">Kërko <input id="pr-kerko" placeholder="emri ose kodi…" autocomplete="off" style="width:100%"></label>
+      <label>Rendit sipas <select id="pr-rendit"><option value="vlera">Vlerës €</option><option value="sasia">Sasisë</option><option value="fatura">Numrit të faturave</option><option value="rritja">Rritjes</option></select></label>
+    </div>
+    <div class="tabela"><table><thead><tr><th>#</th><th>Kodi</th><th>Produkti</th><th>Kategoria</th><th class="num">Sasia</th><th class="num">Vlera €</th><th class="num">Fatura</th><th class="num">Klientë</th><th class="num">Ndryshimi</th></tr></thead>
+      <tbody id="pr-tabela"></tbody></table></div>
+    <p class="zbehte" id="pr-shenim"></p>
+  </section>
   <section class="faqe" id="f-kontabiliteti"><h2>Kontabiliteti</h2><div class="udhezim">Në ndërtim: pasqyra e të ardhurave, TVSH-ja, libri i shitjes dhe i blerjes (ATK).</div></section>
   <section class="faqe" id="f-admin">
     <h2>Administrimi</h2>
@@ -505,10 +546,10 @@ let profili = null, magazinat = [], perdoruesi = null;
 // ---------- Rolet dhe menytë ----------
 const MENYTE = {
   admin: [['paneli', '📊 Paneli'], ['arka', '🧾 Arka'], ['shitjet', '🛒 Shitjet'], ['onl_porosite', '📦 Porositë online'], ['blerjet', '📦 Blerjet'], ['depo', '🏭 Depo'], ['pagesat', '💶 Arka dhe pagesat'],
-          ['stafi', '👷 Burime njerëzore'], ['partneret', '🤝 Partnerët'], ['kontabiliteti', '📒 Kontabiliteti'], ['admin', '⚙️ Administrimi'], ['shitje', '➕ Faturë'], ['regjistrim', '📝 Regjistrim'], ['transfer', '🔁 Transfer']],
+          ['stafi', '👷 Burime njerëzore'], ['klientet', '👥 Klientët'], ['produktet', '🧵 Produktet'], ['kontabiliteti', '📒 Kontabiliteti'], ['admin', '⚙️ Administrimi'], ['shitje', '➕ Faturë'], ['regjistrim', '📝 Regjistrim'], ['transfer', '🔁 Transfer']],
   depo: [['depo', '🏭 Depo']],
   arka: [['arka', '🧾 Arka'], ['shitjet', '🛒 Shitjet'], ['onl_porosite', '📦 Porositë online'], ['blerjet', '📦 Blerjet'], ['depo', '🏭 Depo'], ['pagesat', '💶 Arka dhe pagesat'], ['stafi', '👷 Burime njerëzore'],
-         ['partneret', '🤝 Partnerët'], ['kontabiliteti', '📒 Kontabiliteti'], ['admin', '⚙️ Administrimi'], ['shitje', '➕ Faturë'], ['regjistrim', '📝 Regjistrim'], ['transfer', '🔁 Transfer']],
+         ['klientet', '👥 Klientët'], ['produktet', '🧵 Produktet'], ['kontabiliteti', '📒 Kontabiliteti'], ['admin', '⚙️ Administrimi'], ['shitje', '➕ Faturë'], ['regjistrim', '📝 Regjistrim'], ['transfer', '🔁 Transfer']],
   shitese_online: [['onl_home', '🏠 Kryefaqja'], ['onl_shitje', '🛒 Shitje'], ['onl_porosite', '📦 Porositë'], ['llogaria', '👤 Llogaria ime']],
   shitese_fizike: [['shitje', '🛒 Shitje'], ['regjistrim', '📝 Regjistrim'], ['llogaria', '👤 Llogaria ime']],
 };
@@ -1638,6 +1679,169 @@ NGARKUESIT.stafi = async () => {
   const { data: sh } = await sb.from('prodata_shiteset').select('emri');
   $('st-karta').innerHTML = `<div class="karte"><div class="tit">Shitëse aktive (6 muaj)</div><div class="vl">${(sh || []).length}</div></div>`;
 };
+// ---------- Statistikat: kartela e klientëve dhe e produkteve (Super Admin, ARKA; të dhënat nga 2026) ----------
+const ST_PERIUDHAT = [['2026', 'Viti 2026'], ['90', '90 ditët e fundit'], ['30', '30 ditët e fundit'], ['muaj', 'Ky muaj'], ['muajp', 'Muaji i kaluar']];
+document.querySelectorAll('.st-periudha').forEach((s) => { s.innerHTML = ST_PERIUDHAT.map(([k, t]) => `<option value="${k}">${t}</option>`).join(''); });
+const ISO = (d) => d.toISOString().slice(0, 10);
+function stPeriudha(v) {   // → { prej, deri, para: { prej, deri } } (periudha e mëparshme e njëjtë, për krahasim)
+  const sot = new Date(dataKS() + 'T12:00:00Z'), dite = (n) => new Date(sot - n * 864e5);
+  let prej, deri = sot;
+  if (v === '2026') prej = new Date('2026-01-01T12:00:00Z');
+  else if (v === 'muaj') prej = new Date(Date.UTC(sot.getUTCFullYear(), sot.getUTCMonth(), 1, 12));
+  else if (v === 'muajp') { prej = new Date(Date.UTC(sot.getUTCFullYear(), sot.getUTCMonth() - 1, 1, 12)); deri = new Date(Date.UTC(sot.getUTCFullYear(), sot.getUTCMonth(), 0, 12)); }
+  else prej = dite(+v - 1);
+  const gjatesia = Math.round((deri - prej) / 864e5) + 1;
+  return { prej: ISO(prej), deri: ISO(deri), para: { prej: ISO(new Date(prej - gjatesia * 864e5)), deri: ISO(new Date(prej - 864e5)) } };
+}
+async function rpcTeGjitha(emri, args, rendit) {   // RPC-të kthejnë deri 1000 rreshta për herë: merren faqe pas faqeje
+  const te = [];
+  for (let i = 0; ; i += 1000) {
+    const { data, error } = await sb.rpc(emri, args).order(rendit, { ascending: false }).range(i, i + 999);
+    if (error) throw new Error(error.message);
+    te.push(...data); if (data.length < 1000) return te;
+  }
+}
+const ndryshimi = (tani, para) => (!para ? '<span class="zbehte">—</span>' : (() => { const p = Math.round((tani - para) / para * 100);
+  return `<span class="${p >= 0 ? 'rritje' : 'renie'}">${p >= 0 ? '▲' : '▼'} ${Math.abs(p)}%</span>`; })());
+const bareHTML = (rr, max) => rr.map((r) => `<div class="st-bar"><div>${r.emri}</div><div class="gjat"><span style="width:${Math.max(2, r.vlera / (max || 1) * 100)}%"></span></div><div class="v">${r.djathtas}</div></div>`).join('');
+
+// --- Klientët ---
+const KL_KATEGORITE = { dizajnere: '🎨 Dizajnere', rrobaqepese: '🧵 Rrobaqepëse', klient: '🙂 Klient i thjeshtë' };
+let klLista = [], klFiltri = 'te_gjithe', klPaEmer = 0;
+$('kl-filtri').innerHTML = [['te_gjithe', 'Të gjithë'], ['dizajnere', '🎨 Dizajnere'], ['rrobaqepese', '🧵 Rrobaqepëse'], ['klient', '🙂 Klientë të thjeshtë'],
+  ['pa', '❔ Pa kategori'], ['sugj', '💡 Sugjeruar profesioniste']].map(([k, t]) => `<button data-k="${k}" class="${k === klFiltri ? 'on' : ''}">${t}</button>`).join('');
+document.querySelectorAll('#kl-filtri button').forEach((b) => b.onclick = () => { klFiltri = b.dataset.k; document.querySelectorAll('#kl-filtri button').forEach((x) => x.classList.toggle('on', x === b)); klVizato(); });
+(() => { let t; $('kl-kerko').oninput = () => { clearTimeout(t); t = setTimeout(klVizato, 200); }; })();
+$('kl-periudha').onchange = () => NGARKUESIT.klientet();
+NGARKUESIT.klientet = async (ngaRealtime) => {
+  if (ngaRealtime) return;
+  const p = stPeriudha($('kl-periudha').value);
+  $('kl-shenim').textContent = '⏳ Po llogariten statistikat…';
+  try {
+    const [kl, pr] = await Promise.all([rpcTeGjitha('stat_klientet', { p_prej: p.prej, p_deri: p.deri }, 'vlera'), rpcTeGjitha('stat_produktet', { p_prej: p.prej, p_deri: p.deri }, 'vlera')]);
+    klLista = kl.map((k) => ({ ...k, vlera: +k.vlera || 0, fatura: +k.fatura || 0 }));
+    const totali = pr.reduce((s, r) => s + (+r.vlera || 0), 0);
+    klPaEmer = Math.max(0, totali - klLista.filter((k) => k.burimi === 'Pro-Data').reduce((s, k) => s + k.vlera, 0));
+    $('kl-shenim').textContent = `Periudha ${p.prej} – ${p.deri}. Blerjet pa emër ("Qytetar") nuk renditen si klientë. Klientët online njihen nga numri i telefonit.`;
+    klVizato();
+  } catch (e) { $('kl-shenim').textContent = '❌ ' + e.message; }
+};
+function klVizato() {
+  const kat = (k) => k.kategoria || '';
+  const vl = (f) => klLista.filter(f).reduce((s, k) => s + k.vlera, 0);
+  const totEmer = vl(() => true);
+  $('kl-permb').innerHTML = `<div class="karte"><div class="tit">Klientë me emër</div><div class="vl">${klLista.length}</div><div class="det">${eur(totEmer)} €</div></div>
+    ${Object.entries(KL_KATEGORITE).map(([k, t]) => `<div class="karte"><div class="tit">${t}</div><div class="vl">${klLista.filter((x) => kat(x) === k).length}</div><div class="det">${eur(vl((x) => kat(x) === k))} €</div></div>`).join('')}
+    <div class="karte"><div class="tit">❔ Pa kategori</div><div class="vl">${klLista.filter((x) => !kat(x)).length}</div><div class="det">${klLista.filter((x) => !kat(x) && x.sugjerim === 'profesioniste').length} sugjeruar profesioniste</div></div>
+    <div class="karte"><div class="tit">Blerje pa emër (Qytetar)</div><div class="vl">${eur(klPaEmer)} €</div></div>`;
+  const kategorite = [...Object.entries(KL_KATEGORITE), ['', '❔ Pa kategori']].map(([k, t]) => ({ emri: t, vlera: vl((x) => kat(x) === k), n: klLista.filter((x) => kat(x) === k).length }));
+  const maxK = Math.max(...kategorite.map((x) => x.vlera));
+  $('kl-kategorite').innerHTML = bareHTML(kategorite.map((x) => ({ ...x, djathtas: `${eur(x.vlera)} € · ${x.n} klientë · ${totEmer ? Math.round(x.vlera / totEmer * 100) : 0}%` })), maxK);
+  const q = $('kl-kerko').value.trim().toLowerCase();
+  const rr = klLista.filter((k) => klFiltri === 'te_gjithe' || (klFiltri === 'pa' ? !kat(k) : klFiltri === 'sugj' ? !kat(k) && k.sugjerim === 'profesioniste' : kat(k) === klFiltri))
+    .filter((k) => !q || [k.emri, k.kodi, k.telefoni, k.qyteti].some((v) => String(v || '').toLowerCase().includes(q)))
+    .sort((a, b) => b.vlera - a.vlera).slice(0, 300);
+  $('kl-tabela').innerHTML = rr.map((k, i) => `<tr class="klikohet" data-k="${esc(k.klienti)}"><td>${i + 1}</td>
+      <td><b>${esc(k.emri || '(pa emër)')}</b><br><span class="zbehte">${k.kodi ? 'Kodi ' + esc(k.kodi) : '🛒 Online'}</span></td>
+      <td>${esc(k.telefoni || '')}</td><td>${esc(k.qyteti || '')}</td>
+      <td><select class="kat-sel"><option value="">— zgjidh —</option>${Object.entries(KL_KATEGORITE).map(([v, t]) => `<option value="${v}" ${kat(k) === v ? 'selected' : ''}>${t}</option>`).join('')}</select>
+        ${!kat(k) && k.sugjerim === 'profesioniste' ? '<br><span class="sugj">💡 profesioniste?</span>' : ''}</td>
+      <td class="num">${k.fatura}</td><td class="num"><b>${eur(k.vlera)}</b></td><td class="num">${eur(k.fatura ? k.vlera / k.fatura : 0)}</td><td>${esc(k.e_fundit || '')}</td></tr>`).join('')
+    || '<tr><td colspan="9" class="zbehte">Asnjë klient për këtë zgjedhje.</td></tr>';
+  document.querySelectorAll('#kl-tabela tr[data-k]').forEach((tr) => {
+    const k = klLista.find((x) => x.klienti === tr.dataset.k);
+    const sel = tr.querySelector('.kat-sel');
+    sel.onclick = (e) => e.stopPropagation();
+    sel.onchange = async () => {
+      const v = sel.value;
+      const { error } = v ? await sb.from('klientet_kategoria').upsert({ klienti: k.klienti, kategoria: v, ndryshuar_nga: perdoruesi.id, ndryshuar: new Date().toISOString() })
+        : await sb.from('klientet_kategoria').delete().eq('klienti', k.klienti);
+      if (error) return alert('Kategoria nuk u ruajt: ' + error.message);
+      k.kategoria = v || null; klVizato();
+    };
+    tr.onclick = () => klKartela(k);
+  });
+}
+async function klKartela(k) {
+  const el = $('kl-kartela'), p = stPeriudha($('kl-periudha').value);
+  el.innerHTML = `<div class="udhezim">⏳ Po hapet kartela e ${esc(k.emri || '')}…</div>`;
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  let muajt = [], produktet = [];
+  if (k.klienti.startsWith('pd:')) {
+    const { data, error } = await sb.rpc('stat_klienti', { p_klienti: k.klienti, p_prej: p.prej, p_deri: p.deri });
+    if (error) { el.innerHTML = '❌ ' + esc(error.message); return; }
+    muajt = data.filter((x) => x.lloji === 'muaji').sort((a, b) => a.celesi.localeCompare(b.celesi));
+    produktet = data.filter((x) => x.lloji === 'produkti').sort((a, b) => b.vlera - a.vlera);
+  } else {   // klient online: nga porositë tona sipas telefonit
+    const { data } = await sb.from('app_faturat').select('krijuar, totali, rreshtat, klienti_telefoni').eq('kanali', 'online').neq('statusi', 'anuluar').gte('krijuar', p.prej).limit(1000);
+    const tel = k.klienti.slice(4), mua = {}, pro = {};
+    for (const f of (data || []).filter((x) => String(x.klienti_telefoni || '').replace(/\D/g, '') === tel)) {
+      const m = String(f.krijuar).slice(0, 7); mua[m] = mua[m] || { celesi: m, vlera: 0, fatura: 0 }; mua[m].vlera += +f.totali; mua[m].fatura++;
+      for (const r of f.rreshtat || []) { pro[r.kodi] = pro[r.kodi] || { emri: r.emri, kategoria: '', sasia: 0, vlera: 0 }; pro[r.kodi].sasia += +r.sasia; pro[r.kodi].vlera += r.sasia * r.cmimi; }
+    }
+    muajt = Object.values(mua).sort((a, b) => a.celesi.localeCompare(b.celesi)); produktet = Object.values(pro).sort((a, b) => b.vlera - a.vlera);
+  }
+  const maxM = Math.max(...muajt.map((x) => +x.vlera), 1);
+  el.innerHTML = `<div class="karte" style="margin-top:14px"><div class="rresht" style="justify-content:space-between;margin:0"><h3 style="margin:0">📇 ${esc(k.emri || '')} ${k.kodi ? '<span class="zbehte">· kodi ' + esc(k.kodi) + '</span>' : ''}</h3><button class="dyte" id="kl-mbyll">✕ Mbyll</button></div>
+    <p class="zbehte">${esc([k.telefoni, k.qyteti].filter(Boolean).join(' · '))} · ${k.kategoria ? KL_KATEGORITE[k.kategoria] : 'pa kategori'} · ${k.fatura} fatura · <b>${eur(k.vlera)} €</b> · mesatarisht ${eur(k.fatura ? k.vlera / k.fatura : 0)} € · e para ${esc(k.e_para || '')}, e fundit ${esc(k.e_fundit || '')}</p>
+    <h3>Blerjet sipas muajve</h3><div class="st-bar-lista">${bareHTML(muajt.map((x) => ({ emri: x.celesi, vlera: +x.vlera, djathtas: `${eur(x.vlera)} € · ${x.fatura} fatura` })), maxM)}</div>
+    <h3>Çka blen më shumë</h3><div class="tabela"><table><thead><tr><th>Produkti</th><th>Kategoria</th><th class="num">Sasia</th><th class="num">Vlera €</th></tr></thead><tbody>
+    ${produktet.slice(0, 15).map((x) => `<tr><td>${esc(x.emri || '')}</td><td>${esc(x.kategoria || '')}</td><td class="num">${(+x.sasia).toLocaleString('sq-AL')}</td><td class="num">${eur(x.vlera)}</td></tr>`).join('')}</tbody></table></div></div>`;
+  $('kl-mbyll').onclick = () => { el.innerHTML = ''; };
+}
+
+// --- Produktet ---
+let prLista = [], prPara = new Map(), prKat = 'te_gjitha';
+$('pr-periudha').onchange = $('pr-pika').onchange = () => NGARKUESIT.produktet();
+(() => { let t; $('pr-kerko').oninput = () => { clearTimeout(t); t = setTimeout(prVizato, 200); }; })();
+$('pr-rendit').onchange = () => prVizato();
+NGARKUESIT.produktet = async (ngaRealtime) => {
+  if (ngaRealtime) return;
+  if ($('pr-pika').options.length <= 1) $('pr-pika').innerHTML = '<option value="">Të gjitha pikat</option>' + magazinat.map((m) => `<option value="${esc(m.kodi)}">${esc(m.kodi)} – ${esc(m.emri)}</option>`).join('');
+  const p = stPeriudha($('pr-periudha').value), mag = $('pr-pika').value || null;
+  $('pr-shenim').textContent = '⏳ Po llogariten statistikat…';
+  try {
+    const [tani, para, mujore] = await Promise.all([
+      rpcTeGjitha('stat_produktet', { p_prej: p.prej, p_deri: p.deri, p_magazina: mag }, 'vlera'),
+      rpcTeGjitha('stat_produktet', { p_prej: p.para.prej, p_deri: p.para.deri, p_magazina: mag }, 'vlera'),
+      rpcTeGjitha('stat_kategorite_mujore', { p_prej: p.prej, p_deri: p.deri, p_magazina: mag }, 'vlera')]);
+    prLista = tani.map((r) => ({ ...r, vlera: +r.vlera || 0, sasia: +r.sasia || 0, fatura: +r.fatura || 0, kliente: +r.kliente || 0 }));
+    prPara = new Map(para.map((r) => [r.artikulli_id, { ...r, vlera: +r.vlera || 0 }]));
+    // tabela muaj × kategori
+    const muajt = [...new Set(mujore.map((x) => x.muaji))].sort(), kat = [...new Set(mujore.map((x) => x.kategoria))];
+    const v = (m, k) => +(mujore.find((x) => x.muaji === m && x.kategoria === k) || {}).vlera || 0;
+    kat.sort((a, b) => muajt.reduce((s, m) => s + v(m, b), 0) - muajt.reduce((s, m) => s + v(m, a), 0));
+    $('pr-mujore').innerHTML = `<table class="st-mujore"><thead><tr><th>Kategoria</th>${muajt.map((m) => `<th>${m}</th>`).join('')}<th>Gjithsej</th></tr></thead><tbody>
+      ${kat.map((k) => `<tr><td><b>${esc(k)}</b></td>${muajt.map((m, i) => `<td>${v(m, k) ? Math.round(v(m, k)).toLocaleString('sq-AL') : '—'}${i ? ' ' + (v(muajt[i - 1], k) ? ndryshimi(v(m, k), v(muajt[i - 1], k)) : '') : ''}</td>`).join('')}<td><b>${Math.round(muajt.reduce((s, m) => s + v(m, k), 0)).toLocaleString('sq-AL')}</b></td></tr>`).join('')}</tbody></table>`;
+    $('pr-shenim').textContent = `Periudha ${p.prej} – ${p.deri}, krahasuar me ${p.para.prej} – ${p.para.deri}${p.para.prej < '2026-01-01' ? ' (të dhënat nisin nga 1.1.2026)' : ''}. Kategoria nxirret nga emri i produktit.`;
+    prVizato();
+  } catch (e) { $('pr-shenim').textContent = '❌ ' + e.message; }
+};
+function prVizato() {
+  const totali = prLista.reduce((s, r) => s + r.vlera, 0), totPara = [...prPara.values()].reduce((s, r) => s + r.vlera, 0);
+  const kat = {};
+  for (const r of prLista) { kat[r.kategoria] = kat[r.kategoria] || { vlera: 0, sasia: 0, para: 0, n: 0 }; kat[r.kategoria].vlera += r.vlera; kat[r.kategoria].sasia += r.sasia; kat[r.kategoria].n++; }
+  for (const r of prPara.values()) { kat[r.kategoria] = kat[r.kategoria] || { vlera: 0, sasia: 0, para: 0, n: 0 }; kat[r.kategoria].para += r.vlera; }
+  const katR = Object.entries(kat).sort((a, b) => b[1].vlera - a[1].vlera);
+  $('pr-permb').innerHTML = `<div class="karte"><div class="tit">Shitjet</div><div class="vl">${eur(totali)} €</div><div class="det">${ndryshimi(totali, totPara)} nga periudha e mëparshme</div></div>
+    <div class="karte"><div class="tit">Produkte të shitura</div><div class="vl">${prLista.length}</div></div>
+    <div class="karte"><div class="tit">Kategoria #1</div><div class="vl" style="font-size:20px">${esc(katR[0] ? katR[0][0] : '—')}</div><div class="det">${katR[0] ? eur(katR[0][1].vlera) + ' € · ' + (totali ? Math.round(katR[0][1].vlera / totali * 100) : 0) + '%' : ''}</div></div>
+    <div class="karte"><div class="tit">Produkti #1</div><div class="vl" style="font-size:18px">${esc(prLista[0] ? prLista[0].emri : '—')}</div><div class="det">${prLista[0] ? eur(prLista[0].vlera) + ' €' : ''}</div></div>`;
+  $('pr-kategorite').innerHTML = bareHTML(katR.filter(([, x]) => x.vlera).map(([k, x]) => ({ emri: esc(k), vlera: x.vlera,
+    djathtas: `${eur(x.vlera)} € · ${totali ? Math.round(x.vlera / totali * 100) : 0}% · ${ndryshimi(x.vlera, x.para)}` })), katR[0] ? katR[0][1].vlera : 1);
+  $('pr-kat-filtri').innerHTML = [['te_gjitha', 'Të gjitha'], ...katR.map(([k]) => [k, k])].map(([k, t]) => `<button data-k="${esc(k)}" class="${k === prKat ? 'on' : ''}">${esc(t)}</button>`).join('');
+  document.querySelectorAll('#pr-kat-filtri button').forEach((b) => b.onclick = () => { prKat = b.dataset.k; prVizato(); });
+  const q = $('pr-kerko').value.trim().toLowerCase(), rendit = $('pr-rendit').value;
+  const rritja = (r) => { const p = prPara.get(r.artikulli_id); return p && p.vlera ? (r.vlera - p.vlera) / p.vlera : -Infinity; };
+  const rr = prLista.filter((r) => prKat === 'te_gjitha' || r.kategoria === prKat)
+    .filter((r) => !q || [r.emri, r.kodi].some((v) => String(v || '').toLowerCase().includes(q)))
+    .sort((a, b) => (rendit === 'rritja' ? rritja(b) - rritja(a) : b[rendit] - a[rendit])).slice(0, 300);
+  $('pr-tabela').innerHTML = rr.map((r, i) => `<tr><td>${i + 1}</td><td>${esc(r.kodi || '')}</td><td><b>${esc(r.emri || '')}</b></td><td>${esc(r.kategoria || '')}</td>
+      <td class="num">${r.sasia.toLocaleString('sq-AL')}</td><td class="num"><b>${eur(r.vlera)}</b></td><td class="num">${r.fatura}</td><td class="num">${r.kliente}</td>
+      <td class="num">${ndryshimi(r.vlera, (prPara.get(r.artikulli_id) || {}).vlera)}</td></tr>`).join('')
+    || '<tr><td colspan="9" class="zbehte">Asnjë produkt për këtë zgjedhje.</td></tr>';
+}
+
 // ---------- Administrimi: përdoruesit dhe rolet (vetëm Super Admin i ndryshon) ----------
 const ROLET = { admin: 'Super Admin', arka: 'ARKA', shitese_online: 'Shitëse online', shitese_fizike: 'Shitëse fizike', depo: 'Depo' };
 let adLista = [];
