@@ -285,7 +285,7 @@
       <button class="dyte" type="button" id="onl-dantella">➕ Material me dantella të gjata</button>
       <div class="lista" id="onl-lista" hidden></div>
     </div>
-    <div class="tabela"><table><thead><tr><th>Kodi</th><th>Materiali</th><th>Ngjyra</th><th class="num">Sasia</th><th class="num" id="onl-cmimi-th">Çmimi €</th><th class="num">Vlera €</th><th></th></tr></thead><tbody id="onl-rreshtat"></tbody></table></div>
+    <div class="tabela"><table><thead><tr><th>Kodi</th><th>Materiali</th><th class="num" id="onl-cmimi-th">Çmimi për metër €</th><th class="num">Sasia</th><th>Ngjyra / përshkrimi</th><th class="num">Vlera €</th><th></th></tr></thead><tbody id="onl-rreshtat"></tbody></table></div>
     <h3>Fotot e bisedës me klientin *</h3>
     <label class="foto-zona" for="onl-foto"><span class="ikona">📷</span><b>Shto fotot e bisedës</b><small>2 deri 5 screenshot ku klienti i porosit materialet · <span id="onl-foto-nr">0 / 5</span></small></label>
     <input type="file" id="onl-foto" accept="image/*" multiple hidden>
@@ -903,7 +903,10 @@ const TP_TRANSPORTI = {
   AL: { S: 6, M: 7, L: 12, XL: 22, XXL: 42 },
   MK: { S: 6, M: 7, L: 12, XL: 22, XXL: 42 },
 };
-const tpTransporti = (f) => { const k = TP_SHTETI[f.shteti]; return k && tpQyteti(f.qyteti, k) ? TP_TRANSPORTI[k][f.pako_madhesia || 'S'] ?? TP_TRANSPORTI[k].S : 0; };
+// Sa paguan KLIENTI për transport: Kosovë gjithmonë 2.50 € (vendim i Aguronit, 16.10.2026); AL/MK sipas tabelës së Tel-Post
+const TP_TRANSPORTI_KLIENTI = { KS: 2.5 };
+const tpTransporti = (f) => { const k = TP_SHTETI[f.shteti]; if (!k || !tpQyteti(f.qyteti, k)) return 0;
+  return TP_TRANSPORTI_KLIENTI[k] ?? TP_TRANSPORTI[k][f.pako_madhesia || 'S'] ?? TP_TRANSPORTI[k].S; };
 const tpVlera = (f) => Math.round((+f.totali || 0) + tpTransporti(f));   // shuma që mbledh postieri (pa decimale)
 const tpNorm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z]+/g, ' ').trim();
 const tpRrenja = (s) => tpNorm(s).replace(/[aeiou]$/, '');
@@ -972,7 +975,7 @@ $('onl-shteti').onchange = () => {
   $('onl-eksport').hidden = !onlEksport();
   $('onl-telposta').hidden = !TP_SHTETI[$('onl-shteti').value];   // jashtë vendit: DHL/postë tjetër, jo Telposta
   onlQytetetLista();
-  $('onl-cmimi-th').textContent = onlEksport() ? 'Çmimi € (pa TVSH)' : 'Çmimi € (me TVSH)';
+  $('onl-cmimi-th').textContent = onlEksport() ? 'Çmimi për metër € (pa TVSH)' : 'Çmimi për metër €';
   for (const r of onl.rreshtat) r.cmimi = onlEksport() ? Math.round(r.cmimiListe / 1.18 * 100) / 100 : r.cmimiListe;
   onlVizato();
 };
@@ -981,10 +984,14 @@ function onlVizato() {
   onl.rreshtat.forEach((r, i) => {
     const v = r.sasia * r.cmimi; tot += v;
     const t = document.createElement('tr');
+    // Renditja: Kodi · Materiali · Çmimi për metër (i editueshëm) · Sasia · Ngjyra/përshkrimi · Vlera
+    const paCmim = !(r.cmimi > 0);
     t.innerHTML = `<td><b>${esc(r.kodi)}</b><br><span class="zbehte">${esc(r.barkodi || '')}</span></td><td>${esc(r.emri)}</td>
+      <td class="num"><input class="cmim" type="number" min="0" step="0.01" inputmode="decimal" value="${paCmim ? '' : eur(r.cmimi)}" placeholder="0.00"
+        style="${paCmim ? 'border:2px solid var(--gabim);background:#fff5f5' : ''}"></td>
+      <td class="num"><input class="sasi" type="number" min="0" step="any" inputmode="decimal" value="${r.sasia}"> <span class="zbehte">${esc(r.njesia || '')}</span></td>
       <td><input class="ngj" value="${esc(r.ngjyra)}" placeholder="${r.kodi === KODI_DANTELLA ? 'përshkrimi, p.sh. e bardhë me rruaza' : 'ngjyra'}" style="width:${r.kodi === KODI_DANTELLA ? 190 : 110}px;min-width:0"></td>
-      <td class="num"><input class="sasi" type="number" min="0" step="any" value="${r.sasia}"> <span class="zbehte">${esc(r.njesia || '')}</span></td>
-      <td class="num"><input class="cmim" type="number" min="0" step="0.01" value="${eur(r.cmimi)}"></td><td class="num">${eur(v)}</td><td><button class="heq">✕</button></td>`;
+      <td class="num">${eur(v)}</td><td><button class="heq">✕</button></td>`;
     t.querySelector('.ngj').onchange = (e) => { r.ngjyra = e.target.value.trim(); };
     t.querySelector('.sasi').onchange = (e) => { r.sasia = +e.target.value; onlVizato(); };
     t.querySelector('.cmim').onchange = (e) => { r.cmimi = +e.target.value; onlVizato(); };
@@ -1000,7 +1007,7 @@ function onlVizato() {
   if (!p.shteti) panel.innerHTML = '<h3 class="tp-tit">📍 Zgjidhe shtetin</h3><p class="zbehte">Kostoja e transportit shfaqet pasi të zgjidhet shteti dhe qyteti i dërgesës.</p>';
   else if (!TP_SHTETI[p.shteti]) panel.innerHTML = `<h3 class="tp-tit">🌍 Jashtë vendit</h3><p class="zbehte">Dërgohet me DHL ose postë tjetër; transporti llogaritet veç.</p>
     <div class="rr">${v('Materialet', eur(tot) + ' €', 'total')}${v('Valuta', 'EUR')}</div>`;
-  else if (!tr) panel.innerHTML = `<h3 class="tp-tit">Kosto e transportit:</h3><p class="zbehte">Zgjidhe qytetin nga lista që të llogaritet transporti (${eur(TP_TRANSPORTI[TP_SHTETI[p.shteti]][p.pako_madhesia])} € për pako ${esc(p.pako_madhesia)} në ${esc(p.shteti)}).</p>`;
+  else if (!tr) panel.innerHTML = `<h3 class="tp-tit">Kosto e transportit:</h3><p class="zbehte">Zgjidhe qytetin nga lista që të llogaritet transporti.</p>`;
   else panel.innerHTML = `<h3 class="tp-tit">Kosto e transportit:</h3>
     <div class="rr">${v('Total (paguan klienti)', tpVlera(p) + '.00 €', 'total')}${v('Valuta', 'EUR')}</div>
     <div class="rr" style="margin-top:8px">${v('Transporti', eur(tr) + ' €')}${v('Vlera e produktit', eur(tot) + ' €')}</div>`;
