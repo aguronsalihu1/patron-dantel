@@ -145,6 +145,23 @@
   .fazat span.keq { background:#c0392b; color:#fff; font-weight:600; }
   #fotot-shikues { position:fixed; inset:0; background:rgba(0,0,0,.85); z-index:999; overflow:auto; padding:16px; text-align:center; }
   #fotot-shikues img { max-width:min(100%, 720px); margin:8px auto; display:block; border-radius:8px; }
+  .sh-totali-kuti { display:flex; justify-content:space-between; align-items:center; background:linear-gradient(135deg, #3a1240, #7A2A78); color:#fff;
+                    border-radius:16px; padding:14px 18px; margin:12px 0; } .sh-totali-kuti b { font-size:28px; }
+  @media (max-width: 600px) {
+    .sh-tab th, .sh-tab td { padding:6px 4px; } .sh-tab input.sasi, .sh-tab input.cmim { width:70px; padding:7px 5px; }
+    .tabela table:not(.htab) input.sasi, .tabela table:not(.htab) input.cmim { width:70px; }
+  }
+  .sh-arka-btn { width:100%; font-size:20px !important; padding:16px !important; border-radius:16px !important; background:linear-gradient(135deg, #065f46, #10b981) !important; }
+  .barkodi { background:#fff; border:3px dashed var(--kryesor); border-radius:18px; padding:18px; margin-top:14px; text-align:center; }
+  .barkodi .nr { font-size:22px; font-weight:800; } .barkodi .tot { font-size:30px; font-weight:800; color:var(--kryesor); margin:4px 0 6px; }
+  .ar-skano-kuti { display:flex; gap:10px; align-items:center; background:#faf3fa; border:2px solid var(--kryesor); border-radius:18px; padding:12px 14px; margin-bottom:14px; }
+  .ar-skano-kuti .ikona { font-size:30px; color:var(--kryesor); } .ar-skano-kuti input { flex:1; font-size:18px; border:0; background:transparent; min-width:0; }
+  .ar-skano-kuti input:focus { box-shadow:none; }
+  .ar-pritje { display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:12px; }
+  .ar-karte { background:#fff; border:1px solid var(--vije); border-radius:16px; padding:12px 14px; cursor:pointer; box-shadow:0 1px 3px rgba(40,20,50,.06); text-align:left; font:inherit; }
+  .ar-karte:hover { border-color:var(--kryesor); } .ar-karte .nr { font-weight:800; font-size:17px; } .ar-karte .tot { font-size:22px; font-weight:800; color:var(--kryesor); }
+  .ar-fatura { background:#fff; border:2px solid var(--kryesor); border-radius:18px; padding:16px; margin-bottom:16px; box-shadow:var(--hije); }
+  .ar-regj { width:100%; font-size:20px !important; padding:16px !important; border-radius:16px !important; background:linear-gradient(135deg, #065f46, #10b981) !important; }
   .st-bar-lista { display:flex; flex-direction:column; gap:7px; }
   .st-bar { display:grid; grid-template-columns:minmax(120px, 190px) 1fr minmax(120px, auto); gap:10px; align-items:center; font-size:14px; }
   .st-bar .gjat { background:#efe8f1; border-radius:8px; height:16px; overflow:hidden; }
@@ -206,13 +223,22 @@
   </section>
 
   <!-- ===== SHITJE (faturë) ===== -->
+  <!-- ===== SHITJA FIZIKE: KRYEFAQJA ===== -->
+  <section class="faqe" id="f-fiz_home">
+    <div class="onl-butonat">
+      <button class="onl-buton onl-b-shitje" data-shko="shitje">🧾<b>Faturë e re</b><small>Produktet → barkodi → arka</small></button>
+      <button class="onl-buton onl-b-porosite" data-shko="llogaria">📋<b>Faturat e mia</b><small id="fiz-home-nr">Faturat e sotme</small></button>
+      <button class="onl-buton onl-b-llogaria" data-shko="regjistrim">📝<b>Regjistrim</b><small>Hyrje / dalje malli</small></button>
+    </div>
+  </section>
+
   <section class="faqe" id="f-shitje">
-    <div class="rresht" style="justify-content:space-between"><h2 style="margin:0">Faturë e re</h2><span class="zbehte" id="sh-ora"></span></div>
-    <div class="rresht">
+    <div class="rresht" style="justify-content:space-between"><h2 style="margin:0">🧾 Faturë e re</h2><span class="zbehte" id="sh-ora"></span></div>
+    <div class="tp-forma" style="margin-bottom:6px">
       <label>Pika e shitjes <select id="sh-magazina"></select></label>
-      <label>Emri i klientit <input id="sh-klienti-emri" placeholder="p.sh. Arta K." style="width:200px"></label>
-      <label>Telefoni i klientit <input id="sh-klienti-tel" inputmode="tel" style="width:150px"></label>
-      <label>Kodi në Pro-Data <input id="sh-klienti-kodi" value="13850" style="width:110px" inputmode="numeric"><span class="zbehte">13850 = Qytetar- Patron</span></label>
+      <label>Emri i klientit <input id="sh-klienti-emri" placeholder="opsionale, p.sh. Arta K."></label>
+      <label>Telefoni i klientit <input id="sh-klienti-tel" inputmode="tel" placeholder="opsional"></label>
+      <label id="sh-kodi-l">Kodi në Pro-Data <input id="sh-klienti-kodi" value="13850" inputmode="numeric"><span class="zbehte">13850 = Qytetar- Patron</span></label>
     </div>
     <div class="rresht" id="sh-online-fushat" hidden>
       <label>Nr. i dërgesës në postë <input id="sh-posta" style="width:200px"></label>
@@ -225,18 +251,18 @@
       <button class="kryesor btn-skano" type="button" data-per="sh-artikulli">📷 Skano</button>
       <div class="lista" id="sh-artikulli-lista" hidden></div>
     </div>
-    <div class="tabela"><table><thead><tr><th>Produkti</th><th class="num">Sasia</th><th class="num">Çmimi</th><th class="num">Vlera</th><th></th></tr></thead><tbody id="sh-rreshtat"></tbody></table></div>
+    <div class="tabela"><table class="sh-tab"><thead><tr><th>Produkti</th><th class="num">Çmimi €</th><th class="num">Sasia</th><th class="num">Vlera €</th><th></th></tr></thead><tbody id="sh-rreshtat"></tbody></table></div>
     <div class="rresht"><label style="flex:1">Shënim <input id="sh-shenim" style="width:100%"></label></div>
-    <div class="totali">Totali: <span id="sh-totali">0.00</span> €</div>
+    <div class="sh-totali-kuti"><span>Totali</span><b><span id="sh-totali">0.00</span> €</b></div>
+    <button class="kryesor sh-arka-btn" id="sh-arka">🧾 Dërgo te arka</button>
     <div class="butona">
-      <button class="kryesor" id="sh-arka">🧾 Dërgo te arka</button>
       <button class="kryesor" id="sh-direkt" style="background:var(--kryesor2)">⚡ Shitje direkte</button>
       <button class="dyte" id="sh-print-a4">🖨️ A4</button>
       <button class="dyte" id="sh-print-80">🖨️ Faturë e vogël</button>
       <button class="rrezik" id="sh-pastro">Pastro</button>
     </div>
     <div class="mesazh" id="sh-mesazh"></div>
-    <div class="barkodi" id="sh-barkodi" hidden></div>
+    <div id="sh-barkodi" hidden></div>
   </section>
 
   <!-- ===== SHITJA ONLINE: KRYEFAQJA (3 butona) ===== -->
@@ -325,11 +351,15 @@
 
   <!-- ===== ARKA ===== -->
   <section class="faqe" id="f-arka">
-    <h2>Arka</h2>
-    <div class="rresht"><label>Skano barkodin e faturës <input id="ar-skano" placeholder="skano ose shkruaj numrin…" autocomplete="off" style="width:min(360px, 88vw)"></label></div>
+    <div class="rresht" style="justify-content:space-between"><h2 style="margin:0">🧾 Arka</h2><span class="live">LIVE</span></div>
+    <div class="ar-skano-kuti">
+      <span class="ikona">▥</span>
+      <input id="ar-skano" placeholder="Skano barkodin (PD…) ose shkruaj nr. + Enter" autocomplete="off">
+      <button class="kryesor" type="button" id="ar-kamera">📷 Kamera</button>
+    </div>
     <div id="ar-fatura"></div>
-    <h3>Faturat që presin në arkë</h3>
-    <div class="tabela"><table><thead><tr><th>Nr</th><th>Koha</th><th>Shitësja</th><th>Klienti</th><th class="num">Totali</th></tr></thead><tbody id="ar-pritje"></tbody></table></div>
+    <h3>Faturat që presin në arkë <span class="zbehte" id="ar-nr" style="font-weight:normal"></span></h3>
+    <div class="ar-pritje" id="ar-pritje"></div>
   </section>
 
   <!-- ===== REGJISTRIM (hyrje / dalje / shpenzime) ===== -->
@@ -363,10 +393,11 @@
 
   <!-- ===== LLOGARIA IME ===== -->
   <section class="faqe" id="f-llogaria">
-    <h2>Llogaria ime</h2>
+    <h2 id="ll-titulli">Llogaria ime</h2>
     <div class="karta" id="ll-karta"></div>
     <h3>Faturat e mia sot</h3>
-    <div class="tabela"><table><thead><tr><th>Nr</th><th>Koha</th><th>Klienti</th><th class="num">Totali</th><th>Statusi</th><th>Pro-Data</th></tr></thead><tbody id="ll-faturat"></tbody></table></div>
+    <div class="ar-pritje" id="ll-faturat"></div>
+    <div id="ll-barkodi"></div>
   </section>
 
   <!-- ===== TRANSFER ===== -->
@@ -551,21 +582,23 @@ const MENYTE = {
   arka: [['arka', '🧾 Arka'], ['shitjet', '🛒 Shitjet'], ['onl_porosite', '📦 Porositë online'], ['blerjet', '📦 Blerjet'], ['depo', '🏭 Depo'], ['pagesat', '💶 Arka dhe pagesat'], ['stafi', '👷 Burime njerëzore'],
          ['klientet', '👥 Klientët'], ['produktet', '🧵 Produktet'], ['kontabiliteti', '📒 Kontabiliteti'], ['admin', '⚙️ Administrimi'], ['shitje', '➕ Faturë'], ['regjistrim', '📝 Regjistrim'], ['transfer', '🔁 Transfer']],
   shitese_online: [['onl_home', '🏠 Kryefaqja'], ['onl_shitje', '🛒 Shitje'], ['onl_porosite', '📦 Porositë'], ['llogaria', '👤 Llogaria ime']],
-  shitese_fizike: [['shitje', '🛒 Shitje'], ['regjistrim', '📝 Regjistrim'], ['llogaria', '👤 Llogaria ime']],
+  shitese_fizike: [['fiz_home', '🏠 Kryefaqja'], ['shitje', '🧾 Faturë e re'], ['llogaria', '📋 Faturat e mia'], ['regjistrim', '📝 Regjistrim']],
 };
+// Shitëset (online dhe fizike) kanë kryefaqe me butona të mëdhenj në vend të menysë lart
+const KRYEFAQJA = { shitese_online: 'onl_home', shitese_fizike: 'fiz_home' };
 const NEN_REGJISTRIM = { shitese_online: ['hyrje', 'dalje'], shitese_fizike: ['hyrje', 'dalje', 'shpenzim'], arka: ['hyrje', 'dalje', 'shpenzim'], admin: ['hyrje', 'dalje', 'shpenzim'] };
 const NGARKUESIT = {};
 function hapFaqen(emri) {
   document.querySelectorAll('#menyja button').forEach((b) => b.classList.toggle('aktive', b.dataset.faqe === emri));
   document.querySelectorAll('section.faqe').forEach((s) => s.classList.toggle('aktive', s.id === 'f-' + emri));
-  const meKthim = !!(profili && profili.roli === 'shitese_online' && emri !== 'onl_home');
+  const meKthim = !!(profili && KRYEFAQJA[profili.roli] && emri !== KRYEFAQJA[profili.roli]);
   $('shtepia').hidden = !meKthim;
   if (meKthim && !(history.state && history.state.faqe)) history.pushState({ faqe: emri }, '');   // butoni "prapa" i telefonit → kryefaqja
   window.scrollTo(0, 0);
   if (NGARKUESIT[emri]) NGARKUESIT[emri]();
 }
-$('shtepia').onclick = () => { if (history.state && history.state.faqe) history.back(); else hapFaqen('onl_home'); };
-window.addEventListener('popstate', () => { if (profili && profili.roli === 'shitese_online') hapFaqen('onl_home'); });
+$('shtepia').onclick = () => { if (history.state && history.state.faqe) history.back(); else hapFaqen(KRYEFAQJA[profili.roli]); };
+window.addEventListener('popstate', () => { if (profili && KRYEFAQJA[profili.roli]) hapFaqen(KRYEFAQJA[profili.roli]); });
 
 // ---------- Hyrja ----------
 $('forma-hyrja').onsubmit = async (e) => {
@@ -597,7 +630,7 @@ sb.auth.onAuthStateChange(async (_n, ses) => {
   $('avatar').textContent = (emriP[0] || '?').toUpperCase();
   $('statusi').hidden = $('titulli').hidden = !eAdmin;
   // shitëset online kanë 3 butonat e kryefaqes; menyja lart u hoq, kthimi bëhet me 🏠
-  const paMeny = profili.roli === 'shitese_online';
+  const paMeny = !!KRYEFAQJA[profili.roli];
   $('menyja').hidden = paMeny; $('aplikacioni').classList.toggle('pa-meny', paMeny);
   $('menyja').innerHTML = MENYTE[profili.roli].map(([k, t]) => `<button data-faqe="${k}">${t}</button>`).join('');
   document.querySelectorAll('#menyja button').forEach((b) => b.onclick = () => hapFaqen(b.dataset.faqe));
@@ -616,9 +649,10 @@ async function ngarkoListat() {
   magazinat = mg || [];
   const opt = magazinat.map((m) => `<option value="${esc(m.kodi)}">${esc(m.kodi)} – ${esc(m.emri)}</option>`).join('');
   for (const id of ['sh-magazina', 'tr-nga', 'tr-te', 'rg-magazina']) $(id).innerHTML = opt;
-  const parazgj = profili.roli === 'shitese_online' ? '005' : '002';
+  let pikaE = null; try { pikaE = localStorage.getItem('pd-pika'); } catch {}   // pika e fundit që zgjodhi kjo shitëse në këtë pajisje
+  const parazgj = profili.roli === 'shitese_online' ? '005' : (pikaE && magazinat.some((m) => m.kodi === pikaE) ? pikaE : '002');
   $('sh-magazina').value = parazgj; $('rg-magazina').value = parazgj; $('tr-nga').value = '001'; $('tr-te').value = '003';
-  $('sh-online-fushat').hidden = profili.roli !== 'shitese_online' && profili.roli !== 'admin';
+  $('sh-online-fushat').hidden = true;   // porositë online kanë formën e tyre (🛒 Shitje online)
 }
 
 // ---------- Statusi i urave ----------
@@ -682,15 +716,16 @@ function shVizato() {
   sh.rreshtat.forEach((r, i) => {
     const v = r.sasia * r.cmimi; tot += v;
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td><b>${esc(r.kodi)}</b><br><span class="zbehte">${esc(r.emri)} · ${esc(r.barkodi || '')}</span></td>
-      <td class="num"><input class="sasi" type="number" min="0" step="any" value="${r.sasia}"></td>
-      <td class="num"><input class="cmim" type="number" min="0" step="0.01" value="${eur(r.cmimi)}"></td>
-      <td class="num">${eur(v)}</td><td><button class="heq">✕</button></td>`;
+    tr.innerHTML = `<td><b>${esc(r.emri)}</b><br><span class="zbehte">${esc(r.kodi)}${r.barkodi && r.barkodi !== r.kodi ? ' · ' + esc(r.barkodi) : ''}</span></td>
+      <td class="num"><input class="cmim" type="number" min="0" step="0.01" inputmode="decimal" value="${eur(r.cmimi)}"></td>
+      <td class="num"><input class="sasi" type="number" min="0" step="any" inputmode="decimal" value="${r.sasia}"></td>
+      <td class="num"><b>${eur(v)}</b></td><td><button class="heq">✕</button></td>`;
     tr.querySelector('.sasi').onchange = (e) => { r.sasia = +e.target.value; shVizato(); };
     tr.querySelector('.cmim').onchange = (e) => { r.cmimi = +e.target.value; shVizato(); };
     tr.querySelector('.heq').onclick = () => { sh.rreshtat.splice(i, 1); shVizato(); };
     tb.appendChild(tr);
   });
+  if (!sh.rreshtat.length) tb.innerHTML = '<tr><td colspan="5" class="zbehte">Ende asnjë produkt. Kërko me kod, barkod ose emër, ose shtyp 📷 Skano.</td></tr>';
   $('sh-totali').textContent = eur(tot);
 }
 kerkimArtikujsh('sh-artikulli', 'sh-artikulli-lista', (a) => {
@@ -715,29 +750,57 @@ function shTeDhenat(statusi) {
 function shPastro() {
   sh = { rreshtat: [], fatura: null }; shVizato();
   for (const id of ['sh-klienti-emri', 'sh-klienti-tel', 'sh-posta', 'sh-shenim']) $(id).value = '';
-  $('sh-klienti-kodi').value = '13850'; $('sh-barkodi').hidden = true; $('sh-mesazh').className = 'mesazh';
+  $('sh-klienti-kodi').value = '13850'; $('sh-barkodi').hidden = true; $('sh-barkodi').innerHTML = ''; $('sh-mesazh').className = 'mesazh';
 }
 $('sh-pastro').onclick = () => { if (!sh.rreshtat.length || confirm('Ta pastroj faturën?')) shPastro(); };
+// Karta e barkodit (PD<nr>): klienti e merr te arka; arka e skanon. Përdoret pas "Dërgo te arka" dhe te "Faturat e mia".
+function shfaqBarkodin(el, f, meFatureRe) {
+  el.innerHTML = `<div class="barkodi"><div class="nr">Fatura nr. ${f.nr}</div><div class="tot">${eur(f.totali)} €</div><svg id="bk-${f.nr}"></svg>
+    <div>Statusi: <span class="bk-st" data-id="${f.id}">${shenje(f.statusi)}${f.porosia_nr ? ' → <b>' + esc(f.porosia_nr) + '</b>' : ''}</span></div>
+    <p class="zbehte">Printoje biletën dhe jepja klientit, ose tregoja barkodin arkëtares.</p>
+    <div class="butona" style="justify-content:center"><button class="kryesor bk-print">🖨️ Printo biletën me barkod</button>${meFatureRe ? '<button class="dyte bk-re">+ Faturë e re</button>' : ''}</div></div>`;
+  JsBarcode(`#bk-${f.nr}`, 'PD' + f.nr, { format: 'CODE128', height: 90, displayValue: true, fontSize: 18 });
+  el.hidden = false;
+  el.querySelector('.bk-print').onclick = () => printoBileten(f);
+  const re = el.querySelector('.bk-re'); if (re) re.onclick = () => { shPastro(); window.scrollTo(0, 0); };
+}
+// Bileta 80 mm me barkod: klienti e çon te arka
+function printoBileten(f) {
+  const p = $('printimi'); p.className = 'e80';
+  p.innerHTML = `<div style="text-align:center"><b style="font-size:1.3em">PATRON DANTEL</b><br>MINNA SH.P.K.<br><b>FATURË PËR ARKË nr. ${f.nr}</b><br>
+    <svg id="pr-bk"></svg><br><span>Paguhet në arkë · nuk është dokument fiskal</span></div>
+    <p>${new Date(f.krijuar || Date.now()).toLocaleString('sq-AL', { timeZone: 'Europe/Belgrade' })}<br>Shitësja: ${esc(f.shitesja_emri || '')}${f.klienti_emri ? '<br>Klienti: ' + esc(f.klienti_emri) : ''}</p>
+    <table><tr><th>Produkti</th><th>Sasia</th><th>€</th></tr>
+    ${(f.rreshtat || []).map((r) => `<tr><td>${esc(r.kodi)} ${esc(r.emri)}</td><td>${r.sasia}</td><td>${eur(r.sasia * r.cmimi)}</td></tr>`).join('')}</table>
+    <p style="text-align:right;font-size:1.4em"><b>Totali: ${eur(f.totali)} €</b></p>`;
+  JsBarcode('#pr-bk', 'PD' + f.nr, { format: 'CODE128', height: 60, width: 2, displayValue: true, fontSize: 14, margin: 4 });
+  window.print();
+}
 $('sh-arka').onclick = async () => {
   if (!shKontrollo()) return;
   const btn = $('sh-arka'); btn.disabled = true;
   try {
-    const { data: f, error } = await sb.from('app_faturat').insert(shTeDhenat('ne_arke')).select('id, nr').single();
+    const { data: f, error } = await sb.from('app_faturat').insert(shTeDhenat('ne_arke')).select('*').single();
     if (error) throw new Error(error.message);
     sh.fatura = f;
-    const kodi = 'PD' + f.nr;
-    $('sh-barkodi').innerHTML = `<div style="font-size:18px;font-weight:700">Fatura nr. ${f.nr}: ${$('sh-totali').textContent} €</div><svg id="sh-svg"></svg>
-      <div class="zbehte">Tregoja këtë barkod arkëtares. Statusi: <span id="sh-st">${shenje('ne_arke')}</span></div>`;
-    JsBarcode('#sh-svg', kodi, { format: 'CODE128', height: 90, displayValue: true, fontSize: 18 });
-    $('sh-barkodi').hidden = false; $('sh-mesazh').className = 'mesazh';
+    shfaqBarkodin($('sh-barkodi'), f, true);
+    $('sh-mesazh').className = 'mesazh';
+    $('sh-barkodi').scrollIntoView({ behavior: 'smooth', block: 'center' });
   } catch (e) { $('sh-mesazh').className = 'mesazh gabim'; $('sh-mesazh').textContent = '❌ ' + e.message; }
   btn.disabled = false;
 };
-NGARKUESIT.shitje = async () => {   // përditëso statusin e faturës që pret në arkë
-  if (!sh.fatura || !$('sh-st')) return;
-  const { data } = await sb.from('app_faturat').select('statusi, porosia_nr').eq('id', sh.fatura.id).maybeSingle();
-  if (data) $('sh-st').innerHTML = shenje(data.statusi) + (data.porosia_nr ? ` → <b>${esc(data.porosia_nr)}</b>` : '');
+// statusi live i barkodeve në ekran (arka e regjistron → ndryshon vetë)
+async function rifreskoStatusetBk() {
+  const el = [...document.querySelectorAll('.bk-st')]; if (!el.length) return;
+  const { data } = await sb.from('app_faturat').select('id, statusi, porosia_nr').in('id', el.map((x) => x.dataset.id));
+  for (const x of el) { const f = (data || []).find((d) => d.id === x.dataset.id); if (f) x.innerHTML = shenje(f.statusi) + (f.porosia_nr ? ' → <b>' + esc(f.porosia_nr) + '</b>' : ''); }
+}
+NGARKUESIT.shitje = async () => {
+  const ePlote = ['admin', 'arka'].includes(profili.roli);   // shitësja fizike: pa kod klienti dhe pa "shitje direkte"
+  $('sh-kodi-l').hidden = $('sh-direkt').hidden = !ePlote;
+  rifreskoStatusetBk();
 };
+$('sh-magazina').addEventListener('change', () => { try { localStorage.setItem('pd-pika', $('sh-magazina').value); } catch {} });
 $('sh-direkt').onclick = async () => {
   if (!shKontrollo()) return;
   if (!confirm(`Shitje direkte: ${sh.rreshtat.length} produkte, totali ${$('sh-totali').textContent} €.\nPorosia dërgohet në Pro-Data. Vazhdo?`)) return;
@@ -787,15 +850,16 @@ async function arkaHap(nr) {
   const { data: f } = await sb.from('app_faturat').select('*').eq('nr', nr).maybeSingle();
   const d = $('ar-fatura');
   if (!f) { d.innerHTML = `<div class="mesazh gabim" style="display:block">Fatura ${esc(nr)} nuk u gjet.</div>`; return; }
-  d.innerHTML = `<div class="karte" style="margin-bottom:14px">
-    <div class="rresht" style="justify-content:space-between"><b style="font-size:18px">Fatura nr. ${f.nr}</b>${shenje(f.statusi)}</div>
+  d.innerHTML = `<div class="ar-fatura">
+    <div class="rresht" style="justify-content:space-between"><b style="font-size:20px">Fatura nr. ${f.nr}</b>${shenje(f.statusi)}</div>
     <div class="zbehte">${oraKS(f.krijuar)} · Shitësja: ${esc(f.shitesja_emri || '')} · Pika: ${esc(f.magazina)} · Klienti: ${esc(f.klienti_emri || 'Qytetar')} ${esc(f.klienti_telefoni || '')} (kodi ${esc(f.klienti_kodi)})${f.posta_nr ? ' · Posta: ' + esc(f.posta_nr) : ''}</div>
     <div class="tabela"><table><tr><th>Produkti</th><th class="num">Sasia</th><th class="num">Çmimi</th><th class="num">Vlera</th></tr>
     ${f.rreshtat.map((r) => `<tr><td><b>${esc(r.kodi)}</b> ${esc(r.emri)}<br><span class="zbehte">${esc(r.barkodi || '')}</span></td><td class="num">${r.sasia}</td><td class="num">${eur(r.cmimi)}</td><td class="num">${eur(r.sasia * r.cmimi)}</td></tr>`).join('')}</table></div>
     ${f.shenim ? `<p>Shënim: ${esc(f.shenim)}</p>` : ''}
-    <div class="totali">Për pagesë: ${eur(f.totali)} €</div>
-    ${f.statusi === 'ne_arke' ? `<label style="flex-direction:row;align-items:center;gap:8px;color:var(--tekst);font-size:15px"><input type="checkbox" id="ar-kontroll" style="min-width:0;width:22px;height:22px"> E kontrollova: produktet janë gati dhe të paketuara</label>
-      <div class="butona"><button class="kryesor" id="ar-regjistro" disabled>✅ Regjistro shitjen</button><button class="rrezik" id="ar-anulo">Anulo faturën</button></div>`
+    <div class="sh-totali-kuti"><span>Për pagesë</span><b>${eur(f.totali)} €</b></div>
+    ${f.statusi === 'ne_arke' ? `<label class="tp-kuti" style="margin:6px 0 10px"><input type="checkbox" id="ar-kontroll"> E kontrollova: produktet janë gati dhe të paketuara</label>
+      <button class="kryesor ar-regj" id="ar-regjistro" disabled>✅ Regjistro shitjen</button>
+      <div class="butona"><button class="rrezik" id="ar-anulo">Anulo faturën</button></div>`
       : f.porosia_nr ? `<p>Pro-Data: porosia <b>${esc(f.porosia_nr)}</b></p>` : ''}
     <div class="mesazh" id="ar-mesazh"></div></div>`;
   if (f.statusi !== 'ne_arke') return;
@@ -812,17 +876,21 @@ async function arkaHap(nr) {
   };
 }
 async function arkaListo() {
-  const { data } = await sb.from('app_faturat').select('nr, krijuar, shitesja_emri, klienti_emri, totali').eq('statusi', 'ne_arke').order('krijuar');
-  $('ar-pritje').innerHTML = (data || []).map((f) => `<tr class="klikohet" data-nr="${f.nr}"><td><b>${f.nr}</b></td><td>${oraKS(f.krijuar)}</td><td>${esc(f.shitesja_emri || '')}</td><td>${esc(f.klienti_emri || 'Qytetar')}</td><td class="num">${eur(f.totali)} €</td></tr>`).join('')
-    || '<tr><td colspan="5" class="zbehte">Asnjë faturë në pritje</td></tr>';
-  document.querySelectorAll('#ar-pritje tr[data-nr]').forEach((tr) => tr.onclick = () => arkaHap(+tr.dataset.nr));
+  const { data } = await sb.from('app_faturat').select('nr, krijuar, shitesja_emri, klienti_emri, totali, magazina, rreshtat').eq('statusi', 'ne_arke').neq('kanali', 'online').order('krijuar');
+  $('ar-nr').textContent = data && data.length ? `(${data.length})` : '';
+  $('ar-pritje').innerHTML = (data || []).map((f) => `<button class="ar-karte" data-nr="${f.nr}"><div class="rresht" style="justify-content:space-between;margin:0"><span class="nr">#${f.nr}</span><span class="zbehte">${oraKS(f.krijuar)}</span></div>
+      <div class="tot">${eur(f.totali)} €</div><div class="zbehte">${esc(f.shitesja_emri || '')} · ${(f.rreshtat || []).length} produkte · pika ${esc(f.magazina || '')}${f.klienti_emri ? ' · ' + esc(f.klienti_emri) : ''}</div></button>`).join('')
+    || '<p class="zbehte">Asnjë faturë në pritje.</p>';
+  document.querySelectorAll('#ar-pritje [data-nr]').forEach((b) => b.onclick = () => { arkaHap(+b.dataset.nr); window.scrollTo({ top: 0, behavior: 'smooth' }); });
 }
+const arkaNr = (tekst) => parseInt(String(tekst).replace(/\D/g, ''), 10);   // "PD123" ose "123" → 123
 $('ar-skano').onkeydown = (e) => {
   if (e.key !== 'Enter') return;
-  const nr = parseInt($('ar-skano').value.replace(/\D/g, ''), 10); $('ar-skano').value = '';
+  const nr = arkaNr($('ar-skano').value); $('ar-skano').value = '';
   if (nr) arkaHap(nr);
 };
-NGARKUESIT.arka = () => { arkaListo(); setTimeout(() => $('ar-skano').focus(), 50); };
+$('ar-kamera').onclick = () => dkSkaneri((kodi) => { if (navigator.vibrate) navigator.vibrate(80); const nr = arkaNr(kodi); if (nr) arkaHap(nr); });
+NGARKUESIT.arka = (ngaRealtime) => { arkaListo(); if (!ngaRealtime) setTimeout(() => $('ar-skano').focus(), 50); };
 
 // ---------- REGJISTRIM ----------
 let rg = { lloji: 'hyrje', rreshtat: [] };
@@ -882,14 +950,28 @@ NGARKUESIT.regjistrim = () => {
 // ---------- LLOGARIA IME ----------
 NGARKUESIT.llogaria = async () => {
   const fill = new Date(dataKS() + 'T00:00:00');
-  const { data } = await sb.from('app_faturat').select('nr, krijuar, klienti_emri, totali, statusi, porosia_nr').eq('shitesja_id', perdoruesi.id).gte('krijuar', new Date(fill.getTime() - 3 * 3600e3).toISOString()).order('krijuar', { ascending: false });
+  $('ll-titulli').textContent = profili.roli === 'shitese_fizike' ? '📋 Faturat e mia' : 'Llogaria ime';
+  const { data } = await sb.from('app_faturat').select('*').eq('shitesja_id', perdoruesi.id).gte('krijuar', new Date(fill.getTime() - 3 * 3600e3).toISOString()).order('krijuar', { ascending: false });
   const sot = (data || []).filter((f) => dataKS(new Date(f.krijuar)) === dataKS());
   const reg = sot.filter((f) => f.statusi === 'regjistruar');
   $('ll-karta').innerHTML = `<div class="karte"><div class="tit">Porosi të dërguara sot</div><div class="vl">${sot.filter((f) => f.statusi !== 'anuluar').length}</div></div>
     <div class="karte"><div class="tit">Të regjistruara</div><div class="vl">${reg.length}</div><div class="det">${eur(reg.reduce((s, f) => s + +f.totali, 0))} €</div></div>
     <div class="karte"><div class="tit">Në arkë</div><div class="vl">${sot.filter((f) => f.statusi === 'ne_arke').length}</div></div>`;
-  $('ll-faturat').innerHTML = sot.map((f) => `<tr><td>${f.nr}</td><td>${oraKS(f.krijuar)}</td><td>${esc(f.klienti_emri || 'Qytetar')}</td><td class="num">${eur(f.totali)}</td><td>${shenje(f.statusi)}</td><td>${esc(f.porosia_nr || '')}</td></tr>`).join('')
-    || '<tr><td colspan="6" class="zbehte">Ende asnjë faturë sot</td></tr>';
+  $('ll-faturat').innerHTML = sot.map((f) => `<button class="ar-karte" data-id="${f.id}"><div class="rresht" style="justify-content:space-between;margin:0"><span class="nr">#${f.nr}</span>${shenje(f.statusi)}</div>
+      <div class="tot">${eur(f.totali)} €</div><div class="zbehte">${oraKS(f.krijuar)} · ${esc(f.klienti_emri || 'Qytetar')}${f.porosia_nr ? ' · Pro-Data ' + esc(f.porosia_nr) : ''}</div>
+      ${f.statusi === 'ne_arke' ? '<div class="zbehte" style="margin-top:4px">👆 Kliko për barkodin</div>' : ''}</button>`).join('')
+    || '<p class="zbehte">Ende asnjë faturë sot.</p>';
+  document.querySelectorAll('#ll-faturat [data-id]').forEach((b) => b.onclick = () => {
+    const f = sot.find((x) => x.id === b.dataset.id);
+    if (f.statusi !== 'ne_arke') return;
+    shfaqBarkodin($('ll-barkodi'), f, false); $('ll-barkodi').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+  rifreskoStatusetBk();
+};
+NGARKUESIT.fiz_home = async () => {
+  const { data } = await sb.from('app_faturat').select('statusi, krijuar').eq('shitesja_id', perdoruesi.id).gte('krijuar', new Date(Date.now() - 864e5).toISOString());
+  const sot = (data || []).filter((f) => dataKS(new Date(f.krijuar)) === dataKS() && f.statusi !== 'anuluar');
+  $('fiz-home-nr').textContent = `${sot.length} sot · ${sot.filter((f) => f.statusi === 'ne_arke').length} në arkë`;
 };
 
 // ---------- TRANSFER ----------
