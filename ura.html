@@ -90,6 +90,10 @@
   .htab { font-size:14px; min-width:780px; } .htab td { white-space:nowrap; } .htab td.wrap { white-space:normal; min-width:180px; }
   .plus { color:var(--ok); font-weight:700; } .minus { color:var(--gabim); font-weight:700; }
   #dk-skaneri { position:fixed; inset:0; background:#000; z-index:50; display:none; flex-direction:column; }
+  .dk-poshte { padding:10px 12px 16px; color:#fff; background:#111; } #dk-statusi { font-size:14px; margin-bottom:8px; opacity:.9; }
+  .dk-dore { display:flex; gap:8px; } .dk-dore input { flex:1; min-width:0; }
+  #njoftim { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:#22182a; color:#fff; padding:12px 18px; border-radius:14px;
+             z-index:100; box-shadow:0 6px 20px rgba(0,0,0,.3); font-weight:600; max-width:90vw; }
   .dk-kamera { position:relative; flex:1; display:flex; overflow:hidden; }
   #dk-skaneri video { flex:1; width:100%; object-fit:cover; }
   .dk-korniza { position:absolute; left:8%; right:8%; top:38%; height:24%; border:3px solid rgba(255,255,255,.9); border-radius:12px; box-shadow:0 0 0 2000px rgba(0,0,0,.35); pointer-events:none; }
@@ -483,8 +487,12 @@
       <p class="zbehte" id="dk-h-shenim"></p>
     </div>
   </section>
-  <div id="dk-skaneri"><div class="dk-skaneri-bar"><b>📷 Drejtoje vijën e kuqe mbi barkod</b><button class="dyte" id="dk-skaneri-mbyll">Mbyll</button></div>
-    <div class="dk-kamera"><video id="dk-video" playsinline muted></video><div class="dk-korniza"><span></span></div></div></div>
+  <div id="dk-skaneri"><div class="dk-skaneri-bar"><b>📷 Barkodi brenda kornizës</b>
+      <span><button class="dyte" id="dk-drita" hidden>🔦</button> <button class="dyte" id="dk-skaneri-mbyll">Mbyll</button></span></div>
+    <div class="dk-kamera"><video id="dk-video" playsinline muted autoplay></video><div class="dk-korniza"><span></span></div></div>
+    <div class="dk-poshte"><div id="dk-statusi">Po hapet kamera…</div>
+      <div class="dk-dore"><input id="dk-dore" inputmode="text" placeholder="ose shkruaj kodin këtu" autocomplete="off"><button class="kryesor" id="dk-dore-ok">OK</button></div></div></div>
+  <div id="njoftim" hidden></div>
 
   <!-- ===== ARKA DHE PAGESAT ===== -->
   <section class="faqe" id="f-pagesat">
@@ -1618,21 +1626,55 @@ function lexuesiBarkodeve() {
   hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
   return new ZXing.BrowserMultiFormatReader(hints, 300);
 }
-async function dkSkaneri(cb) {
-  $('dk-skaneri').style.display = 'flex';
-  try {
-    dkLexuesi = dkLexuesi || lexuesiBarkodeve();
-    // kamera e pasme me rezolucion të lartë: vijat e holla të barkodit lexohen më mirë
-    const kamera = { video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 }, advanced: [{ focusMode: 'continuous' }] } };
-    await dkLexuesi.decodeFromConstraints(kamera, 'dk-video', (r) => { if (r) { const t = r.getText(); dkMbyllSkanerin(); cb(t); } });
-  } catch (e) { dkMbyllSkanerin(); alert('Kamera nuk u hap: ' + e.message); }
-}
-function dkMbyllSkanerin() { try { dkLexuesi && dkLexuesi.reset(); } catch {} $('dk-skaneri').style.display = 'none'; }
-$('dk-skaneri-mbyll').onclick = dkMbyllSkanerin;
-// Butonat "📷 Skano" te shitja: kamera e telefonit lexon barkodin dhe e fut te kërkimi (një artikull i vetëm shtohet menjëherë)
-document.querySelectorAll('.btn-skano').forEach((b) => b.onclick = () => dkSkaneri((kodi) => {
+// Lexuesi: BarcodeDetector i telefonit (Chrome në Android: i shpejtë dhe i saktë); ku mungon (iPhone), biblioteka ZXing.
+const FORMATET_BD = ['ean_13', 'ean_8', 'code_128', 'code_39', 'code_93', 'upc_a', 'upc_e', 'itf', 'codabar'];
+let dkStream = null, dkCikli = null, dkCb = null, dkDrita = false;
+function njoftim(tekst, ms = 2500) { const n = $('njoftim'); n.textContent = tekst; n.hidden = false; clearTimeout(njoftim.t); njoftim.t = setTimeout(() => { n.hidden = true; }, ms); }
+function dkGjeti(kodi) {
+  kodi = String(kodi || '').trim(); if (!kodi || !dkCb) return;
+  const cb = dkCb; dkCb = null;
   if (navigator.vibrate) navigator.vibrate(80);
-  const inp = $(b.dataset.per); inp.value = kodi.trim(); inp.dispatchEvent(new Event('input'));
+  dkMbyllSkanerin(); njoftim('📷 U lexua: ' + kodi); cb(kodi);
+}
+async function dkSkaneri(cb) {
+  dkCb = cb; $('dk-skaneri').style.display = 'flex'; $('dk-statusi').textContent = 'Po hapet kamera…'; $('dk-dore').value = '';
+  try {
+    dkStream = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } });
+    const v = $('dk-video'); v.srcObject = dkStream; await v.play();
+    const track = dkStream.getVideoTracks()[0], cap = track.getCapabilities ? track.getCapabilities() : {};
+    try { if ((cap.focusMode || []).includes('continuous')) await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch {}
+    $('dk-drita').hidden = !cap.torch; dkDrita = false;
+    $('dk-statusi').textContent = 'Mbaje barkodin brenda kornizës, 10–15 cm larg, me dritë të mirë.';
+    if ('BarcodeDetector' in window) {
+      const mund = await BarcodeDetector.getSupportedFormats();
+      const det = new BarcodeDetector({ formats: FORMATET_BD.filter((f) => mund.includes(f)) });
+      let zene = false;
+      dkCikli = setInterval(async () => {
+        if (zene || !dkStream || v.readyState < 2) return; zene = true;
+        try { const r = await det.detect(v); if (r.length) dkGjeti(r[0].rawValue); } catch {}
+        zene = false;
+      }, 120);
+    } else {
+      dkLexuesi = dkLexuesi || lexuesiBarkodeve();
+      dkLexuesi.decodeFromVideoElementContinuously(v, (r) => { if (r) dkGjeti(r.getText()); });
+    }
+  } catch (e) { $('dk-statusi').textContent = '❌ Kamera nuk u hap: ' + e.message + ' — shkruaje kodin më poshtë.'; }
+}
+function dkMbyllSkanerin() {
+  clearInterval(dkCikli); dkCikli = null;
+  try { dkLexuesi && dkLexuesi.reset(); } catch {}
+  if (dkStream) { dkStream.getTracks().forEach((t) => t.stop()); dkStream = null; }
+  $('dk-video').srcObject = null; $('dk-skaneri').style.display = 'none';
+}
+$('dk-skaneri-mbyll').onclick = () => { dkCb = null; dkMbyllSkanerin(); };
+$('dk-drita').onclick = async () => {   // drita e telefonit (ku e lejon)
+  try { dkDrita = !dkDrita; await dkStream.getVideoTracks()[0].applyConstraints({ advanced: [{ torch: dkDrita }] }); } catch { dkDrita = false; }
+};
+$('dk-dore-ok').onclick = () => dkGjeti($('dk-dore').value);
+$('dk-dore').onkeydown = (e) => { if (e.key === 'Enter') dkGjeti($('dk-dore').value); };
+// Butonat "📷 Skano" te shitja: kamera lexon barkodin dhe e fut te kërkimi (një artikull i vetëm shtohet menjëherë)
+document.querySelectorAll('.btn-skano').forEach((b) => b.onclick = () => dkSkaneri((kodi) => {
+  const inp = $(b.dataset.per); inp.value = kodi; inp.dispatchEvent(new Event('input'));
 }));
 
 // --- Hyrje / Dalje interne ---
