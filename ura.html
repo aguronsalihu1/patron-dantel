@@ -1644,21 +1644,72 @@ async function dkSkaneri(cb) {
     const track = dkStream.getVideoTracks()[0], cap = track.getCapabilities ? track.getCapabilities() : {};
     try { if ((cap.focusMode || []).includes('continuous')) await track.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }); } catch {}
     $('dk-drita').hidden = !cap.torch; dkDrita = false;
-    $('dk-statusi').textContent = 'Mbaje barkodin brenda kornizës, 10–15 cm larg, me dritë të mirë.';
+    // 1) lexuesi i telefonit (nëse ka formate barkodesh të instaluara)
+    let det = null, motori = 'ZXing';
     if ('BarcodeDetector' in window) {
-      const mund = await BarcodeDetector.getSupportedFormats();
-      const det = new BarcodeDetector({ formats: FORMATET_BD.filter((f) => mund.includes(f)) });
-      let zene = false;
-      dkCikli = setInterval(async () => {
-        if (zene || !dkStream || v.readyState < 2) return; zene = true;
-        try { const r = await det.detect(v); if (r.length) dkGjeti(r[0].rawValue); } catch {}
-        zene = false;
-      }, 120);
-    } else {
-      dkLexuesi = dkLexuesi || lexuesiBarkodeve();
-      dkLexuesi.decodeFromVideoElementContinuously(v, (r) => { if (r) dkGjeti(r.getText()); });
+      try {
+        const mbeshtetur = await BarcodeDetector.getSupportedFormats();
+        const formatet = FORMATET_BD.filter((f) => mbeshtetur.includes(f));
+        if (formatet.length) { det = new BarcodeDetector({ formats: formatet }); motori = 'telefoni + ZXing'; }
+      } catch {}
     }
+    // 2) ZBar (WebAssembly): lexon barkodet me vija edhe me sfond të errët, të vogla ose vertikale — punon edhe në iPhone
+    let zbar = null;
+    try { zbar = await ngarkoZBar(); motori = det ? 'telefoni + ZBar' : 'ZBar'; } catch { motori = det ? 'telefoni' : 'ZXing'; }
+    const kanv = document.createElement('canvas'), ctx = kanv.getContext('2d', { willReadFrequently: true });
+    const provoZBar = async () => {
+      const W = v.videoWidth, H = v.videoHeight; if (!W || !H) return null;
+      const k = Math.min(1, 1280 / W); kanv.width = Math.round(W * k); kanv.height = Math.round(H * k);
+      ctx.drawImage(v, 0, 0, kanv.width, kanv.height);
+      const sim = await zbar.scanImageData(ctx.getImageData(0, 0, kanv.width, kanv.height));
+      const s = sim.find((x) => !/QR|SQCODE/i.test(x.typeName));   // vetëm barkode me vija, jo QR
+      return s ? s.decode() : null;
+    };
+    let zene = false, kornizat = 0, kthe = false;
+    const diag = () => { $('dk-statusi').textContent = `Mbaje barkodin brenda kornizës, 10–15 cm larg. · Lexuesi: ${motori} · ${v.videoWidth}×${v.videoHeight} · ${kornizat} foto të kontrolluara`; };
+    diag();
+    dkCikli = setInterval(async () => {
+      if (zene || !dkStream || v.readyState < 2) return; zene = true; kornizat++;
+      try {
+        if (det) { const r = await det.detect(v); if (r.length) { dkGjeti(r[0].rawValue); zene = false; return; } }
+        const t = zbar ? await provoZBar() : lexoShiritin(v, v.videoWidth, v.videoHeight, (kthe = !kthe));
+        if (t) { dkGjeti(t); zene = false; return; }
+      } catch {}
+      if (kornizat % 5 === 0) diag();
+      zene = false;
+    }, 150);
   } catch (e) { $('dk-statusi').textContent = '❌ Kamera nuk u hap: ' + e.message + ' — shkruaje kodin më poshtë.'; }
+}
+// ZBar (WebAssembly, ~330 KB) ngarkohet vetëm herën e parë që hapet kamera
+let ngarkimiZBar = null;
+const ngarkoZBar = () => ngarkimiZBar ||= new Promise((ok, gab) => {
+  if (window.zbarWasm) return ok(window.zbarWasm);
+  const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/@undecaf/zbar-wasm@0.11.0/dist/inlined/index.js';
+  s.onload = () => (window.zbarWasm ? ok(window.zbarWasm) : gab(new Error('ZBar mungon')));
+  s.onerror = () => { ngarkimiZBar = null; gab(new Error('ZBar nuk u ngarkua')); };
+  document.head.appendChild(s);
+});
+// Rezervë nëse ZBar s'ngarkohet: ZXing vetëm nga shiriti i mesit të figurës (aty ku është korniza), që vijat të mos humbin në figurën e plotë.
+// kthyer = true: shirit vertikal, i rrotulluar 90° (barkod i mbajtur vertikalisht).
+let zxLexuesi = null;
+const zxKanv = document.createElement('canvas'), zxCtx = zxKanv.getContext('2d', { willReadFrequently: true });
+function lexoShiritin(burimi, W, H, kthyer) {
+  if (!W || !H) return null;
+  if (!zxLexuesi) {
+    const F = ZXing.BarcodeFormat, hints = new Map();
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [F.EAN_13, F.EAN_8, F.CODE_128, F.CODE_39, F.CODE_93, F.UPC_A, F.UPC_E, F.ITF, F.CODABAR]);
+    hints.set(ZXing.DecodeHintType.TRY_HARDER, true);
+    zxLexuesi = new ZXing.MultiFormatReader(); zxLexuesi.setHints(hints);
+  }
+  const [x0, y0, w, h] = kthyer ? [W * 0.325, H * 0.05, W * 0.35, H * 0.9] : [W * 0.05, H * 0.325, W * 0.9, H * 0.35];
+  if (kthyer) {   // rrotullim 90° në drejtim të orës: kanavaca h × w
+    zxKanv.width = Math.round(h); zxKanv.height = Math.round(w);
+    zxCtx.save(); zxCtx.translate(h, 0); zxCtx.rotate(Math.PI / 2); zxCtx.drawImage(burimi, x0, y0, w, h, 0, 0, w, h); zxCtx.restore();
+  } else { zxKanv.width = Math.round(w); zxKanv.height = Math.round(h); zxCtx.drawImage(burimi, x0, y0, w, h, 0, 0, w, h); }
+  try {
+    const lum = new ZXing.HTMLCanvasElementLuminanceSource(zxKanv);
+    return zxLexuesi.decode(new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(lum))).getText();
+  } catch { return null; } finally { try { zxLexuesi.reset(); } catch {} }
 }
 function dkMbyllSkanerin() {
   clearInterval(dkCikli); dkCikli = null;
