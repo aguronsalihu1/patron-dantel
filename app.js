@@ -79,9 +79,9 @@ async function afterLogin(){
   if(!user) return;
   const { data: emp, error } = await sb.from('employees').select('*').eq('auth_user_id', user.id).maybeSingle();
   if(error || !emp){
-    $('#login-error').textContent = 'Llogaria jote nuk është e lidhur me asnjë punëtor. Kontakto adminin.';
-    $('#login-error').style.display='block';
-    await sb.auth.signOut();
+    // Llogaritë e sistemit të ri (Super Admin, ARKA, shitëset, depo) nuk janë te "employees": çohen te ura.html,
+    // ku hyrja vlen menjëherë (i njëjti projekt Supabase, e njëjta adresë).
+    location.href = 'ura.html';
     return;
   }
   CURRENT_EMPLOYEE = emp;
