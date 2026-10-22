@@ -1446,8 +1446,9 @@ const shkurto = (s, n) => (s.length > n ? s.slice(0, n - 1) + '…' : s);
 function tpRreshti(f, i) {
   const q = tpPorosia(f);
   const rr = f.rreshtat || [];
-  const emertimi = rr.length ? shkurto(rr[0].emri + (rr.length > 1 ? ` +${rr.length - 1}` : ''), 60) : 'Material tekstili';
-  const pershkrimi = shkurto(rr.map((r) => `${r.kodi} ${r.emri}${r.ngjyra ? ' ' + r.ngjyra : ''} x${r.sasia}${r.njesia ? ' ' + r.njesia : ''}`).join('; '), 250);
+  // Te Tel-Post emërtimi është gjithmonë "E vogel" dhe përshkrimi bosh (vendim i Aguronit, 22.10.2026); materialet mbeten vetëm te sistemi ynë
+  const emertimi = 'E vogel';
+  const pershkrimi = '';
   return ['', emriPlote(f), q.kodi, q.emri, f.adresa || '', String(f.klienti_telefoni || ''), String(f.klienti_telefoni2 || ''), emertimi, pershkrimi, 'PD' + f.nr,
     f.pako_thyhet ? 'X' : '', f.pako_hapet ? 'X' : '', f.pako_ndrrim ? 'X' : '', f.pako_madhesia || 'S', tpVlera(f), '', f.shenim || ''];
 }
