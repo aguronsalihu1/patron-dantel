@@ -134,6 +134,7 @@
   .onl-porosi { border:1px solid var(--vije); border-radius:16px; padding:14px 16px; margin-bottom:12px; background:#fff; box-shadow:0 1px 3px rgba(40,20,50,.06); }
   .onl-porosi .krye { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; }
   .onl-porosi .art { font-size:14px; margin:6px 0; }
+  .koment-br { background:#fffbe6; border-left:4px solid #e0a100; border-radius:8px; padding:6px 10px; font-size:14px; margin:6px 0; white-space:pre-wrap; }
   .foto-zona { display:flex; flex-direction:column; align-items:center; gap:2px; padding:18px 14px; border:2px dashed var(--kryesor); border-radius:16px;
                background:#faf3fa; color:var(--kryesor-err); cursor:pointer; text-align:center; margin-bottom:6px; }
   .foto-zona .ikona { font-size:2rem; } .foto-zona b { font-size:1.1rem; } .foto-zona small { color:var(--zbehte); font-size:13px; }
@@ -310,7 +311,10 @@
         <label class="tp-kuti"><input type="checkbox" id="onl-thyhet"> Pako është e thyeshme</label>
         <label class="tp-kuti"><input type="checkbox" id="onl-hapet"> Pako mund të hapet</label>
         <label class="tp-kuti"><input type="checkbox" id="onl-ndrrim"> Ndrrim</label>
-        <label>Koment / shënim <textarea id="onl-shenim" rows="3" placeholder="p.sh. orari i dërgesës, telefono para se të vish"></textarea></label>
+        <label>Koment për postën <textarea id="onl-shenim" rows="3" placeholder="p.sh. orari i dërgesës, telefono para se të vish"></textarea>
+          <span class="zbehte">Shkon te Tel-Post dhe Pro-Data</span></label>
+        <label>🔒 Koment i brendshëm <textarea id="onl-koment-br" rows="3" placeholder="vetëm për ne, p.sh. klient i rregullt, i premtuam zbritje…" style="background:#fffbe6"></textarea>
+          <span class="zbehte">Ruhet vetëm te sistemi ynë: nuk shkon te Tel-Post, Pro-Data apo te fatura</span></label>
         <p class="zbehte">Emërtimi dhe përshkrimi i pakos plotësohen vetë nga materialet.</p>
       </div>
       <div class="tp-kolona tp-transporti" id="onl-tp-panel"></div>
@@ -1230,12 +1234,13 @@ function onlTeDhenat() {
     adresa: $('onl-adresa').value.trim(), qyteti: $('onl-qyteti').value.trim(), shteti: onlShteti(), eksport: onlEksport(),
     shenim: $('onl-shenim').value.trim() || null, statusi: 'ne_arke', statusi_dergeses: 'regjistruar',
     pako_madhesia: $('onl-pako').value, pako_hapet: $('onl-hapet').checked, pako_thyhet: $('onl-thyhet').checked, pako_ndrrim: $('onl-ndrrim').checked,
+    koment_brendshem: $('onl-koment-br').value.trim() || null,
     rreshtat: onl.rreshtat.map((r) => ({ prodata_id: r.id, kodi: r.kodi, emri: r.emri, barkodi: r.barkodi, njesia: r.njesia, ngjyra: r.ngjyra || null, sasia: r.sasia, cmimi: Math.round(r.cmimi * 100) / 100 })),
     totali: Math.round(onl.rreshtat.reduce((s, r) => s + r.sasia * r.cmimi, 0) * 100) / 100 };
 }
 function onlPastro() {
   for (const f of onl.fotot || []) URL.revokeObjectURL(f.url);
-  onl = { rreshtat: [], fotot: [] }; onlFototVizato(); for (const id of ['onl-emri', 'onl-tel', 'onl-tel2', 'onl-qyteti', 'onl-adresa', 'onl-shenim', 'onl-shteti-tjeter']) $(id).value = '';
+  onl = { rreshtat: [], fotot: [] }; onlFototVizato(); for (const id of ['onl-emri', 'onl-tel', 'onl-tel2', 'onl-qyteti', 'onl-adresa', 'onl-shenim', 'onl-koment-br', 'onl-shteti-tjeter']) $(id).value = '';
   $('onl-pako').value = 'S'; for (const id of ['onl-hapet', 'onl-thyhet', 'onl-ndrrim']) $(id).checked = false;
   $('onl-shteti').value = ''; $('onl-shteti').onchange(); $('onl-mesazh').className = 'mesazh'; onlVizato();
 }
@@ -1362,7 +1367,7 @@ function fazatHTML(f) {
 function onlPVizato() {
   const q = $('onl-p-kerko').value.trim().toLowerCase();
   const rr = onlP.filter((f) => onlPStatusi === 'te_gjitha' || (f.statusi_dergeses || 'regjistruar') === onlPStatusi)
-    .filter((f) => !q || [f.nr, f.porosia_nr, f.klienti_emri, f.klienti_mbiemri, f.klienti_telefoni, f.qyteti, f.shteti, f.adresa, f.posta_nr, f.shitesja_emri,
+    .filter((f) => !q || [f.nr, f.porosia_nr, f.klienti_emri, f.klienti_mbiemri, f.klienti_telefoni, f.qyteti, f.shteti, f.adresa, f.posta_nr, f.shitesja_emri, f.koment_brendshem,
       ...(f.rreshtat || []).flatMap((r) => [r.kodi, r.emri, r.ngjyra, r.barkodi])].some((v) => String(v || '').toLowerCase().includes(q)));
   onlPShfaqur = rr;
   const nr = (s) => onlP.filter((f) => s.includes(f.statusi_dergeses || 'regjistruar')).length;
@@ -1385,6 +1390,7 @@ function onlPVizato() {
       ${fazatHTML(f)}
       ${f.telposta_gjendja ? `<div class="zbehte">Tel-Post: <b>${esc(f.telposta_gjendja)}</b>${f.telposta_gjendja_koha ? ' · ' + oraKS(f.telposta_gjendja_koha) : ''}${f.telposta_barazimi ? ' · 💶 barazimi ' + esc(f.telposta_barazimi) : ''}</div>` : ''}
       <div class="art">${(f.rreshtat || []).map((r) => `${esc(r.kodi)} ${esc(r.emri)}${r.ngjyra ? ' · ' + esc(r.ngjyra) : ''} × <b>${r.sasia}</b> ${esc(r.njesia || '')}`).join('<br>')}</div>
+      ${f.koment_brendshem ? `<div class="koment-br">🔒 ${esc(f.koment_brendshem)}</div>` : ''}
       <div class="butona" style="margin-top:6px">
         ${f.telposta_letra ? '<button class="kryesor op-letra" style="background:#c0392b">🖨️ Letra Telposta</button>' : ''}
         ${sd === 'regjistruar' ? '<button class="kryesor op-gati" style="background:#e0a100;color:#2b2000">📦 U bë gati (foto e pakos)</button>' : ''}
@@ -1392,6 +1398,7 @@ function onlPVizato() {
         ${!meTelposta && sd === 'marre_nga_posta' ? '<button class="kryesor op-dorezuar" style="background:#14804a">✅ U dorëzua</button><button class="rrezik op-refuzuar">↩️ U refuzua</button>' : ''}
         ${!meTelposta && sd === 'dorezuar' ? '<button class="kryesor op-paguar" style="background:#14804a">💶 Paratë erdhën</button>' : ''}
         ${(f.fotot || []).length ? `<button class="dyte op-fotot">💬 Biseda (${f.fotot.length})</button>` : ''}
+        <button class="dyte op-koment">🔒 ${f.koment_brendshem ? 'Ndrysho komentin' : 'Koment i brendshëm'}</button>
         ${(f.fotot_gati || []).length ? `<button class="dyte op-fotot-gati">📦 Foto e pakos (${f.fotot_gati.length})</button>` : ''}
         <button class="dyte op-print">🖨️ Print</button>${meTelposta ? '<button class="dyte op-telposta">📮 Telposta</button>' : ''}</div></div>`; }).join('')
     || '<p class="zbehte">Asnjë porosi për këtë zgjedhje.</p>';
@@ -1426,6 +1433,10 @@ function onlPVizato() {
     const lt = el.querySelector('.op-letra'); if (lt) lt.onclick = () => hapLetren(f.telposta_letra);
     const ft = el.querySelector('.op-fotot'); if (ft) ft.onclick = () => shikoFotot(f.fotot);
     const fg = el.querySelector('.op-fotot-gati'); if (fg) fg.onclick = () => shikoFotot(f.fotot_gati);
+    el.querySelector('.op-koment').onclick = () => {   // vetëm te sistemi ynë: s'shkon te Tel-Post / Pro-Data
+      const k = prompt(`🔒 Koment i brendshëm për porosinë #${f.nr} (vetëm për ne):`, f.koment_brendshem || ''); if (k === null) return;
+      ndrysho({ koment_brendshem: k.trim() || null });
+    };
     const tp = el.querySelector('.op-tp-riprovo');
     if (tp) tp.onclick = () => { if (confirm(`Ta dërgojë roboti prapë porosinë #${f.nr} te Telposta?\nBëje vetëm nëse porosia NUK është atje, përndryshe del dyfish.`)) ndrysho({ telposta_statusi: null, telposta_gabim: null }); };
   });
