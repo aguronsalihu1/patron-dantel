@@ -106,6 +106,7 @@
   .onl-b-shitje { background:linear-gradient(135deg, #5c1f5b, #a8459f); }
   .onl-b-porosite { background:linear-gradient(135deg, #1e3a8a, #3b82f6); }
   .onl-b-llogaria { background:linear-gradient(135deg, #065f46, #10b981); }
+  .onl-b-dalje { background:linear-gradient(135deg, #9a3412, #f97316); }
   #f-onl_home { background:transparent; box-shadow:none; padding:4px 0; }
   .tp-forma { display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:14px 22px; margin-bottom:12px; }
   .tp-kolona { display:flex; flex-direction:column; gap:10px; }
@@ -162,6 +163,18 @@
   .zbr-shenje { background:#fff4d6; color:#8a5a00; border-radius:6px; padding:0 5px; font-size:12px; font-weight:700; white-space:nowrap; }
   .sh-totali-kuti small { display:block; font-size:12px; opacity:.9; font-weight:400; }
   @media (max-width: 600px) { input.zbr { width:52px; } }
+  .celesi { position:relative; display:inline-block; width:46px; height:26px; cursor:pointer; }
+  .celesi input { opacity:0; width:0; height:0; } .celesi span { position:absolute; inset:0; background:#d9d0de; border-radius:999px; transition:.2s; }
+  .celesi span::before { content:""; position:absolute; width:20px; height:20px; left:3px; top:3px; background:#fff; border-radius:50%; transition:.2s; box-shadow:0 1px 3px rgba(0,0,0,.2); }
+  .celesi input:checked + span { background:var(--ok); } .celesi input:checked + span::before { transform:translateX(20px); }
+  .mg-karte { display:flex; gap:12px; align-items:flex-start; background:#fff; border:1px solid var(--vije); border-radius:16px; padding:12px; margin:8px 0; }
+  .mg-karte.ekziston { border:2px solid #e0a100; background:#fffbe6; }
+  .mg-karte .foto { width:76px; height:76px; border-radius:10px; object-fit:cover; background:#f1eef3; flex:none; display:flex; align-items:center; justify-content:center; font-size:28px; }
+  .mg-karte .info { flex:1; min-width:0; }
+  .mg-forma { background:#fff; border:2px solid var(--kryesor); border-radius:18px; padding:16px; margin:12px 0; }
+  .mg-lloji { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:6px 0 10px; }
+  .mg-lloji button { padding:12px 8px; border:1px solid var(--vije); border-radius:12px; background:#fff; font:inherit; font-weight:600; cursor:pointer; }
+  .mg-lloji button.on { background:var(--kryesor); color:#fff; border-color:var(--kryesor); }
   .sh-arka-btn { width:100%; font-size:20px !important; padding:16px !important; border-radius:16px !important; background:linear-gradient(135deg, #065f46, #10b981) !important; }
   .barkodi { background:#fff; border:3px dashed var(--kryesor); border-radius:18px; padding:18px; margin-top:14px; text-align:center; }
   .barkodi .nr { font-size:22px; font-weight:800; } .barkodi .tot { font-size:30px; font-weight:800; color:var(--kryesor); margin:4px 0 6px; }
@@ -239,7 +252,8 @@
     <div class="onl-butonat">
       <button class="onl-buton onl-b-shitje" data-shko="shitje">🧾<b>Faturë e re</b><small>Produktet → barkodi → arka</small></button>
       <button class="onl-buton onl-b-porosite" data-shko="llogaria">📋<b>Faturat e mia</b><small id="fiz-home-nr">Faturat e sotme</small></button>
-      <button class="onl-buton onl-b-llogaria" data-shko="regjistrim">📝<b>Regjistrim</b><small>Hyrje / dalje malli</small></button>
+      <button class="onl-buton onl-b-llogaria" data-shko="mall">📦<b>Regjistro mall</b><small>Artikull i ri · shto sasi · foto</small></button>
+      <button class="onl-buton onl-b-dalje" data-shko="regjistrim">📝<b>Dalje / shpenzime</b><small>Mall që del pa shitje</small></button>
     </div>
   </section>
 
@@ -283,6 +297,7 @@
       <button class="onl-buton onl-b-shitje" data-shko="onl_shitje">🛒<b>Shitje</b><small>Porosi e re online</small></button>
       <button class="onl-buton onl-b-porosite" data-shko="onl_porosite">📦<b>Porositë</b><small id="onl-home-nr">Porositë e regjistruara</small></button>
       <button class="onl-buton onl-b-llogaria" data-shko="llogaria">👤<b>Llogaria ime</b><small>Puna ime sot</small></button>
+      <button class="onl-buton onl-b-dalje" data-shko="mall">📦<b>Regjistro mall</b><small>Artikull i ri · shto sasi · foto</small></button>
     </div>
   </section>
 
@@ -405,6 +420,24 @@
     <div class="rresht"><label style="flex:1">Shënim <input id="rg-shenim" style="width:100%"></label></div>
     <div class="butona"><button class="kryesor" id="rg-dergo">Dërgo</button></div>
     <div class="mesazh" id="rg-mesazh"></div>
+  </section>
+
+  <!-- ===== REGJISTRO MALL (artikull i ri, shto sasi, çaktivizo — me foto) ===== -->
+  <section class="faqe" id="f-mall">
+    <h2>📦 Regjistro mall</h2>
+    <div class="udhezim" id="mg-ndalur" hidden>🚫 Regjistrimi i mallit nuk është i lejuar për llogarinë tënde. Kërko nga Super Admin-i ta lejojë te ⚙️ Administrimi.</div>
+    <div id="mg-hapi1">
+      <p class="zbehte" style="margin-top:0">1) Skano barkodin ose shkruaj kodin / emrin e produktit. Sistemi kontrollon a ekziston tashmë.</p>
+      <div class="ar-skano-kuti"><span class="ikona">▥</span>
+        <input id="mg-kerko" placeholder="barkodi, kodi ose emri i produktit…" autocomplete="off">
+        <button class="kryesor" type="button" id="mg-skano">📷 Skano</button></div>
+      <div class="butona" style="margin-top:0"><button class="kryesor" id="mg-kontrollo">🔎 Kontrollo</button><button class="dyte" id="mg-ri-direkt">🆕 Artikull i ri</button></div>
+      <div id="mg-rezultati"></div>
+    </div>
+    <div id="mg-forma"></div>
+    <div class="mesazh" id="mg-mesazh"></div>
+    <h3>Regjistrimet e fundit</h3>
+    <div class="ar-pritje" id="mg-lista"></div>
   </section>
 
   <!-- ===== LLOGARIA IME ===== -->
@@ -567,7 +600,7 @@
     </div>
     <div class="rresht"><label>Kërko <input id="ad-kerko" placeholder="emri, telefoni ose emaili" style="width:260px"></label>
       <label>Shfaq <select id="ad-filtri"><option value="te_gjitha">Të gjitha</option><option value="me_qasje">Vetëm me qasje</option><option value="pa_qasje">Vetëm pa qasje</option></select></label></div>
-    <div class="tabela"><table><thead><tr><th>Llogaria</th><th>Emri</th><th>Roli</th><th>Hyrja e fundit</th><th></th></tr></thead><tbody id="ad-perdoruesit"></tbody></table></div>
+    <div class="tabela"><table><thead><tr><th>Llogaria</th><th>Emri</th><th>Roli</th><th>📦 Regjistron mall</th><th>Hyrja e fundit</th><th></th></tr></thead><tbody id="ad-perdoruesit"></tbody></table></div>
     <div class="mesazh" id="ad-mesazh"></div>
     <h3>Komandat drejt Pro-Data (50 të fundit)</h3>
     <div class="tabela"><table><thead><tr><th>Koha</th><th>Lloji</th><th>Statusi</th><th>Dokumenti / arsyeja</th></tr></thead><tbody id="ad-komandat"></tbody></table></div>
@@ -624,12 +657,12 @@ let profili = null, magazinat = [], perdoruesi = null;
 // ---------- Rolet dhe menytë ----------
 const MENYTE = {
   admin: [['paneli', '📊 Paneli'], ['arka', '🧾 Arka'], ['shitjet', '🛒 Shitjet'], ['onl_porosite', '📦 Porositë online'], ['blerjet', '📦 Blerjet'], ['depo', '🏭 Depo'], ['pagesat', '💶 Arka dhe pagesat'],
-          ['stafi', '👷 Burime njerëzore'], ['klientet', '👥 Klientët'], ['produktet', '🧵 Produktet'], ['kontabiliteti', '📒 Kontabiliteti'], ['admin', '⚙️ Administrimi'], ['shitje', '➕ Faturë'], ['regjistrim', '📝 Regjistrim'], ['transfer', '🔁 Transfer']],
+          ['stafi', '👷 Burime njerëzore'], ['klientet', '👥 Klientët'], ['produktet', '🧵 Produktet'], ['mall', '📦 Regjistro mall'], ['kontabiliteti', '📒 Kontabiliteti'], ['admin', '⚙️ Administrimi'], ['shitje', '➕ Faturë'], ['regjistrim', '📝 Regjistrim'], ['transfer', '🔁 Transfer']],
   depo: [['depo', '🏭 Depo']],
   arka: [['arka', '🧾 Arka'], ['shitjet', '🛒 Shitjet'], ['onl_porosite', '📦 Porositë online'], ['blerjet', '📦 Blerjet'], ['depo', '🏭 Depo'], ['pagesat', '💶 Arka dhe pagesat'], ['stafi', '👷 Burime njerëzore'],
-         ['klientet', '👥 Klientët'], ['produktet', '🧵 Produktet'], ['kontabiliteti', '📒 Kontabiliteti'], ['admin', '⚙️ Administrimi'], ['shitje', '➕ Faturë'], ['regjistrim', '📝 Regjistrim'], ['transfer', '🔁 Transfer']],
-  shitese_online: [['onl_home', '🏠 Kryefaqja'], ['onl_shitje', '🛒 Shitje'], ['onl_porosite', '📦 Porositë'], ['llogaria', '👤 Llogaria ime']],
-  shitese_fizike: [['fiz_home', '🏠 Kryefaqja'], ['shitje', '🧾 Faturë e re'], ['llogaria', '📋 Faturat e mia'], ['regjistrim', '📝 Regjistrim']],
+         ['klientet', '👥 Klientët'], ['produktet', '🧵 Produktet'], ['mall', '📦 Regjistro mall'], ['kontabiliteti', '📒 Kontabiliteti'], ['admin', '⚙️ Administrimi'], ['shitje', '➕ Faturë'], ['regjistrim', '📝 Regjistrim'], ['transfer', '🔁 Transfer']],
+  shitese_online: [['onl_home', '🏠 Kryefaqja'], ['onl_shitje', '🛒 Shitje'], ['onl_porosite', '📦 Porositë'], ['llogaria', '👤 Llogaria ime'], ['mall', '📦 Regjistro mall']],
+  shitese_fizike: [['fiz_home', '🏠 Kryefaqja'], ['shitje', '🧾 Faturë e re'], ['llogaria', '📋 Faturat e mia'], ['mall', '📦 Regjistro mall'], ['regjistrim', '📝 Regjistrim']],
 };
 // Shitëset (online dhe fizike) kanë kryefaqe me butona të mëdhenj në vend të menysë lart
 const KRYEFAQJA = { shitese_online: 'onl_home', shitese_fizike: 'fiz_home' };
@@ -667,7 +700,7 @@ sb.auth.onAuthStateChange(async (_n, ses) => {
   // Supabase e thërret këtë edhe kur rifreskon hyrjen në sfond: koka fshihet vetëm kur dikush del
   if (!perdoruesi) { $('statusi').hidden = $('titulli').hidden = $('shtepia').hidden = true; nisur = false; return; }
   if (nisur) return; nisur = true;
-  const { data } = await sb.from('prodata_perdoruesit').select('roli, emri').eq('user_id', perdoruesi.id).maybeSingle();
+  const { data } = await sb.from('prodata_perdoruesit').select('roli, emri, lejo_regjistrim').eq('user_id', perdoruesi.id).maybeSingle();
   profili = data;
   if (!profili || !profili.roli) {
     $('menyja').innerHTML = ''; document.querySelector('main').innerHTML = '<section class="faqe aktive"><div class="udhezim">Llogaria jote nuk ka ende rol. Kërko nga administratori të të caktojë rolin.</div></section>'; return;
@@ -675,6 +708,7 @@ sb.auth.onAuthStateChange(async (_n, ses) => {
   const eAdmin = profili.roli === 'admin', emriP = profili.emri || (perdoruesi.email || '').split('@')[0];
   $('emri-perdoruesit').textContent = eAdmin ? `${emriP} · Super Admin` : emriP;
   $('avatar').textContent = (emriP[0] || '?').toUpperCase();
+  document.querySelectorAll('[data-shko="mall"]').forEach((b) => { b.hidden = !profili.lejo_regjistrim; });   // Super Admin e lejon/ndalon për çdo llogari
   $('statusi').hidden = $('titulli').hidden = !eAdmin;
   // shitëset online kanë 3 butonat e kryefaqes; menyja lart u hoq, kthimi bëhet me 🏠
   const paMeny = !!KRYEFAQJA[profili.roli];
@@ -998,6 +1032,211 @@ NGARKUESIT.regjistrim = () => {
   document.querySelectorAll('#rg-nen button').forEach((b) => b.onclick = () => rgNdrysho(b.dataset.l));
   if (!lejuar.includes(rg.lloji)) rg.lloji = lejuar[0];
   rgNdrysho(rg.lloji);
+};
+
+// ---------- REGJISTRO MALL ----------
+// Kontrollon a ekziston artikulli (barkod/kod i saktë ose emër i ngjashëm) dhe pyet: shto sasi apo artikull i ri.
+// Regjistrimet ruhen te regjistrimet_mallit (statusi "ne_pritje") derisa ura t'i kalojë në Pro-Data; fotot te produktet-fotot.
+const MG_LLOJET = { artikull_i_ri: '🆕 Artikull i ri', hyrje: '📥 Hyrje nga furnitori', korrigjim: '➕ Korrigjim stoku', caktivizim: '🚫 Çaktivizim' };
+const MG_STATUSET = { ne_pritje: ['⏳ Pret Pro-Data', 's-pritje'], ne_proces: ['⚙️ Në proces', 's-pritje'], kryer: ['✅ Në Pro-Data', 's-ok'], gabim: ['❌ Gabim', 's-gabim'], anuluar: ['Anuluar', 's-hapur'] };
+let mgFotot = [];   // fotot e formës së hapur: [{ blob, url }]
+const mgLejuar = () => !!(profili && profili.lejo_regjistrim);
+async function fotoArtikujsh(idt) {   // → Map(artikulli_id → url e fotos së fundit)
+  const m = new Map(); if (!idt.length) return m;
+  const { data } = await sb.from('artikujt_fotot').select('artikulli_id, rruga, krijuar').in('artikulli_id', idt).order('krijuar', { ascending: false });
+  const eFundit = new Map(); for (const f of data || []) if (!eFundit.has(f.artikulli_id)) eFundit.set(f.artikulli_id, f.rruga);
+  if (!eFundit.size) return m;
+  const { data: url } = await sb.storage.from('produktet-fotot').createSignedUrls([...eFundit.values()], 3600);
+  [...eFundit.keys()].forEach((id, i) => { if (url && url[i] && url[i].signedUrl) m.set(id, url[i].signedUrl); });
+  return m;
+}
+async function mgKontrollo() {
+  const q = $('mg-kerko').value.trim(); const el = $('mg-rezultati');
+  $('mg-forma').innerHTML = ''; $('mg-mesazh').className = 'mesazh';
+  if (q.length < 2) { el.innerHTML = '<p class="zbehte">Shkruaj të paktën 2 shkronja ose skano barkodin.</p>'; return; }
+  el.innerHTML = '<p class="zbehte">⏳ Po kontrollohet lista e artikujve…</p>';
+  const art = await kerkoArtikuj(q);
+  const saktë = art.filter((a) => a.barkodi === q || a.kodi === q), ngjashem = art.filter((a) => !saktë.includes(a)).slice(0, 8);
+  const fotot = await fotoArtikujsh([...saktë, ...ngjashem].map((a) => a.prodata_id));
+  const karte = (a, kl) => `<div class="mg-karte ${kl}" data-id="${a.prodata_id}">
+      ${fotot.get(a.prodata_id) ? `<img class="foto" src="${esc(fotot.get(a.prodata_id))}" alt="">` : '<div class="foto">📦</div>'}
+      <div class="info"><b>${esc(a.emri)}</b><div class="zbehte">Kodi ${esc(a.kodi)}${a.barkodi && a.barkodi !== a.kodi ? ' · barkodi ' + esc(a.barkodi) : ''} · ${eur(a.cmimi)} € · ${esc(a.njesia || '')}</div>
+        <div class="stoku">${a.stoku.map((s) => `<span>${esc(s.magazina)}: ${s.sasia}</span>`).join('') || '<span>pa stok</span>'}</div>
+        <div class="butona" style="margin-top:8px"><button class="kryesor mg-shto">➕ Shto sasi te ky artikull</button><button class="dyte mg-foto">📷 Shto foto</button><button class="rrezik mg-cakt">🚫 Çaktivizo</button></div></div></div>`;
+  el.innerHTML = (saktë.length ? `<div class="udhezim">⚠️ <b>Ky artikull është i regjistruar tashmë në Pro-Data.</b> Dëshiron vetëm të shtosh sasi, apo ta regjistrosh gjithsesi si artikull të ri?</div>${saktë.map((a) => karte(a, 'ekziston')).join('')}` : '')
+    + (ngjashem.length ? `<h3>${saktë.length ? 'Të tjerë të ngjashëm' : '🔎 Artikuj me emër të ngjashëm — kontrollo mos ekziston tashmë'}</h3>${ngjashem.map((a) => karte(a, '')).join('')}` : '')
+    + (!saktë.length && !ngjashem.length ? '<div class="mesazh ok" style="display:block">✅ Nuk u gjet asnjë artikull me këtë kod ose emër. Mund ta regjistrosh si artikull të ri.</div>' : '')
+    + `<div class="butona"><button class="${saktë.length ? 'dyte' : 'kryesor'}" id="mg-ri">🆕 Regjistroje ${saktë.length ? 'gjithsesi ' : ''}si artikull të ri</button></div>`;
+  $('mg-ri').onclick = () => mgFormaRi(q);
+  el.querySelectorAll('.mg-karte').forEach((k) => {
+    const a = art.find((x) => x.prodata_id === k.dataset.id);
+    k.querySelector('.mg-shto').onclick = () => mgFormaShto(a);
+    k.querySelector('.mg-foto').onclick = () => mgFotoEkzistues(a);
+    k.querySelector('.mg-cakt').onclick = () => mgCaktivizo(a);
+  });
+  if (!saktë.length && !ngjashem.length) mgFormaRi(q);
+}
+function mgFotoHTML(eDetyrueshme) {
+  return `<label class="foto-zona" for="mg-foto-inp"><span class="ikona">📷</span><b>Foto e produktit${eDetyrueshme ? ' *' : ''}</b><small>1 deri 3 foto · <span id="mg-foto-nr">0 / 3</span></small></label>
+    <input type="file" id="mg-foto-inp" accept="image/*" multiple hidden><div class="onl-fotot" id="mg-foto-lista"></div>`;
+}
+function mgFotoLidh() {
+  mgFotot.forEach((f) => URL.revokeObjectURL(f.url)); mgFotot = [];
+  const viz = () => { $('mg-foto-nr').textContent = `${mgFotot.length} / 3`;
+    $('mg-foto-lista').innerHTML = mgFotot.map((f, i) => `<div class="foto"><img src="${f.url}" alt=""><button class="rrezik" data-i="${i}">✕</button></div>`).join('');
+    $('mg-foto-lista').querySelectorAll('button').forEach((b) => b.onclick = () => { URL.revokeObjectURL(mgFotot[+b.dataset.i].url); mgFotot.splice(+b.dataset.i, 1); viz(); }); };
+  $('mg-foto-inp').onchange = async (e) => {
+    const fajllat = [...e.target.files]; e.target.value = '';
+    for (const f of fajllat) { if (mgFotot.length >= 3) { alert('Lejohen deri 3 foto.'); break; }
+      try { const blob = await zvogelo(f); mgFotot.push({ blob, url: URL.createObjectURL(blob) }); } catch (err) { alert(err.message); } }
+    viz();
+  };
+  viz();
+}
+async function mgNgarkoFotot() {   // → rrugët në produktet-fotot
+  const muaji = new Date().toISOString().slice(0, 7), rruget = [];
+  for (const f of mgFotot) {
+    const rruga = `${muaji}/${[...crypto.getRandomValues(new Uint8Array(12))].map((x) => x.toString(16).padStart(2, '0')).join('')}.jpg`;
+    const { error } = await sb.storage.from('produktet-fotot').upload(rruga, f.blob, { contentType: 'image/jpeg' });
+    if (error) throw new Error('Fotot nuk u ngarkuan: ' + error.message);
+    rruget.push(rruga);
+  }
+  return rruget;
+}
+const mgMagazinatHTML = () => magazinat.map((m) => `<option value="${esc(m.kodi)}" ${m.kodi === $('sh-magazina').value ? 'selected' : ''}>${esc(m.kodi)} – ${esc(m.emri)}</option>`).join('');
+// pjesa "sa po hyn": hyrje nga furnitori ose korrigjim stoku (e njëjtë për artikull të ri dhe për shto sasi)
+function mgSasiaHTML(eDetyrueshme) {
+  return `<div class="mg-lloji" id="mg-lloji"><button type="button" data-l="hyrje" class="on">📥 Hyrje nga furnitori</button><button type="button" data-l="korrigjim">➕ Korrigjim stoku</button></div>
+    <div class="tp-forma" style="margin-bottom:6px">
+      <label>Magazina * <select id="mg-mag">${mgMagazinatHTML()}</select></label>
+      <label>Sasia${eDetyrueshme ? ' *' : ' (opsionale)'} <input id="mg-sasia" type="number" min="0" step="any" inputmode="decimal"></label>
+      <label class="mg-h">Kodi i furnitorit në Pro-Data * <input id="mg-furn" inputmode="numeric"></label>
+      <label class="mg-h">Nr. i faturës së furnitorit <input id="mg-nrfat"></label>
+      <label class="mg-h">Çmimi i blerjes me TVSH (për njësi) * <input id="mg-cblerje" type="number" min="0" step="0.0001" inputmode="decimal"></label>
+      <label class="mg-k" hidden>Arsyeja * <select id="mg-arsyeja"><option>Mall i gjetur</option><option>Numërim / inventar</option><option>Kthim nga klienti</option><option>Tjetër</option></select></label>
+    </div>`;
+}
+function mgSasiaLidh() {
+  document.querySelectorAll('#mg-lloji button').forEach((b) => b.onclick = () => {
+    document.querySelectorAll('#mg-lloji button').forEach((x) => x.classList.toggle('on', x === b));
+    document.querySelectorAll('.mg-h').forEach((x) => { x.hidden = b.dataset.l !== 'hyrje'; });
+    document.querySelectorAll('.mg-k').forEach((x) => { x.hidden = b.dataset.l !== 'korrigjim'; });
+  });
+}
+const mgLloji = () => (document.querySelector('#mg-lloji button.on') || {}).dataset?.l || 'hyrje';
+function mgSasiaTeDhenat(eDetyrueshme) {   // → fushat ose hedh gabim me tekst të qartë
+  const sasia = +$('mg-sasia').value || 0, l = mgLloji();
+  if (eDetyrueshme && !(sasia > 0)) throw new Error('Shkruaj sasinë që po hyn.');
+  if (!(sasia > 0)) return { sasia: null };
+  if (l === 'hyrje') {
+    if (!$('mg-furn').value.trim()) throw new Error('Shkruaj kodin e furnitorit në Pro-Data.');
+    if (!(+$('mg-cblerje').value > 0)) throw new Error('Shkruaj çmimin e blerjes me TVSH.');
+    return { sasia, lloji_hyrjes: 'hyrje', magazina: $('mg-mag').value, furnitori_kodi: $('mg-furn').value.trim(), nr_fatures: $('mg-nrfat').value.trim() || null, cmimi_blerjes: +$('mg-cblerje').value };
+  }
+  return { sasia, lloji_hyrjes: 'korrigjim', magazina: $('mg-mag').value, arsyeja: $('mg-arsyeja').value };
+}
+function mgFormaRi(q) {
+  const ekod = /^[\w\-./]+$/.test(q) && !/\s/.test(q);   // duket si barkod/kod
+  $('mg-forma').innerHTML = `<div class="mg-forma"><h3 style="margin-top:0">🆕 Artikull i ri</h3>
+    <div class="tp-forma" style="margin-bottom:6px">
+      <label>Emri i produktit * <input id="mg-emri" value="${ekod ? '' : esc(q)}" placeholder="p.sh. Dantell franceze me rruaza e bardhë"></label>
+      <label>Barkodi <input id="mg-barkodi" value="${ekod ? esc(q) : ''}" placeholder="skano ose shkruaj"></label>
+      <label>Kodi në Pro-Data <input id="mg-kodi" placeholder="bosh = si barkodi"></label>
+      <label>Njësia <select id="mg-njesia"><option value="M">M (metër)</option><option value="Copë">Copë</option></select></label>
+      <label>Çmimi i shitjes me TVSH * <input id="mg-cmimi" type="number" min="0" step="0.01" inputmode="decimal"></label>
+    </div>
+    <h3>Sa po hyn tani <span class="zbehte" style="font-weight:normal">(opsionale)</span></h3>${mgSasiaHTML(false)}
+    ${mgFotoHTML(true)}
+    <label style="margin-top:8px">Shënim <input id="mg-shenim" placeholder="opsional"></label>
+    <div class="butona"><button class="kryesor" id="mg-ruaj">✅ Regjistro artikullin</button><button class="dyte" id="mg-anulo">Anulo</button></div></div>`;
+  mgSasiaLidh(); mgFotoLidh();
+  $('mg-anulo').onclick = () => { $('mg-forma').innerHTML = ''; };
+  $('mg-ruaj').onclick = () => mgRuaj(async () => {
+    const emri = $('mg-emri').value.trim(), cmimi = +$('mg-cmimi').value;
+    if (!emri) throw new Error('Shkruaj emrin e produktit.');
+    if (!(cmimi > 0)) throw new Error('Shkruaj çmimin e shitjes me TVSH.');
+    if (!mgFotot.length) throw new Error('Bëj të paktën 1 foto të produktit.');
+    const barkodi = $('mg-barkodi').value.trim() || null, kodi = $('mg-kodi').value.trim() || barkodi;
+    if (kodi || barkodi) {   // kontrolli i fundit: mos ekziston ky kod/barkod
+      const ek = (await kerkoArtikuj(kodi || barkodi)).filter((a) => [kodi, barkodi].includes(a.kodi) || [kodi, barkodi].includes(a.barkodi));
+      if (ek.length && !confirm(`Kodi/barkodi "${kodi || barkodi}" ekziston te artikulli "${ek[0].emri}".\nTa regjistroj gjithsesi si artikull të ri?`)) return null;
+    }
+    const s = mgSasiaTeDhenat(false);
+    return { lloji: 'artikull_i_ri', emri, barkodi, kodi, njesia: $('mg-njesia').value, cmimi_shitjes: cmimi, magazina: s.magazina || $('mg-mag').value,
+      sasia: s.sasia, furnitori_kodi: s.furnitori_kodi || null, nr_fatures: s.nr_fatures || null, cmimi_blerjes: s.cmimi_blerjes || null,
+      arsyeja: s.lloji_hyrjes === 'korrigjim' ? s.arsyeja : null, shenim: $('mg-shenim').value.trim() || null };   // me furnitor = hyrje, pa = korrigjim
+  });
+  $('mg-forma').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function mgFormaShto(a) {
+  $('mg-forma').innerHTML = `<div class="mg-forma"><h3 style="margin-top:0">➕ Shto sasi: ${esc(a.emri)}</h3><p class="zbehte">Kodi ${esc(a.kodi)} · ${eur(a.cmimi)} € · stoku: ${a.stoku.map((s) => `${esc(s.magazina)}: ${s.sasia}`).join(', ') || 'pa stok'}</p>
+    ${mgSasiaHTML(true)}${mgFotoHTML(false)}
+    <label style="margin-top:8px">Shënim <input id="mg-shenim" placeholder="opsional"></label>
+    <div class="butona"><button class="kryesor" id="mg-ruaj">✅ Regjistro sasinë</button><button class="dyte" id="mg-anulo">Anulo</button></div></div>`;
+  mgSasiaLidh(); mgFotoLidh();
+  $('mg-anulo').onclick = () => { $('mg-forma').innerHTML = ''; };
+  $('mg-ruaj').onclick = () => mgRuaj(async () => {
+    const s = mgSasiaTeDhenat(true);
+    return { lloji: s.lloji_hyrjes, artikulli_id: a.prodata_id, kodi: a.kodi, barkodi: a.barkodi, emri: a.emri, njesia: a.njesia, magazina: s.magazina, sasia: s.sasia,
+      furnitori_kodi: s.furnitori_kodi || null, nr_fatures: s.nr_fatures || null, cmimi_blerjes: s.cmimi_blerjes || null, arsyeja: s.arsyeja || null,
+      shenim: $('mg-shenim').value.trim() || null };
+  }, a.prodata_id);
+  $('mg-forma').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function mgFotoEkzistues(a) {
+  $('mg-forma').innerHTML = `<div class="mg-forma"><h3 style="margin-top:0">📷 Foto për: ${esc(a.emri)}</h3>${mgFotoHTML(true)}
+    <div class="butona"><button class="kryesor" id="mg-ruaj-foto">✅ Ruaj fotot</button><button class="dyte" id="mg-anulo">Anulo</button></div></div>`;
+  mgFotoLidh(); $('mg-anulo').onclick = () => { $('mg-forma').innerHTML = ''; };
+  $('mg-ruaj-foto').onclick = async () => {
+    if (!mgFotot.length) return alert('Zgjidh të paktën 1 foto.');
+    try {
+      const rruget = await mgNgarkoFotot();
+      const { error } = await sb.from('artikujt_fotot').insert(rruget.map((rruga) => ({ artikulli_id: a.prodata_id, rruga })));
+      if (error) throw new Error(error.message);
+      $('mg-forma').innerHTML = ''; $('mg-mesazh').className = 'mesazh ok'; $('mg-mesazh').textContent = `✅ Fotot e "${a.emri}" u ruajtën.`; mgKontrollo();
+    } catch (e) { alert('❌ ' + e.message); }
+  };
+}
+async function mgCaktivizo(a) {
+  const arsyeja = prompt(`Çaktivizo "${a.emri}" (kodi ${a.kodi})?\nNuk do të shfaqet më në lista dhe shitje; historia ruhet dhe mund të rikthehet.\n\nArsyeja:`, 'Regjistruar gabim');
+  if (arsyeja === null) return;
+  const { error } = await sb.from('regjistrimet_mallit').insert({ lloji: 'caktivizim', krijuar_emri: profili.emri || null, artikulli_id: a.prodata_id, kodi: a.kodi, barkodi: a.barkodi, emri: a.emri, arsyeja: arsyeja.trim() || null });
+  $('mg-mesazh').className = 'mesazh ' + (error ? 'gabim' : 'ok');
+  $('mg-mesazh').textContent = error ? '❌ ' + error.message : `✅ Kërkesa për çaktivizimin e "${a.emri}" u regjistrua. Kalon në Pro-Data kur të aktivizohet ky veprim.`;
+  NGARKUESIT.mall();
+}
+async function mgRuaj(teDhenat, artikulliId) {   // ruan regjistrimin + fotot
+  const btn = $('mg-ruaj'); btn.disabled = true; const m = $('mg-mesazh');
+  try {
+    const d = await teDhenat(); if (!d) { btn.disabled = false; return; }
+    m.className = 'mesazh pritje'; m.textContent = '⏳ Po ruhet…';
+    const rruget = mgFotot.length ? await mgNgarkoFotot() : [];
+    const { data: r, error } = await sb.from('regjistrimet_mallit').insert({ ...d, krijuar_emri: profili.emri || null, fotot: rruget }).select('id').single();
+    if (error) throw new Error(error.message);
+    if (rruget.length) await sb.from('artikujt_fotot').insert(rruget.map((rruga) => ({ artikulli_id: artikulliId || null, regjistrimi_id: r.id, rruga })));
+    m.className = 'mesazh ok'; m.innerHTML = `✅ U regjistrua: <b>${esc(MG_LLOJET[d.lloji])}</b> · ${esc(d.emri || '')}${d.sasia ? ' · ' + d.sasia + ' ' + esc(d.njesia || '') : ''}.<br><span class="zbehte">Ruhet te sistemi ynë dhe kalon në Pro-Data sapo të aktivizohet ky lloj veprimi.</span>`;
+    $('mg-forma').innerHTML = ''; $('mg-rezultati').innerHTML = ''; $('mg-kerko').value = ''; mgFotot = [];
+    NGARKUESIT.mall();
+  } catch (e) { m.className = 'mesazh gabim'; m.textContent = '❌ ' + e.message; }
+  btn.disabled = false;
+}
+$('mg-kontrollo').onclick = mgKontrollo;
+$('mg-kerko').onkeydown = (e) => { if (e.key === 'Enter') mgKontrollo(); };
+$('mg-skano').onclick = () => dkSkaneri((kodi) => { $('mg-kerko').value = kodi; mgKontrollo(); });
+$('mg-ri-direkt').onclick = () => mgFormaRi($('mg-kerko').value.trim());
+NGARKUESIT.mall = async (ngaRealtime) => {
+  const lejuar = mgLejuar();
+  $('mg-ndalur').hidden = lejuar; $('mg-hapi1').hidden = !lejuar; if (!lejuar) $('mg-forma').innerHTML = '';
+  const { data } = await sb.from('regjistrimet_mallit').select('*').order('krijuar', { ascending: false }).limit(40);
+  const url = new Map(); const rr = data || [];
+  const fotot = rr.map((r) => (r.fotot || [])[0]).filter(Boolean);
+  if (fotot.length) { const { data: u } = await sb.storage.from('produktet-fotot').createSignedUrls(fotot, 3600); (u || []).forEach((x, i) => url.set(fotot[i], x.signedUrl)); }
+  $('mg-lista').innerHTML = rr.map((r) => { const [t, c] = MG_STATUSET[r.statusi] || [r.statusi, '']; const f = (r.fotot || [])[0];
+    return `<div class="ar-karte" style="cursor:default"><div class="rresht" style="justify-content:space-between;margin:0"><b>${esc(MG_LLOJET[r.lloji] || r.lloji)}</b><span class="shenje ${c}">${t}</span></div>
+      <div style="display:flex;gap:10px;margin-top:6px">${f && url.get(f) ? `<img src="${esc(url.get(f))}" style="width:56px;height:56px;border-radius:8px;object-fit:cover" alt="">` : ''}
+      <div><b>${esc(r.emri || '')}</b><div class="zbehte">${esc(r.kodi || r.barkodi || '')}${r.sasia ? ' · ' + (+r.sasia) + ' ' + esc(r.njesia || '') : ''}${r.magazina ? ' · mag. ' + esc(r.magazina) : ''}${r.cmimi_shitjes ? ' · ' + eur(r.cmimi_shitjes) + ' €' : ''}</div>
+      <div class="zbehte">${oraKS(r.krijuar)} · ${esc(r.krijuar_emri || '')}${r.arsyeja && r.lloji !== 'artikull_i_ri' ? ' · ' + esc(r.arsyeja) : ''}${r.prodata_nr ? ' · ' + esc(r.prodata_nr) : ''}</div>
+      ${r.gabimi ? `<div style="color:var(--gabim)">${esc(r.gabimi)}</div>` : ''}</div></div></div>`; }).join('') || '<p class="zbehte">Ende asnjë regjistrim.</p>';
 };
 
 // ---------- LLOGARIA IME ----------
@@ -2085,13 +2324,14 @@ function adVizato() {
   const rr = adLista.filter((x) => (f === 'te_gjitha' || (f === 'me_qasje') === !!x.roli) && (!q || [x.llogaria, x.emri].some((v) => String(v || '').toLowerCase().includes(q))));
   $('ad-perdoruesit').innerHTML = rr.map((x) => {
     const vetja = x.user_id === perdoruesi.id;
-    if (!uAdmin) return `<tr><td>${esc(x.llogaria)}</td><td>${esc(x.emri || '')}</td><td>${ROLET[x.roli] || '<span class="zbehte">pa qasje</span>'}</td><td>${x.hyrja_fundit ? oraKS(x.hyrja_fundit) : '—'}</td><td></td></tr>`;
+    if (!uAdmin) return `<tr><td>${esc(x.llogaria)}</td><td>${esc(x.emri || '')}</td><td>${ROLET[x.roli] || '<span class="zbehte">pa qasje</span>'}</td><td></td><td>${x.hyrja_fundit ? oraKS(x.hyrja_fundit) : '—'}</td><td></td></tr>`;
     return `<tr data-id="${x.user_id}"><td>${esc(x.llogaria)}${vetja ? ' <span class="shenje s-ok">ti</span>' : ''}</td>
       <td><input class="ad-emri" value="${esc(x.emri || '')}" placeholder="emri" style="width:150px"></td>
       <td><select class="ad-roli" ${vetja ? 'disabled' : ''}><option value="">— pa qasje —</option>${Object.entries(ROLET).map(([k, t]) => `<option value="${k}" ${x.roli === k ? 'selected' : ''}>${t}</option>`).join('')}</select></td>
+      <td>${x.roli ? `<label class="celesi" title="Lejo/ndalo regjistrimin e mallit"><input type="checkbox" class="ad-regj" ${x.lejo_regjistrim ? 'checked' : ''}><span></span></label>` : '<span class="zbehte">—</span>'}</td>
       <td>${x.hyrja_fundit ? oraKS(x.hyrja_fundit) : '—'}</td>
       <td style="white-space:nowrap"><button class="dyte ad-ruaj">Ruaj</button> <button class="dyte ad-pass" title="Vendos fjalëkalim të ri">🔑</button> ${x.roli && !vetja ? '<button class="rrezik ad-hiq">Hiq qasjen</button>' : ''}</td></tr>`;
-  }).join('') || '<tr><td colspan="5" class="zbehte">Asnjë llogari</td></tr>';
+  }).join('') || '<tr><td colspan="6" class="zbehte">Asnjë llogari</td></tr>';
   document.querySelectorAll('#ad-perdoruesit tr[data-id]').forEach((tr) => {
     const id = tr.dataset.id, x = adLista.find((y) => y.user_id === id);
     const ruaj = async (roli) => {
@@ -2103,6 +2343,11 @@ function adVizato() {
       NGARKUESIT.admin();
     };
     tr.querySelector('.ad-ruaj').onclick = () => ruaj(tr.querySelector('.ad-roli').disabled ? x.roli : tr.querySelector('.ad-roli').value);
+    const rg = tr.querySelector('.ad-regj'); if (rg) rg.onchange = async () => {   // çelësi: lejo/ndalo regjistrimin e mallit
+      const { data, error } = await sb.rpc('prodata_admin_lejo_regjistrim', { p_user: id, p_lejo: rg.checked });
+      const m = $('ad-mesazh'); m.className = 'mesazh ' + (error ? 'gabim' : 'ok'); m.textContent = error ? '❌ ' + error.message : `✅ ${data}: ${x.emri || x.llogaria}`;
+      if (error) rg.checked = !rg.checked; else x.lejo_regjistrim = rg.checked;
+    };
     const h = tr.querySelector('.ad-hiq'); if (h) h.onclick = () => ruaj(null);
     tr.querySelector('.ad-pass').onclick = async () => {
       const fj = prompt(`Fjalëkalimi i ri për ${x.emri || x.llogaria} (të paktën 8 shenja):`, fjalekalimProvizor());
