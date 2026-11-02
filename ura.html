@@ -156,6 +156,12 @@
     .sh-tab th, .sh-tab td { padding:6px 4px; } .sh-tab input.sasi, .sh-tab input.cmim { width:70px; padding:7px 5px; }
     .tabela table:not(.htab) input.sasi, .tabela table:not(.htab) input.cmim { width:70px; }
   }
+  input.zbr { width:64px; min-width:0; text-align:right; background:#fffbe6; }
+  .zbr-tot { display:flex; align-items:center; justify-content:flex-end; gap:8px; margin:10px 0 0; flex-wrap:wrap; font-weight:600; }
+  .zbr-tot input { width:110px; min-width:0; text-align:right; background:#fffbe6; } .zbr-tot select { min-width:0; width:64px; }
+  .zbr-shenje { background:#fff4d6; color:#8a5a00; border-radius:6px; padding:0 5px; font-size:12px; font-weight:700; white-space:nowrap; }
+  .sh-totali-kuti small { display:block; font-size:12px; opacity:.9; font-weight:400; }
+  @media (max-width: 600px) { input.zbr { width:52px; } }
   .sh-arka-btn { width:100%; font-size:20px !important; padding:16px !important; border-radius:16px !important; background:linear-gradient(135deg, #065f46, #10b981) !important; }
   .barkodi { background:#fff; border:3px dashed var(--kryesor); border-radius:18px; padding:18px; margin-top:14px; text-align:center; }
   .barkodi .nr { font-size:22px; font-weight:800; } .barkodi .tot { font-size:30px; font-weight:800; color:var(--kryesor); margin:4px 0 6px; }
@@ -256,9 +262,10 @@
       <button class="kryesor btn-skano" type="button" data-per="sh-artikulli">📷 Skano</button>
       <div class="lista" id="sh-artikulli-lista" hidden></div>
     </div>
-    <div class="tabela"><table class="sh-tab"><thead><tr><th>Produkti</th><th class="num">Çmimi €</th><th class="num">Sasia</th><th class="num">Vlera €</th><th></th></tr></thead><tbody id="sh-rreshtat"></tbody></table></div>
+    <div class="tabela"><table class="sh-tab"><thead><tr><th>Produkti</th><th class="num">Çmimi €</th><th class="num">Sasia</th><th class="num">Zbr %</th><th class="num">Vlera €</th><th></th></tr></thead><tbody id="sh-rreshtat"></tbody></table></div>
     <div class="rresht"><label style="flex:1">Shënim <input id="sh-shenim" style="width:100%"></label></div>
-    <div class="sh-totali-kuti"><span>Totali</span><b><span id="sh-totali">0.00</span> €</b></div>
+    <div class="zbr-tot"><span>🏷️ Zbritje në total</span><input id="sh-zbrt" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0"><select id="sh-zbrt-l"><option>%</option><option>€</option></select></div>
+    <div class="sh-totali-kuti"><span>Totali<small id="sh-zbr-permb"></small></span><b><span id="sh-totali">0.00</span> €</b></div>
     <button class="kryesor sh-arka-btn" id="sh-arka">🧾 Dërgo te arka</button>
     <div class="butona">
       <button class="kryesor" id="sh-direkt" style="background:var(--kryesor2)">⚡ Shitje direkte</button>
@@ -327,7 +334,8 @@
       <button class="dyte" type="button" id="onl-dantella">➕ Material me dantella të gjata</button>
       <div class="lista" id="onl-lista" hidden></div>
     </div>
-    <div class="tabela"><table><thead><tr><th>Kodi</th><th>Materiali</th><th class="num" id="onl-cmimi-th">Çmimi për metër €</th><th class="num">Sasia</th><th>Ngjyra / përshkrimi</th><th class="num">Vlera €</th><th></th></tr></thead><tbody id="onl-rreshtat"></tbody></table></div>
+    <div class="tabela"><table><thead><tr><th>Kodi</th><th>Materiali</th><th class="num" id="onl-cmimi-th">Çmimi për metër €</th><th class="num">Sasia</th><th class="num">Zbr %</th><th>Ngjyra / përshkrimi</th><th class="num">Vlera €</th><th></th></tr></thead><tbody id="onl-rreshtat"></tbody></table></div>
+    <div class="zbr-tot"><span>🏷️ Zbritje në total</span><input id="onl-zbrt" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0"><select id="onl-zbrt-l"><option>%</option><option>€</option></select></div>
     <h3>Fotot e bisedës me klientin *</h3>
     <label class="foto-zona" for="onl-foto"><span class="ikona">📷</span><b>Shto fotot e bisedës</b><small>2 deri 5 screenshot ku klienti i porosit materialet · <span id="onl-foto-nr">0 / 5</span></small></label>
     <input type="file" id="onl-foto" accept="image/*" multiple hidden>
@@ -576,6 +584,33 @@ const sb = supabase.createClient('https://bzlqzlgwsrdnxudcvzfr.supabase.co', 'sb
 const $ = (id) => document.getElementById(id);
 const eur = (x) => (Math.round((+x || 0) * 100) / 100).toFixed(2);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// ---------- Zbritjet (fatura dhe porosia online) ----------
+// Çdo rresht ka zbritja_p (%); fatura ka zbritjen e totalit (% ose €, ruhet si zbritja_totali_p).
+// Pro-Data merr për çdo rresht çmimin PARA zbritjes + zbritjen efektive (rreshti × totali) në Rabati_P.
+const r2 = (x) => Math.round((+x || 0) * 100) / 100;
+const zbrP = (r) => Math.min(100, Math.max(0, +r.zbritja_p || 0));
+// Si Pro-Data: çmimi për njësi pas zbritjes rrumbullakohet në cent, pastaj shumëzohet me sasinë (që totali të jetë i njëjtë me arkën)
+const vleraMeZbritje = (r, p) => r2(r.sasia * (Math.round(r.cmimi * (1 - p / 100) * 100) / 100));   // i njëjti rrumbullakim si ura (ura_shkrim.js → vlerat)
+const vleraRr = (r) => vleraMeZbritje(r, zbrP(r));   // vlera e rreshtit pas zbritjes së tij
+const zbrEfektive = (pR, pT) => Math.round((1 - (1 - (+pR || 0) / 100) * (1 - (+pT || 0) / 100)) * 100 * 1e5) / 1e5;
+function llogaritTotalet(rreshtat, lloji, vlera) {   // lloji '%' | '€' për zbritjen e totalit
+  const bruto = rreshtat.reduce((s, r) => s + r.sasia * r.cmimi, 0), pasR = rreshtat.reduce((s, r) => s + vleraRr(r), 0);
+  const v = Math.max(0, +vlera || 0);
+  const pT = Math.round(Math.min(100, lloji === '€' ? (pasR > 0 ? v / pasR * 100 : 0) : v) * 1e5) / 1e5;
+  const totali = r2(rreshtat.reduce((s, r) => s + vleraMeZbritje(r, zbrEfektive(zbrP(r), pT)), 0));
+  return { bruto: r2(bruto), pasR: r2(pasR), pT, totali, zbritja: r2(bruto - totali) };
+}
+const zbrPermbHTML = (t) => (t.zbritja > 0 ? `Pa zbritje ${eur(t.bruto)} € · <b>Zbritja −${eur(t.zbritja)} €</b>` : '');
+const zbrTekst = (r) => (zbrP(r) ? ` <span class="zbr-shenje">−${+zbrP(r).toFixed(2)}%</span>` : '');
+// rreshtat për komandën porosi_shitje: çmimi para zbritjes + zbritja efektive (rreshti × totali), si në Pro-Data (Rabati_P)
+const rreshtatProData = (f) => f.rreshtat.map((r) => ({ prodata_id: r.prodata_id, sasia: r.sasia, cmimi_me_tvsh: r.cmimi,
+  zbritja_p: zbrEfektive(r.zbritja_p, f.zbritja_totali_p) }));
+// rreshti "Zbritje në total" te printimet (vetëm kur ka)
+function zbrTotaliPrint(f) {
+  const pT = +f.zbritja_totali_p || 0, pasR = (f.rreshtat || []).reduce((s, r) => s + vleraRr(r), 0);
+  return pT > 0 ? `<p style="text-align:right">Zbritje në total ${+pT.toFixed(2)}%: −${eur(pasR - f.totali)} €</p>` : '';
+}
 const pastro = (q) => q.replace(/[,()%*\\]/g, ' ').trim();
 // Kod unik për çdo komandë (punon edhe në shfletues/telefona pa crypto.randomUUID)
 const celesRi = (p) => `PD-${p}-${Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => b.toString(16).padStart(2, '0')).join('')}`;
@@ -724,22 +759,26 @@ async function prisKomanden(celesi, sekonda = 240) {
 let sh = { rreshtat: [], fatura: null };
 setInterval(() => { $('sh-ora').textContent = new Date().toLocaleString('sq-AL', { timeZone: 'Europe/Belgrade', dateStyle: 'medium', timeStyle: 'short' }); }, 1000);
 function shVizato() {
-  const tb = $('sh-rreshtat'); tb.innerHTML = ''; let tot = 0;
+  const tb = $('sh-rreshtat'); tb.innerHTML = '';
   sh.rreshtat.forEach((r, i) => {
-    const v = r.sasia * r.cmimi; tot += v;
     const tr = document.createElement('tr');
     tr.innerHTML = `<td><b>${esc(r.emri)}</b><br><span class="zbehte">${esc(r.kodi)}${r.barkodi && r.barkodi !== r.kodi ? ' · ' + esc(r.barkodi) : ''}</span></td>
       <td class="num"><input class="cmim" type="number" min="0" step="0.01" inputmode="decimal" value="${eur(r.cmimi)}"></td>
       <td class="num"><input class="sasi" type="number" min="0" step="any" inputmode="decimal" value="${r.sasia}"></td>
-      <td class="num"><b>${eur(v)}</b></td><td><button class="heq">✕</button></td>`;
+      <td class="num"><input class="zbr" type="number" min="0" max="100" step="any" inputmode="decimal" value="${zbrP(r) || ''}" placeholder="0"></td>
+      <td class="num"><b>${eur(vleraRr(r))}</b>${zbrP(r) ? `<br><s class="zbehte">${eur(r.sasia * r.cmimi)}</s>` : ''}</td><td><button class="heq">✕</button></td>`;
     tr.querySelector('.sasi').onchange = (e) => { r.sasia = +e.target.value; shVizato(); };
     tr.querySelector('.cmim').onchange = (e) => { r.cmimi = +e.target.value; shVizato(); };
+    tr.querySelector('.zbr').onchange = (e) => { r.zbritja_p = Math.min(100, Math.max(0, +e.target.value || 0)); shVizato(); };
     tr.querySelector('.heq').onclick = () => { sh.rreshtat.splice(i, 1); shVizato(); };
     tb.appendChild(tr);
   });
-  if (!sh.rreshtat.length) tb.innerHTML = '<tr><td colspan="5" class="zbehte">Ende asnjë produkt. Kërko me kod, barkod ose emër, ose shtyp 📷 Skano.</td></tr>';
-  $('sh-totali').textContent = eur(tot);
+  if (!sh.rreshtat.length) tb.innerHTML = '<tr><td colspan="6" class="zbehte">Ende asnjë produkt. Kërko me kod, barkod ose emër, ose shtyp 📷 Skano.</td></tr>';
+  const t = shTotalet();
+  $('sh-totali').textContent = eur(t.totali); $('sh-zbr-permb').innerHTML = zbrPermbHTML(t);
 }
+const shTotalet = () => llogaritTotalet(sh.rreshtat, $('sh-zbrt-l').value, $('sh-zbrt').value);
+$('sh-zbrt').oninput = $('sh-zbrt-l').onchange = () => shVizato();
 kerkimArtikujsh('sh-artikulli', 'sh-artikulli-lista', (a) => {
   const ek = sh.rreshtat.find((r) => r.id === a.id);
   if (ek) ek.sasia += 1; else sh.rreshtat.push({ id: a.id, kodi: a.kodi, emri: a.emri, barkodi: a.barkodi, sasia: 1, cmimi: a.cmimi });
@@ -755,13 +794,14 @@ function shTeDhenat(statusi) {
   return { shitesja_id: perdoruesi.id, shitesja_emri: profili.emri || null, kanali: profili.roli === 'shitese_online' ? 'online' : 'fizik',
     magazina: $('sh-magazina').value, klienti_kodi: $('sh-klienti-kodi').value.trim(), klienti_emri: $('sh-klienti-emri').value.trim() || null,
     klienti_telefoni: $('sh-klienti-tel').value.trim() || null, posta_nr: $('sh-posta').value.trim() || null, shenim: $('sh-shenim').value.trim() || null,
-    rreshtat: sh.rreshtat.map((r) => ({ prodata_id: r.id, kodi: r.kodi, emri: r.emri, barkodi: r.barkodi, sasia: r.sasia, cmimi: Math.round(r.cmimi * 100) / 100 })),
-    totali: Math.round(sh.rreshtat.reduce((s, r) => s + r.sasia * r.cmimi, 0) * 100) / 100, statusi,
+    rreshtat: sh.rreshtat.map((r) => ({ prodata_id: r.id, kodi: r.kodi, emri: r.emri, barkodi: r.barkodi, sasia: r.sasia, cmimi: Math.round(r.cmimi * 100) / 100, zbritja_p: zbrP(r) })),
+    nentotali: shTotalet().bruto, zbritja_totali_p: shTotalet().pT, totali: shTotalet().totali, statusi,
     derguar_ne_arke: statusi === 'ne_arke' ? new Date().toISOString() : null };
 }
 function shPastro() {
-  sh = { rreshtat: [], fatura: null }; shVizato();
-  for (const id of ['sh-klienti-emri', 'sh-klienti-tel', 'sh-posta', 'sh-shenim']) $(id).value = '';
+  sh = { rreshtat: [], fatura: null };
+  for (const id of ['sh-klienti-emri', 'sh-klienti-tel', 'sh-posta', 'sh-shenim', 'sh-zbrt']) $(id).value = '';
+  $('sh-zbrt-l').value = '%'; shVizato();
   $('sh-klienti-kodi').value = '13850'; $('sh-barkodi').hidden = true; $('sh-barkodi').innerHTML = ''; $('sh-mesazh').className = 'mesazh';
 }
 $('sh-pastro').onclick = () => { if (!sh.rreshtat.length || confirm('Ta pastroj faturën?')) shPastro(); };
@@ -783,8 +823,8 @@ function printoBileten(f) {
     <svg id="pr-bk"></svg><br><span>Paguhet në arkë · nuk është dokument fiskal</span></div>
     <p>${new Date(f.krijuar || Date.now()).toLocaleString('sq-AL', { timeZone: 'Europe/Belgrade' })}<br>Shitësja: ${esc(f.shitesja_emri || '')}${f.klienti_emri ? '<br>Klienti: ' + esc(f.klienti_emri) : ''}</p>
     <table><tr><th>Produkti</th><th>Sasia</th><th>€</th></tr>
-    ${(f.rreshtat || []).map((r) => `<tr><td>${esc(r.kodi)} ${esc(r.emri)}</td><td>${r.sasia}</td><td>${eur(r.sasia * r.cmimi)}</td></tr>`).join('')}</table>
-    <p style="text-align:right;font-size:1.4em"><b>Totali: ${eur(f.totali)} €</b></p>`;
+    ${(f.rreshtat || []).map((r) => `<tr><td>${esc(r.kodi)} ${esc(r.emri)}${zbrTekst(r)}</td><td>${r.sasia}</td><td>${eur(vleraRr(r))}</td></tr>`).join('')}</table>
+    ${zbrTotaliPrint(f)}<p style="text-align:right;font-size:1.4em"><b>Totali: ${eur(f.totali)} €</b></p>`;
   JsBarcode('#pr-bk', 'PD' + f.nr, { format: 'CODE128', height: 60, width: 2, displayValue: true, fontSize: 14, margin: 4 });
   window.print();
 }
@@ -834,7 +874,8 @@ function printo(lloji) {
     <b>PRO-FATURË / POROSI nr. ${nr}</b><br><span>Nuk është dokument fiskal. Kuponi fiskal lëshohet në arkë.</span></div>
     <p>Data: ${new Date().toLocaleString('sq-AL', { timeZone: 'Europe/Belgrade' })}<br>Klienti: ${esc($('sh-klienti-emri').value || 'Qytetar')} ${esc($('sh-klienti-tel').value)}<br>Shitësja: ${esc(profili.emri || '')}</p>
     <table><tr><th>Produkti</th><th>Sasia</th><th>Çmimi</th><th>Vlera</th></tr>
-    ${sh.rreshtat.map((r) => `<tr><td>${esc(r.kodi)} ${esc(r.emri)}</td><td>${r.sasia}</td><td>${eur(r.cmimi)}</td><td>${eur(r.sasia * r.cmimi)}</td></tr>`).join('')}</table>
+    ${sh.rreshtat.map((r) => `<tr><td>${esc(r.kodi)} ${esc(r.emri)}${zbrTekst(r)}</td><td>${r.sasia}</td><td>${eur(r.cmimi)}</td><td>${eur(vleraRr(r))}</td></tr>`).join('')}</table>
+    ${zbrTotaliPrint({ rreshtat: sh.rreshtat, zbritja_totali_p: shTotalet().pT, nentotali: shTotalet().bruto, totali: shTotalet().totali })}
     <p style="text-align:right;font-size:1.3em"><b>Totali: ${$('sh-totali').textContent} €</b><br><span style="font-size:.8em">Çmimet përfshijnë TVSH-në</span></p>`;
   window.print();
 }
@@ -846,7 +887,7 @@ async function regjistroFaturen(f, mesazhId) {
   m.className = 'mesazh pritje'; m.innerHTML = '⏳ Po regjistrohet në Pro-Data…';
   await dergoKomande('porosi_shitje', celesi, { magazina: f.magazina, klienti_kodi: f.klienti_kodi,
     komenti: [`Fatura ${f.nr}`, f.shitesja_emri, f.klienti_emri, f.klienti_telefoni, f.posta_nr ? 'Posta ' + f.posta_nr : null, f.shenim].filter(Boolean).join(' · ').slice(0, 390),
-    rreshtat: f.rreshtat.map((r) => ({ prodata_id: r.prodata_id, sasia: r.sasia, cmimi_me_tvsh: r.cmimi })) });
+    rreshtat: rreshtatProData(f) });
   await sb.from('app_faturat').update({ statusi: 'regjistruar', regjistruar_nga: perdoruesi.id, regjistruar_koha: new Date().toISOString(), komanda_celesi: celesi }).eq('id', f.id);
   const k = await prisKomanden(celesi);
   if (k && k.statusi === 'kryer') {
@@ -866,9 +907,9 @@ async function arkaHap(nr) {
     <div class="rresht" style="justify-content:space-between"><b style="font-size:20px">Fatura nr. ${f.nr}</b>${shenje(f.statusi)}</div>
     <div class="zbehte">${oraKS(f.krijuar)} · Shitësja: ${esc(f.shitesja_emri || '')} · Pika: ${esc(f.magazina)} · Klienti: ${esc(f.klienti_emri || 'Qytetar')} ${esc(f.klienti_telefoni || '')} (kodi ${esc(f.klienti_kodi)})${f.posta_nr ? ' · Posta: ' + esc(f.posta_nr) : ''}</div>
     <div class="tabela"><table><tr><th>Produkti</th><th class="num">Sasia</th><th class="num">Çmimi</th><th class="num">Vlera</th></tr>
-    ${f.rreshtat.map((r) => `<tr><td><b>${esc(r.kodi)}</b> ${esc(r.emri)}<br><span class="zbehte">${esc(r.barkodi || '')}</span></td><td class="num">${r.sasia}</td><td class="num">${eur(r.cmimi)}</td><td class="num">${eur(r.sasia * r.cmimi)}</td></tr>`).join('')}</table></div>
+    ${f.rreshtat.map((r) => `<tr><td><b>${esc(r.kodi)}</b> ${esc(r.emri)}${zbrTekst(r)}<br><span class="zbehte">${esc(r.barkodi || '')}</span></td><td class="num">${r.sasia}</td><td class="num">${eur(r.cmimi)}</td><td class="num">${eur(vleraRr(r))}</td></tr>`).join('')}</table></div>
     ${f.shenim ? `<p>Shënim: ${esc(f.shenim)}</p>` : ''}
-    <div class="sh-totali-kuti"><span>Për pagesë</span><b>${eur(f.totali)} €</b></div>
+    <div class="sh-totali-kuti"><span>Për pagesë<small>${f.nentotali && f.nentotali > f.totali ? zbrPermbHTML({ bruto: +f.nentotali, zbritja: r2(f.nentotali - f.totali) }) : ''}</small></span><b>${eur(f.totali)} €</b></div>
     ${f.statusi === 'ne_arke' ? `<label class="tp-kuti" style="margin:6px 0 10px"><input type="checkbox" id="ar-kontroll"> E kontrollova: produktet janë gati dhe të paketuara</label>
       <button class="kryesor ar-regj" id="ar-regjistro" disabled>✅ Regjistro shitjen</button>
       <div class="butona"><button class="rrezik" id="ar-anulo">Anulo faturën</button></div>`
@@ -1114,10 +1155,12 @@ $('onl-shteti').onchange = () => {
   for (const r of onl.rreshtat) r.cmimi = onlEksport() ? Math.round(r.cmimiListe / 1.18 * 100) / 100 : r.cmimiListe;
   onlVizato();
 };
+const onlTotalet = () => llogaritTotalet(onl.rreshtat, $('onl-zbrt-l').value, $('onl-zbrt').value);
+$('onl-zbrt').oninput = $('onl-zbrt-l').onchange = () => onlVizato();
 function onlVizato() {
-  const tb = $('onl-rreshtat'); tb.innerHTML = ''; let tot = 0;
+  const tb = $('onl-rreshtat'); tb.innerHTML = '';
   onl.rreshtat.forEach((r, i) => {
-    const v = r.sasia * r.cmimi; tot += v;
+    const v = vleraRr(r);
     const t = document.createElement('tr');
     // Renditja: Kodi · Materiali · Çmimi për metër (i editueshëm) · Sasia · Ngjyra/përshkrimi · Vlera
     const paCmim = !(r.cmimi > 0);
@@ -1125,15 +1168,18 @@ function onlVizato() {
       <td class="num"><input class="cmim" type="number" min="0" step="0.01" inputmode="decimal" value="${paCmim ? '' : eur(r.cmimi)}" placeholder="0.00"
         style="${paCmim ? 'border:2px solid var(--gabim);background:#fff5f5' : ''}"></td>
       <td class="num"><input class="sasi" type="number" min="0" step="any" inputmode="decimal" value="${r.sasia}"> <span class="zbehte">${esc(r.njesia || '')}</span></td>
+      <td class="num"><input class="zbr" type="number" min="0" max="100" step="any" inputmode="decimal" value="${zbrP(r) || ''}" placeholder="0"></td>
       <td><input class="ngj" value="${esc(r.ngjyra)}" placeholder="${r.kodi === KODI_DANTELLA ? 'përshkrimi, p.sh. e bardhë me rruaza' : 'ngjyra'}" style="width:${r.kodi === KODI_DANTELLA ? 190 : 110}px;min-width:0"></td>
-      <td class="num">${eur(v)}</td><td><button class="heq">✕</button></td>`;
+      <td class="num">${eur(v)}${zbrP(r) ? `<br><s class="zbehte">${eur(r.sasia * r.cmimi)}</s>` : ''}</td><td><button class="heq">✕</button></td>`;
     t.querySelector('.ngj').onchange = (e) => { r.ngjyra = e.target.value.trim(); };
+    t.querySelector('.zbr').onchange = (e) => { r.zbritja_p = Math.min(100, Math.max(0, +e.target.value || 0)); onlVizato(); };
     t.querySelector('.sasi').onchange = (e) => { r.sasia = +e.target.value; onlVizato(); };
     t.querySelector('.cmim').onchange = (e) => { r.cmimi = +e.target.value; onlVizato(); };
     t.querySelector('.heq').onclick = () => { onl.rreshtat.splice(i, 1); onlVizato(); };
     tb.appendChild(t);
   });
-  if (!onl.rreshtat.length) tb.innerHTML = '<tr><td colspan="7" class="zbehte">Ende asnjë material. Kërko me kod, barkod ose emër.</td></tr>';
+  if (!onl.rreshtat.length) tb.innerHTML = '<tr><td colspan="8" class="zbehte">Ende asnjë material. Kërko me kod, barkod ose emër.</td></tr>';
+  const zt = onlTotalet(), tot = zt.totali;   // totali i materialeve pas zbritjeve
   const p = { shteti: $('onl-shteti').value, qyteti: $('onl-qyteti').value, totali: tot, pako_madhesia: $('onl-pako').value };
   const tr = tpTransporti(p);
   $('onl-totali').textContent = tr ? `${eur(tot)} + transporti ${eur(tr)} = ${tpVlera(p)}.00` : eur(tot);
@@ -1146,6 +1192,7 @@ function onlVizato() {
   else panel.innerHTML = `<h3 class="tp-tit">Kosto e transportit:</h3>
     <div class="rr">${v('Total (paguan klienti)', tpVlera(p) + '.00 €', 'total')}${v('Valuta', 'EUR')}</div>
     <div class="rr" style="margin-top:8px">${v('Transporti', eur(tr) + ' €')}${v('Vlera e produktit', eur(tot) + ' €')}</div>`;
+  if (zt.zbritja > 0 && p.shteti) panel.insertAdjacentHTML('beforeend', `<p class="zbehte" style="margin:8px 0 0">🏷️ ${zbrPermbHTML(zt)}</p>`);
 }
 kerkimArtikujsh('onl-kerko', 'onl-lista', (a) => {
   const ek = onl.rreshtat.find((r) => r.id === a.id);
@@ -1235,12 +1282,12 @@ function onlTeDhenat() {
     shenim: $('onl-shenim').value.trim() || null, statusi: 'ne_arke', statusi_dergeses: 'regjistruar',
     pako_madhesia: $('onl-pako').value, pako_hapet: $('onl-hapet').checked, pako_thyhet: $('onl-thyhet').checked, pako_ndrrim: $('onl-ndrrim').checked,
     koment_brendshem: $('onl-koment-br').value.trim() || null,
-    rreshtat: onl.rreshtat.map((r) => ({ prodata_id: r.id, kodi: r.kodi, emri: r.emri, barkodi: r.barkodi, njesia: r.njesia, ngjyra: r.ngjyra || null, sasia: r.sasia, cmimi: Math.round(r.cmimi * 100) / 100 })),
-    totali: Math.round(onl.rreshtat.reduce((s, r) => s + r.sasia * r.cmimi, 0) * 100) / 100 };
+    rreshtat: onl.rreshtat.map((r) => ({ prodata_id: r.id, kodi: r.kodi, emri: r.emri, barkodi: r.barkodi, njesia: r.njesia, ngjyra: r.ngjyra || null, sasia: r.sasia, cmimi: Math.round(r.cmimi * 100) / 100, zbritja_p: zbrP(r) })),
+    nentotali: onlTotalet().bruto, zbritja_totali_p: onlTotalet().pT, totali: onlTotalet().totali };
 }
 function onlPastro() {
   for (const f of onl.fotot || []) URL.revokeObjectURL(f.url);
-  onl = { rreshtat: [], fotot: [] }; onlFototVizato(); for (const id of ['onl-emri', 'onl-tel', 'onl-tel2', 'onl-qyteti', 'onl-adresa', 'onl-shenim', 'onl-koment-br', 'onl-shteti-tjeter']) $(id).value = '';
+  onl = { rreshtat: [], fotot: [] }; onlFototVizato(); for (const id of ['onl-emri', 'onl-tel', 'onl-tel2', 'onl-qyteti', 'onl-adresa', 'onl-shenim', 'onl-koment-br', 'onl-shteti-tjeter', 'onl-zbrt']) $(id).value = ''; $('onl-zbrt-l').value = '%';
   $('onl-pako').value = 'S'; for (const id of ['onl-hapet', 'onl-thyhet', 'onl-ndrrim']) $(id).checked = false;
   $('onl-shteti').value = ''; $('onl-shteti').onchange(); $('onl-mesazh').className = 'mesazh'; onlVizato();
 }
@@ -1261,7 +1308,8 @@ function printoOnline(f) {
     <div style="border:2px solid #000;padding:6px;margin:8px 0"><b>MARRËSI</b><br><b style="font-size:1.2em">${esc(emriPlote(f))}</b><br>Tel: ${esc(f.klienti_telefoni || '')}<br>
     ${esc(f.adresa || '')}<br><b>${esc(f.qyteti || '')}, ${esc(f.shteti || '')}</b></div>
     <table><tr><th>Kodi</th><th>Materiali</th><th>Ngjyra</th><th>Sasia</th><th>€</th></tr>
-    ${(f.rreshtat || []).map((r) => `<tr><td>${esc(r.kodi)}</td><td>${esc(r.emri)}</td><td>${esc(r.ngjyra || '')}</td><td>${r.sasia} ${esc(r.njesia || '')}</td><td>${eur(r.sasia * r.cmimi)}</td></tr>`).join('')}</table>
+    ${(f.rreshtat || []).map((r) => `<tr><td>${esc(r.kodi)}</td><td>${esc(r.emri)}</td><td>${esc(r.ngjyra || '')}</td><td>${r.sasia} ${esc(r.njesia || '')}</td><td>${eur(vleraRr(r))}${zbrTekst(r)}</td></tr>`).join('')}</table>
+    ${zbrTotaliPrint(f)}
     ${tpTransporti(f) ? `<p style="text-align:right">Materiali: ${eur(f.totali)} €<br>Transporti (Telposta): ${eur(tpTransporti(f))} €</p>` : ''}
     <p style="text-align:right;font-size:1.3em"><b>Për pagesë: ${tpTransporti(f) ? tpVlera(f) + '.00' : eur(f.totali)} €</b>${f.telposta_kodi ? '<br>Telposta: ' + esc(f.telposta_kodi) : ''}<br><span style="font-size:.75em">${f.eksport ? 'Export, TVSH 0%' : 'Çmimet përfshijnë TVSH-në'} · Nuk është dokument fiskal</span></p>
     ${f.shenim ? `<p>Shënim: ${esc(f.shenim)}</p>` : ''}<p style="font-size:.8em">Shitësja: ${esc(f.shitesja_emri || '')}</p>`;
@@ -1286,7 +1334,7 @@ $('onl-regjistro').onclick = async () => {
     const komenti = [`Online ${f.nr}`, emriPlote(f), f.klienti_telefoni, [f.adresa, f.qyteti, f.shteti].filter(Boolean).join(', '), f.shenim, f.shitesja_emri && 'Shitësja: ' + f.shitesja_emri]
       .filter(Boolean).join(' · ').slice(0, 390);
     await dergoKomande('porosi_shitje', celesi, { magazina: f.magazina, klienti_kodi: f.klienti_kodi, eksport: f.eksport, komenti,
-      rreshtat: f.rreshtat.map((r) => ({ prodata_id: r.prodata_id, sasia: r.sasia, cmimi_me_tvsh: r.cmimi })) });
+      rreshtat: rreshtatProData(f) });
     await sb.from('app_faturat').update({ statusi: 'regjistruar', regjistruar_nga: perdoruesi.id, regjistruar_koha: new Date().toISOString(), komanda_celesi: celesi }).eq('id', f.id);
     const k = await prisKomanden(celesi);
     if (k && k.statusi === 'kryer') {
@@ -1964,7 +2012,7 @@ async function klKartela(k) {
     const tel = k.klienti.slice(4), mua = {}, pro = {};
     for (const f of (data || []).filter((x) => String(x.klienti_telefoni || '').replace(/\D/g, '') === tel)) {
       const m = String(f.krijuar).slice(0, 7); mua[m] = mua[m] || { celesi: m, vlera: 0, fatura: 0 }; mua[m].vlera += +f.totali; mua[m].fatura++;
-      for (const r of f.rreshtat || []) { pro[r.kodi] = pro[r.kodi] || { emri: r.emri, kategoria: '', sasia: 0, vlera: 0 }; pro[r.kodi].sasia += +r.sasia; pro[r.kodi].vlera += r.sasia * r.cmimi; }
+      for (const r of f.rreshtat || []) { pro[r.kodi] = pro[r.kodi] || { emri: r.emri, kategoria: '', sasia: 0, vlera: 0 }; pro[r.kodi].sasia += +r.sasia; pro[r.kodi].vlera += vleraRr(r); }
     }
     muajt = Object.values(mua).sort((a, b) => a.celesi.localeCompare(b.celesi)); produktet = Object.values(pro).sort((a, b) => b.vlera - a.vlera);
   }
