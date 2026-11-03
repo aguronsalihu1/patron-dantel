@@ -1265,18 +1265,22 @@ async function mgCaktivizo(a) {
   NGARKUESIT.mall();
 }
 async function mgPritArtikullin(id, d, m) {
-  m.className = 'mesazh pritje'; m.innerHTML = `⏳ Po krijohet në Pro-Data: <b>${esc(d.emri)}</b>…`;
+  const hyrje = d.lloji !== 'artikull_i_ri';   // "➕ Shto sasi" (hyrje / korrigjim): vetëm sasia, me të njëjtën saldo fillestare
+  m.className = 'mesazh pritje'; m.innerHTML = `⏳ ${hyrje ? 'Po hyn sasia' : 'Po krijohet'} në Pro-Data: <b>${esc(d.emri)}</b>…`;
   for (let i = 0; i < 20; i++) {
     await new Promise((r) => setTimeout(r, 2000));
     const { data: x } = await sb.from('regjistrimet_mallit').select('statusi, artikulli_id, kodi, prodata_nr, gabimi').eq('id', id).maybeSingle();
     if (x && x.artikulli_id && x.statusi === 'kryer') {   // artikulli + sasia (saldo fillestare SF001) bashkë
-      m.className = 'mesazh ok'; m.innerHTML = `✅ Artikulli u krijua në Pro-Data: <b>${esc(d.emri)}</b> · kodi <b style="font-size:17px">${esc(x.kodi)}</b> · ${eur(d.cmimi_shitjes)} €`
-        + (+d.sasia > 0 ? `<br>📦 Sasia <b>${+d.sasia} ${esc(d.njesia || '')}</b> hyri në stok${x.prodata_nr && x.prodata_nr.includes('SF001') ? ' (' + esc(x.prodata_nr.split(' · ').pop()) + ')' : ''}.` : '');
+      const sf = x.prodata_nr && x.prodata_nr.includes('SF001') ? ' (' + esc(x.prodata_nr.split(' · ').pop()) + ')' : '';
+      m.className = 'mesazh ok'; m.innerHTML = hyrje
+        ? `✅ 📦 Sasia <b>${+d.sasia} ${esc(d.njesia || '')}</b> hyri në stok në Pro-Data: <b>${esc(d.emri)}</b> · kodi <b>${esc(x.kodi || '')}</b>${sf}.`
+        : `✅ Artikulli u krijua në Pro-Data: <b>${esc(d.emri)}</b> · kodi <b style="font-size:17px">${esc(x.kodi)}</b> · ${eur(d.cmimi_shitjes)} €`
+        + (+d.sasia > 0 ? `<br>📦 Sasia <b>${+d.sasia} ${esc(d.njesia || '')}</b> hyri në stok${sf}.` : '');
       NGARKUESIT.mall(); return;
     }
     if (x && x.statusi === 'gabim') { m.className = 'mesazh gabim'; m.innerHTML = '❌ Pro-Data nuk e pranoi: ' + esc(x.gabimi || ''); NGARKUESIT.mall(); return; }
   }
-  m.className = 'mesazh pritje'; m.innerHTML = `⏳ U ruajt. Ura nuk u përgjigj ende; artikulli krijohet në Pro-Data sapo ura të jetë e lidhur (shiko listën poshtë).`;
+  m.className = 'mesazh pritje'; m.innerHTML = `⏳ U ruajt. Ura nuk u përgjigj ende; ${hyrje ? 'sasia hyn' : 'artikulli krijohet'} në Pro-Data sapo ura të jetë e lidhur (shiko listën poshtë).`;
 }
 async function mgRuaj(teDhenat, artikulliId) {   // ruan regjistrimin + fotot
   const btn = $('mg-ruaj'); btn.disabled = true; const m = $('mg-mesazh');
@@ -1290,7 +1294,7 @@ async function mgRuaj(teDhenat, artikulliId) {   // ruan regjistrimin + fotot
     m.className = 'mesazh ok'; m.innerHTML = `✅ U regjistrua: <b>${esc(MG_LLOJET[d.lloji])}</b> · ${esc(d.emri || '')}${d.sasia ? ' · ' + d.sasia + ' ' + esc(d.njesia || '') : ''}.<br><span class="zbehte">Ruhet te sistemi ynë dhe kalon në Pro-Data sapo të aktivizohet ky lloj veprimi.</span>`;
     $('mg-forma').innerHTML = ''; $('mg-rezultati').innerHTML = ''; $('mg-kerko').value = ''; mgFotot = [];
     NGARKUESIT.mall();
-    if (d.lloji === 'artikull_i_ri') await mgPritArtikullin(r.id, d, m);   // ura e krijon artikullin në Pro-Data brenda pak sekondash
+    if (['artikull_i_ri', 'hyrje', 'korrigjim'].includes(d.lloji)) await mgPritArtikullin(r.id, d, m);   // ura e kryen në Pro-Data brenda pak sekondash
   } catch (e) { m.className = 'mesazh gabim'; m.textContent = '❌ ' + e.message; }
   btn.disabled = false;
 }
