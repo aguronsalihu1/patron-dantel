@@ -1170,16 +1170,12 @@ function mgSasiaHTML(eDetyrueshme) {
     <div class="tp-forma" style="margin-bottom:6px">
       <label>Magazina * <select id="mg-mag">${mgMagazinatHTML()}</select></label>
       <label>Sasia${eDetyrueshme ? ' *' : ' (opsionale)'} <input id="mg-sasia" type="number" min="0" step="any" inputmode="decimal"></label>
-      <label class="mg-h">Kodi i furnitorit në Pro-Data * <input id="mg-furn" inputmode="numeric"></label>
-      <label class="mg-h">Nr. i faturës së furnitorit <input id="mg-nrfat"></label>
-      <label class="mg-h">Çmimi i blerjes me TVSH (për njësi) * <input id="mg-cblerje" type="number" min="0" step="0.0001" inputmode="decimal"></label>
       <label class="mg-k" hidden>Arsyeja * <select id="mg-arsyeja"><option>Mall i gjetur</option><option>Numërim / inventar</option><option>Kthim nga klienti</option><option>Tjetër</option></select></label>
     </div>`;
 }
 function mgSasiaLidh() {
   document.querySelectorAll('#mg-lloji button').forEach((b) => b.onclick = () => {
     document.querySelectorAll('#mg-lloji button').forEach((x) => x.classList.toggle('on', x === b));
-    document.querySelectorAll('.mg-h').forEach((x) => { x.hidden = b.dataset.l !== 'hyrje'; });
     document.querySelectorAll('.mg-k').forEach((x) => { x.hidden = b.dataset.l !== 'korrigjim'; });
   });
 }
@@ -1188,11 +1184,8 @@ function mgSasiaTeDhenat(eDetyrueshme) {   // → fushat ose hedh gabim me tekst
   const sasia = +$('mg-sasia').value || 0, l = mgLloji();
   if (eDetyrueshme && !(sasia > 0)) throw new Error('Shkruaj sasinë që po hyn.');
   if (!(sasia > 0)) return { sasia: null };
-  if (l === 'hyrje') {
-    if (!$('mg-furn').value.trim()) throw new Error('Shkruaj kodin e furnitorit në Pro-Data.');
-    if (!(+$('mg-cblerje').value > 0)) throw new Error('Shkruaj çmimin e blerjes me TVSH.');
-    return { sasia, lloji_hyrjes: 'hyrje', magazina: $('mg-mag').value, furnitori_kodi: $('mg-furn').value.trim(), nr_fatures: $('mg-nrfat').value.trim() || null, cmimi_blerjes: +$('mg-cblerje').value };
-  }
+  // furnitori dhe çmimi i blerjes nuk kërkohen (vendim i Aguronit, 03.11.2026)
+  if (l === 'hyrje') return { sasia, lloji_hyrjes: 'hyrje', magazina: $('mg-mag').value };
   return { sasia, lloji_hyrjes: 'korrigjim', magazina: $('mg-mag').value, arsyeja: $('mg-arsyeja').value };
 }
 function mgFormaRi(q) {
@@ -1223,8 +1216,7 @@ function mgFormaRi(q) {
     }
     const s = mgSasiaTeDhenat(false);
     return { lloji: 'artikull_i_ri', emri, barkodi, kodi, njesia: $('mg-njesia').value, cmimi_shitjes: cmimi, magazina: s.magazina || $('mg-mag').value,
-      sasia: s.sasia, furnitori_kodi: s.furnitori_kodi || null, nr_fatures: s.nr_fatures || null, cmimi_blerjes: s.cmimi_blerjes || null,
-      arsyeja: s.lloji_hyrjes === 'korrigjim' ? s.arsyeja : null, shenim: $('mg-shenim').value.trim() || null };   // me furnitor = hyrje, pa = korrigjim
+      sasia: s.sasia, arsyeja: s.lloji_hyrjes === 'korrigjim' ? s.arsyeja : null, shenim: $('mg-shenim').value.trim() || null };
   });
   $('mg-forma').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
@@ -1238,8 +1230,7 @@ function mgFormaShto(a) {
   $('mg-ruaj').onclick = () => mgRuaj(async () => {
     const s = mgSasiaTeDhenat(true);
     return { lloji: s.lloji_hyrjes, artikulli_id: a.prodata_id, kodi: a.kodi, barkodi: a.barkodi, emri: a.emri, njesia: a.njesia, magazina: s.magazina, sasia: s.sasia,
-      furnitori_kodi: s.furnitori_kodi || null, nr_fatures: s.nr_fatures || null, cmimi_blerjes: s.cmimi_blerjes || null, arsyeja: s.arsyeja || null,
-      shenim: $('mg-shenim').value.trim() || null };
+      arsyeja: s.arsyeja || null, shenim: $('mg-shenim').value.trim() || null };
   }, a.prodata_id);
   $('mg-forma').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
