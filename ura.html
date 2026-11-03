@@ -140,6 +140,7 @@
                background:#faf3fa; color:var(--kryesor-err); cursor:pointer; text-align:center; margin-bottom:6px; }
   .foto-zona .ikona { font-size:2rem; } .foto-zona b { font-size:1.1rem; } .foto-zona small { color:var(--zbehte); font-size:13px; }
   .foto-zona:active { background:#f3e6f3; }
+  .fsheh { position:absolute; width:1px; height:1px; opacity:0; overflow:hidden; pointer-events:none; }   /* input file i fshehur, por i klikueshëm nga butoni (iPad/Samsung) */
   .onl-fotot { display:flex; flex-wrap:wrap; gap:8px; margin:6px 0 12px; }
   .onl-fotot .foto { position:relative; }
   .onl-fotot img { width:84px; height:84px; object-fit:cover; border-radius:8px; border:1px solid var(--vije); display:block; }
@@ -358,7 +359,7 @@
     <div class="zbr-tot"><span>🏷️ Totali i materialeve pas zbritjes € <small class="zbehte" style="font-weight:normal">(pa transport)</small></span><input id="onl-zbrt" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></div>
     <h3>Fotot e bisedës me klientin *</h3>
     <label class="foto-zona" for="onl-foto"><span class="ikona">📷</span><b>Shto fotot e bisedës</b><small>2 deri 5 screenshot ku klienti i porosit materialet · <span id="onl-foto-nr">0 / 5</span></small></label>
-    <input type="file" id="onl-foto" accept="image/*" multiple hidden>
+    <input type="file" id="onl-foto" accept="image/*" multiple class="fsheh">
     <div class="onl-fotot" id="onl-foto-lista"></div>
     <div class="totali">Totali: <span id="onl-totali">0.00</span> €</div>
     <div class="butona">
@@ -541,6 +542,8 @@
       <span><button class="dyte" id="dk-drita" hidden>🔦</button> <button class="dyte" id="dk-skaneri-mbyll">Mbyll</button></span></div>
     <div class="dk-kamera"><video id="dk-video" playsinline muted autoplay></video><div class="dk-korniza"><span></span></div></div>
     <div class="dk-poshte"><div id="dk-statusi">Po hapet kamera…</div>
+      <div class="dk-dore" style="margin-bottom:8px"><button class="dyte" type="button" id="dk-foto-btn" style="flex:1">📸 Bëj foto të barkodit</button></div>
+      <input type="file" id="dk-foto" accept="image/*" capture="environment" class="fsheh">
       <div class="dk-dore"><input id="dk-dore" inputmode="text" placeholder="ose shkruaj kodin këtu" autocomplete="off"><button class="kryesor" id="dk-dore-ok">OK</button></div></div></div>
   <div id="njoftim" hidden></div>
 
@@ -1135,20 +1138,25 @@ async function mgKontrollo() {
   if (!saktë.length && !ngjashem.length) mgFormaRi(q);
 }
 function mgFotoHTML(eDetyrueshme) {
-  return `<label class="foto-zona" for="mg-foto-inp"><span class="ikona">📷</span><b>Foto e produktit${eDetyrueshme ? ' *' : ''}</b><small>1 deri 3 foto · <span id="mg-foto-nr">0 / 3</span></small></label>
-    <input type="file" id="mg-foto-inp" accept="image/*" multiple hidden><div class="onl-fotot" id="mg-foto-lista"></div>`;
+  // Dy butona: "Bëj foto" hap kamerën direkt (capture), sepse në Android-in e ri zgjedhja e shumë fotove s'e ofron kamerën
+  return `<div class="foto-zona"><span class="ikona">📷</span><b>Foto e produktit${eDetyrueshme ? ' *' : ''}</b><small>1 deri 3 foto · <span id="mg-foto-nr">0 / 3</span></small>
+      <div class="butona" style="justify-content:center;margin-top:8px"><button class="kryesor" type="button" id="mg-foto-kam">📷 Bëj foto</button><button class="dyte" type="button" id="mg-foto-gal">🖼️ Nga galeria</button></div></div>
+    <input type="file" id="mg-foto-kam-inp" accept="image/*" capture="environment" class="fsheh">
+    <input type="file" id="mg-foto-inp" accept="image/*" multiple class="fsheh"><div class="onl-fotot" id="mg-foto-lista"></div>`;
 }
 function mgFotoLidh() {
   mgFotot.forEach((f) => URL.revokeObjectURL(f.url)); mgFotot = [];
   const viz = () => { $('mg-foto-nr').textContent = `${mgFotot.length} / 3`;
     $('mg-foto-lista').innerHTML = mgFotot.map((f, i) => `<div class="foto"><img src="${f.url}" alt=""><button class="rrezik" data-i="${i}">✕</button></div>`).join('');
     $('mg-foto-lista').querySelectorAll('button').forEach((b) => b.onclick = () => { URL.revokeObjectURL(mgFotot[+b.dataset.i].url); mgFotot.splice(+b.dataset.i, 1); viz(); }); };
-  $('mg-foto-inp').onchange = async (e) => {
+  $('mg-foto-inp').onchange = $('mg-foto-kam-inp').onchange = async (e) => {
     const fajllat = [...e.target.files]; e.target.value = '';
     for (const f of fajllat) { if (mgFotot.length >= 3) { alert('Lejohen deri 3 foto.'); break; }
       try { const blob = await zvogelo(f); mgFotot.push({ blob, url: URL.createObjectURL(blob) }); } catch (err) { alert(err.message); } }
     viz();
   };
+  $('mg-foto-kam').onclick = () => $('mg-foto-kam-inp').click();
+  $('mg-foto-gal').onclick = () => $('mg-foto-inp').click();
   viz();
 }
 async function mgNgarkoFotot() {   // → rrugët në produktet-fotot
@@ -2047,8 +2055,52 @@ async function dkSkaneri(cb) {
       if (kornizat % 5 === 0) diag();
       zene = false;
     }, 150);
-  } catch (e) { $('dk-statusi').textContent = '❌ Kamera nuk u hap: ' + e.message + ' — shkruaje kodin më poshtë.'; }
+  } catch (e) {
+    const arsyeja = !navigator.mediaDevices ? 'Ky shfletues nuk e lejon kamerën live.'
+      : e.name === 'NotAllowedError' ? 'Leja për kamerën është refuzuar. iPad: Cilësimet → Safari → Kamera → Lejo. Samsung: shtyp 🔒 pranë adresës → Lejet → Kamera → Lejo.'
+      : 'Kamera live nuk u hap (' + e.message + ').';
+    $('dk-statusi').textContent = '❌ ' + arsyeja + ' Shtyp "📸 Bëj foto të barkodit" ose shkruaje kodin.';
+  }
 }
+// Rruga rezervë (iPad, Samsung, kur kamera live s'punon): bëhet një foto e barkodit dhe lexohet nga fotoja
+let dkDetektori;
+async function detektoriBarkodeve() {
+  if (dkDetektori !== undefined) return dkDetektori;
+  dkDetektori = null;
+  if ('BarcodeDetector' in window) {
+    try { const m = await BarcodeDetector.getSupportedFormats(), formatet = FORMATET_BD.filter((x) => m.includes(x));
+      if (formatet.length) dkDetektori = new BarcodeDetector({ formats: formatet }); } catch {}
+  }
+  return dkDetektori;
+}
+async function lexoBarkodNgaFoto(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const img = await new Promise((ok, gab) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => gab(new Error('Ky file nuk është foto')); i.src = url; });
+    const det = await detektoriBarkodeve();
+    let zbar = null; try { zbar = await ngarkoZBar(); } catch {}
+    for (const max of [1600, 1000, 2400]) {   // disa madhësi: barkodet e vogla lexohen më mirë të mëdha, të turbullta më mirë të vogla
+      const k = Math.min(1, max / Math.max(img.width, img.height)), c = document.createElement('canvas');
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      const ctx = c.getContext('2d', { willReadFrequently: true }); ctx.drawImage(img, 0, 0, c.width, c.height);
+      if (det) { try { const r = await det.detect(c); if (r.length) return r[0].rawValue; } catch {} }
+      if (zbar) { try { const s = (await zbar.scanImageData(ctx.getImageData(0, 0, c.width, c.height))).find((x) => !/QR|SQCODE/i.test(x.typeName)); if (s) return s.decode(); } catch {} }
+      const t = lexoShiritin(c, c.width, c.height, false) || lexoShiritin(c, c.width, c.height, true);
+      if (t) return t;
+    }
+    return null;
+  } finally { URL.revokeObjectURL(url); }
+}
+$('dk-foto-btn').onclick = () => { dkNdalKameren(); $('dk-foto').click(); };
+$('dk-foto').onchange = async (e) => {
+  const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+  $('dk-statusi').textContent = '⏳ Po lexoj barkodin nga fotoja…';
+  try {
+    const kodi = await lexoBarkodNgaFoto(f);
+    if (kodi) dkGjeti(kodi);
+    else $('dk-statusi').textContent = '❌ Barkodi nuk u lexua nga fotoja. Bëje sërish: barkodi i drejtë, i qartë, ~15 cm larg, me dritë. Ose shkruaje kodin.';
+  } catch (err) { $('dk-statusi').textContent = '❌ ' + err.message; }
+};
 // ZBar (WebAssembly, ~330 KB) ngarkohet vetëm herën e parë që hapet kamera
 let ngarkimiZBar = null;
 const ngarkoZBar = () => ngarkimiZBar ||= new Promise((ok, gab) => {
@@ -2080,12 +2132,13 @@ function lexoShiritin(burimi, W, H, kthyer) {
     return zxLexuesi.decode(new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(lum))).getText();
   } catch { return null; } finally { try { zxLexuesi.reset(); } catch {} }
 }
-function dkMbyllSkanerin() {
+function dkNdalKameren() {   // ndal kamerën live, por lëre dritaren hapur (që kamera e fotos të mos përplaset me të)
   clearInterval(dkCikli); dkCikli = null;
   try { dkLexuesi && dkLexuesi.reset(); } catch {}
   if (dkStream) { dkStream.getTracks().forEach((t) => t.stop()); dkStream = null; }
-  $('dk-video').srcObject = null; $('dk-skaneri').style.display = 'none';
+  $('dk-video').srcObject = null;
 }
+function dkMbyllSkanerin() { dkNdalKameren(); $('dk-skaneri').style.display = 'none'; }
 $('dk-skaneri-mbyll').onclick = () => { dkCb = null; dkMbyllSkanerin(); };
 $('dk-drita').onclick = async () => {   // drita e telefonit (ku e lejon)
   try { dkDrita = !dkDrita; await dkStream.getVideoTracks()[0].applyConstraints({ advanced: [{ torch: dkDrita }] }); } catch { dkDrita = false; }
