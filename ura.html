@@ -1163,11 +1163,11 @@ async function mgNgarkoFotot() {   // → rrugët në produktet-fotot
 }
 const mgMagazinatHTML = () => magazinatE().map((m) => `<option value="${esc(m.kodi)}" ${m.kodi === $('sh-magazina').value ? 'selected' : ''}>${esc(m.kodi)} – ${esc(m.emri)}</option>`).join('');
 // pjesa "sa po hyn": hyrje nga furnitori ose korrigjim stoku (e njëjtë për artikull të ri dhe për shto sasi)
-function mgSasiaHTML(eDetyrueshme) {
+function mgSasiaHTML(eDetyrueshme, meSasi = true) {   // te artikulli i ri sasia del lart, menjëherë pas çmimit (meSasi = false)
   return `<div class="mg-lloji" id="mg-lloji"><button type="button" data-l="hyrje" class="on">📥 Hyrje nga furnitori</button><button type="button" data-l="korrigjim">➕ Korrigjim stoku</button></div>
     <div class="tp-forma" style="margin-bottom:6px">
       <label>Magazina * <select id="mg-mag">${mgMagazinatHTML()}</select></label>
-      <label>Sasia${eDetyrueshme ? ' *' : ' (opsionale)'} <input id="mg-sasia" type="number" min="0" step="any" inputmode="decimal"></label>
+      ${meSasi ? `<label>Sasia${eDetyrueshme ? ' *' : ' (opsionale)'} <input id="mg-sasia" type="number" min="0" step="any" inputmode="decimal"></label>` : ''}
       <label class="mg-k" hidden>Arsyeja * <select id="mg-arsyeja"><option>Mall i gjetur</option><option>Numërim / inventar</option><option>Kthim nga klienti</option><option>Tjetër</option></select></label>
     </div>`;
 }
@@ -1195,8 +1195,9 @@ function mgFormaRi(q) {
       <label>Kodi në Pro-Data <input id="mg-kodi" placeholder="bosh = si barkodi"></label>
       <label>Njësia <select id="mg-njesia"><option value="M">M (metër)</option><option value="Copë">Copë</option></select></label>
       <label>Çmimi i shitjes me TVSH * <input id="mg-cmimi" type="number" min="0" step="0.01" inputmode="decimal"></label>
+      <label>Sasia * <input id="mg-sasia" type="number" min="0" step="any" inputmode="decimal"></label>
     </div>
-    <h3>Sa po hyn tani <span class="zbehte" style="font-weight:normal">(opsionale)</span></h3>${mgSasiaHTML(false)}
+    <h3>Si po hyn malli</h3>${mgSasiaHTML(true, false)}
     ${mgFotoHTML(true)}
     <label style="margin-top:8px">Shënim <input id="mg-shenim" placeholder="opsional"></label>
     <div class="butona"><button class="kryesor" id="mg-ruaj">✅ Regjistro artikullin</button><button class="dyte" id="mg-anulo">Anulo</button></div></div>`;
@@ -1206,13 +1207,14 @@ function mgFormaRi(q) {
     const emri = $('mg-emri').value.trim(), cmimi = +$('mg-cmimi').value;
     if (!emri) throw new Error('Shkruaj emrin e produktit.');
     if (!(cmimi > 0)) throw new Error('Shkruaj çmimin e shitjes me TVSH.');
+    if (!(+$('mg-sasia').value > 0)) throw new Error('Shkruaj sasinë që po hyn.');
     if (!mgFotot.length) throw new Error('Bëj të paktën 1 foto të produktit.');
     const barkodi = $('mg-barkodi').value.trim() || null, kodi = $('mg-kodi').value.trim() || barkodi;
     if (kodi || barkodi) {   // kontrolli i fundit: mos ekziston ky kod/barkod
       const ek = (await kerkoArtikuj(kodi || barkodi)).filter((a) => [kodi, barkodi].includes(a.kodi) || [kodi, barkodi].includes(a.barkodi));
       if (ek.length && !confirm(`Kodi/barkodi "${kodi || barkodi}" ekziston te artikulli "${ek[0].emri}".\nTa regjistroj gjithsesi si artikull të ri?`)) return null;
     }
-    const s = mgSasiaTeDhenat(false);
+    const s = mgSasiaTeDhenat(true);
     return { lloji: 'artikull_i_ri', emri, barkodi, kodi, njesia: $('mg-njesia').value, cmimi_shitjes: cmimi, magazina: s.magazina || $('mg-mag').value,
       sasia: s.sasia, arsyeja: s.lloji_hyrjes === 'korrigjim' ? s.arsyeja : null, shenim: $('mg-shenim').value.trim() || null };
   });
