@@ -405,7 +405,7 @@
     <div class="udhezim" id="rg-udhezim"></div>
     <div class="rresht">
       <label>Magazina <select id="rg-magazina"></select></label>
-      <label id="rg-furnitori-l">Kodi i furnitorit në Pro-Data <input id="rg-furnitori" style="width:150px"></label>
+      <label id="rg-furnitori-l">Kodi i furnitorit në Pro-Data (opsional) <input id="rg-furnitori" style="width:150px"></label>
       <label id="rg-nrfat-l">Nr. i faturës së furnitorit <input id="rg-nrfat" style="width:160px"></label>
       <label id="rg-arsyeja-l">Arsyeja <select id="rg-arsyeja"><option>Dëmtim</option><option>Mostër</option><option>Marketing</option><option>Përdorim i brendshëm</option><option>Tjetër</option></select></label>
     </div>
@@ -415,7 +415,7 @@
         <button class="kryesor btn-skano" type="button" data-per="rg-artikulli">📷 Skano</button>
         <div class="lista" id="rg-artikulli-lista" hidden></div>
       </div>
-      <div class="tabela"><table><thead><tr><th>Artikulli</th><th class="num">Sasia</th><th class="num" id="rg-cmimi-th">Çmimi me TVSH</th><th></th></tr></thead><tbody id="rg-rreshtat"></tbody></table></div>
+      <div class="tabela"><table><thead><tr><th>Artikulli</th><th class="num">Sasia</th><th></th></tr></thead><tbody id="rg-rreshtat"></tbody></table></div>
     </div>
     <div id="rg-shpenzim" class="rresht" hidden>
       <label style="flex:1">Përshkrimi <input id="rg-pershkrimi" style="width:100%" placeholder="p.sh. Rryma, karburant, material pastrimi"></label>
@@ -1034,7 +1034,7 @@ NGARKUESIT.arka = (ngaRealtime) => { arkaListo(); if (!ngaRealtime) setTimeout((
 // ---------- REGJISTRIM ----------
 let rg = { lloji: 'hyrje', rreshtat: [] };
 const RG_TEKST = {
-  hyrje: ['📥 Hyrje malli', 'Malli që hyn nga furnitori. Shkruaj kodin e furnitorit dhe artikujt me çmimin e blerjes me TVSH.'],
+  hyrje: ['📥 Hyrje malli', 'Malli që hyn nga furnitori. Shto artikujt dhe sasinë.'],
   dalje: ['📤 Dalje malli', 'Malli që del pa shitje (dëmtim, mostër, marketing…).'],
   shpenzim: ['🧾 Shpenzime / blerje', 'Shpenzimet e ditës (rryma, karburant, materiale…).'],
 };
@@ -1043,22 +1043,20 @@ function rgNdrysho(l) {
   document.querySelectorAll('#rg-nen button').forEach((b) => b.classList.toggle('aktive', b.dataset.l === l));
   $('rg-udhezim').innerHTML = `${RG_TEKST[l][1]}<br><b>Kujdes:</b> ky lloj dokumenti prek kontabilitetin e Pro-Data-s. Dërgohet në radhë dhe kalon në Pro-Data pasi të aktivizohet pas kontrollit të dokumentit të parë.`;
   $('rg-furnitori-l').hidden = l === 'dalje'; $('rg-nrfat-l').hidden = l !== 'hyrje'; $('rg-arsyeja-l').hidden = l !== 'dalje';
-  $('rg-artikuj').hidden = l === 'shpenzim'; $('rg-shpenzim').hidden = l !== 'shpenzim'; $('rg-cmimi-th').hidden = l !== 'hyrje';
+  $('rg-artikuj').hidden = l === 'shpenzim'; $('rg-shpenzim').hidden = l !== 'shpenzim';
   $('rg-mesazh').className = 'mesazh';
 }
 function rgVizato() {
   $('rg-rreshtat').innerHTML = '';
   rg.rreshtat.forEach((r, i) => {
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td><b>${esc(r.kodi)}</b> ${esc(r.emri)}</td><td class="num"><input class="sasi" type="number" min="0" step="any" value="${r.sasia}"></td>
-      <td class="num" ${rg.lloji !== 'hyrje' ? 'hidden' : ''}><input class="cmim" type="number" min="0" step="0.01" value="${r.cmimi ?? ''}"></td><td><button class="heq">✕</button></td>`;
+    tr.innerHTML = `<td><b>${esc(r.kodi)}</b> ${esc(r.emri)}</td><td class="num"><input class="sasi" type="number" min="0" step="any" value="${r.sasia}"></td><td><button class="heq">✕</button></td>`;
     tr.querySelector('.sasi').onchange = (e) => { r.sasia = +e.target.value; };
-    tr.querySelector('.cmim').onchange = (e) => { r.cmimi = +e.target.value; };
     tr.querySelector('.heq').onclick = () => { rg.rreshtat.splice(i, 1); rgVizato(); };
     $('rg-rreshtat').appendChild(tr);
   });
 }
-kerkimArtikujsh('rg-artikulli', 'rg-artikulli-lista', (a) => { const ek = rg.rreshtat.find((r) => r.id === a.id); if (ek) ek.sasia += 1; else rg.rreshtat.push({ id: a.id, kodi: a.kodi, emri: a.emri, sasia: 1, cmimi: null }); rgVizato(); });
+kerkimArtikujsh('rg-artikulli', 'rg-artikulli-lista', (a) => { const ek = rg.rreshtat.find((r) => r.id === a.id); if (ek) ek.sasia += 1; else rg.rreshtat.push({ id: a.id, kodi: a.kodi, emri: a.emri, sasia: 1 }); rgVizato(); });
 $('rg-dergo').onclick = async () => {
   const l = rg.lloji; let payload;
   const baza = { magazina: $('rg-magazina').value, shenim: $('rg-shenim').value.trim() || null, perdoruesi: profili.emri || null };
@@ -1067,9 +1065,9 @@ $('rg-dergo').onclick = async () => {
     payload = { ...baza, furnitori_kodi: $('rg-furnitori').value.trim() || null, pershkrimi: $('rg-pershkrimi').value.trim(), shuma_me_tvsh: shuma, tvsh_p: +$('rg-tvsh').value };
   } else {
     if (!rg.rreshtat.length || rg.rreshtat.some((r) => !(r.sasia > 0))) return alert('Shto artikujt me sasi më të madhe se 0.');
-    if (l === 'hyrje' && (!$('rg-furnitori').value.trim() || rg.rreshtat.some((r) => !(r.cmimi > 0)))) return alert('Për hyrje duhet kodi i furnitorit dhe çmimi i blerjes për çdo artikull.');
-    payload = { ...baza, rreshtat: rg.rreshtat.map((r) => ({ prodata_id: r.id, sasia: r.sasia, ...(l === 'hyrje' ? { cmimi_me_tvsh: r.cmimi } : {}) })),
-      ...(l === 'hyrje' ? { furnitori_kodi: $('rg-furnitori').value.trim(), nr_fatures: $('rg-nrfat').value.trim() || null } : { arsyeja: $('rg-arsyeja').value }) };
+    // te hyrja nuk kërkohet çmimi i blerjes, as furnitori (vendim i Aguronit, 03.11.2026)
+    payload = { ...baza, rreshtat: rg.rreshtat.map((r) => ({ prodata_id: r.id, sasia: r.sasia })),
+      ...(l === 'hyrje' ? { furnitori_kodi: $('rg-furnitori').value.trim() || null, nr_fatures: $('rg-nrfat').value.trim() || null } : { arsyeja: $('rg-arsyeja').value }) };
   }
   if (!confirm(`Dërgo: ${RG_TEKST[l][0]}?`)) return;
   try {
