@@ -658,14 +658,24 @@ const shenjeStatusi = { hapur: ['Hapur', 's-hapur'], ne_arke: ['🧾 Në arkë',
   ne_pritje: ['⏳ Në pritje', 's-pritje'], ne_proces: ['⏳ Në proces', 's-pritje'], kryer: ['✅ Kryer', 's-ok'], gabim: ['❌ Gabim', 's-gabim'] };
 const shenje = (s) => { const [t, c] = shenjeStatusi[s] || [s, '']; return `<span class="shenje ${c}">${t}</span>`; };
 let profili = null, magazinat = [], perdoruesi = null;
+// Sistemi është vetëm për Patron Dantelin: magazina 002 në Pro-Data (vendim i Aguronit, 03.11.2026).
+// Vetëm Super Admini (dhe roli depo te faqja e vet) i sheh magazinat e tjera; serveri (RLS te prodata_stoku) e zbaton të njëjtën gjë.
+const PD_MAG = '002';
+const teGjithaMag = () => !!profili && ['admin', 'depo'].includes(profili.roli);
+const magazinatE = () => (teGjithaMag() ? magazinat : magazinat.filter((m) => m.kodi === PD_MAG));
+// stoku i artikullit: Super Admini sheh çdo magazinë, të tjerët vetëm sasinë te Patron Danteli
+const stokuHTML = (a) => (teGjithaMag()
+  ? a.stoku.map((s) => `<span>${esc(s.magazina)}: ${s.sasia}</span>`).join('') || '<span>pa stok</span>'
+  : `<span>Stoku: ${(a.stoku.find((s) => s.magazina === PD_MAG) || {}).sasia ?? 0}</span>`);
 
 // ---------- Rolet dhe menytë ----------
 const MENYTE = {
   admin: [['paneli', '📊 Paneli'], ['arka', '🧾 Arka'], ['shitjet', '🛒 Shitjet'], ['onl_porosite', '📦 Porositë online'], ['blerjet', '📦 Blerjet'], ['depo', '🏭 Depo'], ['pagesat', '💶 Arka dhe pagesat'],
           ['stafi', '👷 Burime njerëzore'], ['klientet', '👥 Klientët'], ['produktet', '🧵 Produktet'], ['mall', '📦 Regjistro mall'], ['kontabiliteti', '📒 Kontabiliteti'], ['admin', '⚙️ Administrimi'], ['shitje', '➕ Faturë'], ['regjistrim', '📝 Regjistrim'], ['transfer', '🔁 Transfer']],
   depo: [['depo', '🏭 Depo']],
-  arka: [['arka', '🧾 Arka'], ['shitjet', '🛒 Shitjet'], ['onl_porosite', '📦 Porositë online'], ['blerjet', '📦 Blerjet'], ['depo', '🏭 Depo'], ['pagesat', '💶 Arka dhe pagesat'], ['stafi', '👷 Burime njerëzore'],
-         ['klientet', '👥 Klientët'], ['produktet', '🧵 Produktet'], ['mall', '📦 Regjistro mall'], ['kontabiliteti', '📒 Kontabiliteti'], ['admin', '⚙️ Administrimi'], ['shitje', '➕ Faturë'], ['regjistrim', '📝 Regjistrim'], ['transfer', '🔁 Transfer']],
+  // Depo dhe Transferi (magazina të tjera) mbeten vetëm te Super Admini
+  arka: [['arka', '🧾 Arka'], ['shitjet', '🛒 Shitjet'], ['onl_porosite', '📦 Porositë online'], ['blerjet', '📦 Blerjet'], ['pagesat', '💶 Arka dhe pagesat'], ['stafi', '👷 Burime njerëzore'],
+         ['klientet', '👥 Klientët'], ['produktet', '🧵 Produktet'], ['mall', '📦 Regjistro mall'], ['kontabiliteti', '📒 Kontabiliteti'], ['admin', '⚙️ Administrimi'], ['shitje', '➕ Faturë'], ['regjistrim', '📝 Regjistrim']],
   shitese_online: [['onl_home', '🏠 Kryefaqja'], ['onl_shitje', '🛒 Shitje'], ['onl_porosite', '📦 Porositë'], ['llogaria', '👤 Llogaria ime'], ['mall', '📦 Regjistro mall']],
   shitese_fizike: [['fiz_home', '🏠 Kryefaqja'], ['shitje', '🧾 Faturë e re'], ['llogaria', '📋 Faturat e mia'], ['mall', '📦 Regjistro mall'], ['regjistrim', '📝 Regjistrim']],
 };
@@ -733,10 +743,11 @@ sb.auth.onAuthStateChange(async (_n, ses) => {
 async function ngarkoListat() {
   const { data: mg } = await sb.from('prodata_magazinat').select('kodi, emri').order('kodi');
   magazinat = mg || [];
-  const opt = magazinat.map((m) => `<option value="${esc(m.kodi)}">${esc(m.kodi)} – ${esc(m.emri)}</option>`).join('');
-  for (const id of ['sh-magazina', 'tr-nga', 'tr-te', 'rg-magazina']) $(id).innerHTML = opt;
-  let pikaE = null; try { pikaE = localStorage.getItem('pd-pika'); } catch {}   // pika e fundit që zgjodhi kjo shitëse në këtë pajisje
-  const parazgj = profili.roli === 'shitese_online' ? '005' : (pikaE && magazinat.some((m) => m.kodi === pikaE) ? pikaE : '002');
+  const opcionet = (lista) => lista.map((m) => `<option value="${esc(m.kodi)}">${esc(m.kodi)} – ${esc(m.emri)}</option>`).join('');
+  for (const id of ['tr-nga', 'tr-te']) $(id).innerHTML = opcionet(magazinat);
+  for (const id of ['sh-magazina', 'rg-magazina']) $(id).innerHTML = opcionet(magazinatE());
+  let pikaE = null; try { pikaE = localStorage.getItem('pd-pika'); } catch {}   // pika e fundit që zgjodhi Super Admini në këtë pajisje
+  const parazgj = teGjithaMag() && pikaE && magazinat.some((m) => m.kodi === pikaE) ? pikaE : PD_MAG;
   $('sh-magazina').value = parazgj; $('rg-magazina').value = parazgj; $('tr-nga').value = '001'; $('tr-te').value = '003';
   $('sh-online-fushat').hidden = true;   // porositë online kanë formën e tyre (🛒 Shitje online)
 }
@@ -775,7 +786,7 @@ function kerkimArtikujsh(inputId, listaId, kurZgjidhet) {
     for (const a of art) { const d = document.createElement('div'); d.className = 'art-rresht';
       d.innerHTML = `${ft.get(a.prodata_id) ? `<img src="${esc(ft.get(a.prodata_id))}" alt="">` : '<span class="art-pa-foto">📦</span>'}<div>
         <b>${esc(a.kodi)}</b> – ${esc(a.emri)} <span class="zbehte">· ${eur(a.cmimi)} € · ${esc(a.barkodi || '')}</span>
-        <div class="stoku">${a.stoku.map((s) => `<span>${esc(s.magazina)}: ${s.sasia}</span>`).join('') || '<span>pa stok</span>'}</div></div>`;
+        <div class="stoku">${stokuHTML(a)}</div></div>`;
       d.onclick = () => zgjidh(a); lista.appendChild(d); }
     lista.hidden = false; }, 300); };
   inp.onkeydown = (e) => { if (e.key === 'Escape') lista.hidden = true; };
@@ -1073,7 +1084,7 @@ async function mgKontrollo() {
     return `<div class="mg-karte ${kl}" data-id="${a.prodata_id}">
       ${f ? `<img class="foto mg-shiko" src="${esc(f)}" alt="foto e produktit" title="Kliko për ta parë të madhe">` : '<button class="foto mg-foto-bosh" title="Shto foto">📷<small>Shto foto</small></button>'}
       <div class="info"><b>${esc(a.emri)}</b><div class="zbehte">Kodi ${esc(a.kodi)}${a.barkodi && a.barkodi !== a.kodi ? ' · barkodi ' + esc(a.barkodi) : ''} · ${eur(a.cmimi)} € · ${esc(a.njesia || '')}</div>
-        <div class="stoku">${a.stoku.map((s) => `<span>${esc(s.magazina)}: ${s.sasia}</span>`).join('') || '<span>pa stok</span>'}</div>
+        <div class="stoku">${stokuHTML(a)}</div>
         ${f ? '' : '<div class="sugj" style="display:inline-block;margin-top:4px">📷 Ky artikull s\'ka foto — shtoje</div>'}
         <div class="butona" style="margin-top:8px"><button class="kryesor mg-shto">➕ Shto sasi te ky artikull</button><button class="dyte mg-foto">📷 ${f ? 'Shto foto tjetër' : 'Shto foto'}</button><button class="rrezik mg-cakt">🚫 Çaktivizo</button></div></div></div>`; };
   el.innerHTML = (saktë.length ? `<div class="udhezim">⚠️ <b>Ky artikull është i regjistruar tashmë në Pro-Data.</b> Dëshiron vetëm të shtosh sasi, apo ta regjistrosh gjithsesi si artikull të ri?</div>${saktë.map((a) => karte(a, 'ekziston')).join('')}` : '')
@@ -1118,7 +1129,7 @@ async function mgNgarkoFotot() {   // → rrugët në produktet-fotot
   }
   return rruget;
 }
-const mgMagazinatHTML = () => magazinat.map((m) => `<option value="${esc(m.kodi)}" ${m.kodi === $('sh-magazina').value ? 'selected' : ''}>${esc(m.kodi)} – ${esc(m.emri)}</option>`).join('');
+const mgMagazinatHTML = () => magazinatE().map((m) => `<option value="${esc(m.kodi)}" ${m.kodi === $('sh-magazina').value ? 'selected' : ''}>${esc(m.kodi)} – ${esc(m.emri)}</option>`).join('');
 // pjesa "sa po hyn": hyrje nga furnitori ose korrigjim stoku (e njëjtë për artikull të ri dhe për shto sasi)
 function mgSasiaHTML(eDetyrueshme) {
   return `<div class="mg-lloji" id="mg-lloji"><button type="button" data-l="hyrje" class="on">📥 Hyrje nga furnitori</button><button type="button" data-l="korrigjim">➕ Korrigjim stoku</button></div>
@@ -1184,7 +1195,7 @@ function mgFormaRi(q) {
   $('mg-forma').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 function mgFormaShto(a) {
-  $('mg-forma').innerHTML = `<div class="mg-forma"><h3 style="margin-top:0">➕ Shto sasi: ${esc(a.emri)}</h3><p class="zbehte">Kodi ${esc(a.kodi)} · ${eur(a.cmimi)} € · stoku: ${a.stoku.map((s) => `${esc(s.magazina)}: ${s.sasia}`).join(', ') || 'pa stok'}</p>
+  $('mg-forma').innerHTML = `<div class="mg-forma"><h3 style="margin-top:0">➕ Shto sasi: ${esc(a.emri)}</h3><p class="zbehte">Kodi ${esc(a.kodi)} · ${eur(a.cmimi)} €</p><div class="stoku">${stokuHTML(a)}</div>
     ${mgSasiaHTML(true)}${mgFotoHTML(false)}
     <label style="margin-top:8px">Shënim <input id="mg-shenim" placeholder="opsional"></label>
     <div class="butona"><button class="kryesor" id="mg-ruaj">✅ Regjistro sasinë</button><button class="dyte" id="mg-anulo">Anulo</button></div></div>`;
@@ -1529,7 +1540,7 @@ async function shikoFotot(rruget, bucket = 'porosi-fotot') {
   d.onclick = () => d.remove(); document.body.appendChild(d);
 }
 function onlTeDhenat() {
-  return { shitesja_id: perdoruesi.id, shitesja_emri: profili.emri || null, kanali: 'online', magazina: '005', klienti_kodi: '13850',
+  return { shitesja_id: perdoruesi.id, shitesja_emri: profili.emri || null, kanali: 'online', magazina: PD_MAG, klienti_kodi: '13850',
     klienti_emri: $('onl-emri').value.trim(), klienti_mbiemri: null, klienti_telefoni: $('onl-tel').value.trim(),
     klienti_telefoni2: Object.values(PREFIKSI).includes($('onl-tel2').value.trim()) ? null : ($('onl-tel2').value.trim() || null),
     adresa: $('onl-adresa').value.trim(), qyteti: $('onl-qyteti').value.trim(), shteti: onlShteti(), eksport: onlEksport(),
@@ -2286,7 +2297,7 @@ $('pr-periudha').onchange = $('pr-pika').onchange = () => NGARKUESIT.produktet()
 $('pr-rendit').onchange = () => prVizato();
 NGARKUESIT.produktet = async (ngaRealtime) => {
   if (ngaRealtime) return;
-  if ($('pr-pika').options.length <= 1) $('pr-pika').innerHTML = '<option value="">Të gjitha pikat</option>' + magazinat.map((m) => `<option value="${esc(m.kodi)}">${esc(m.kodi)} – ${esc(m.emri)}</option>`).join('');
+  if ($('pr-pika').options.length <= 1) $('pr-pika').innerHTML = (teGjithaMag() ? '<option value="">Të gjitha pikat</option>' : '') + magazinatE().map((m) => `<option value="${esc(m.kodi)}">${esc(m.kodi)} – ${esc(m.emri)}</option>`).join('');
   const p = stPeriudha($('pr-periudha').value), mag = $('pr-pika').value || null;
   $('pr-shenim').textContent = '⏳ Po llogariten statistikat…';
   try {
