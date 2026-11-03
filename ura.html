@@ -1256,6 +1256,20 @@ async function mgCaktivizo(a) {
   $('mg-mesazh').textContent = error ? '❌ ' + error.message : `✅ Kërkesa për çaktivizimin e "${a.emri}" u regjistrua. Kalon në Pro-Data kur të aktivizohet ky veprim.`;
   NGARKUESIT.mall();
 }
+async function mgPritArtikullin(id, d, m) {
+  m.className = 'mesazh pritje'; m.innerHTML = `⏳ Po krijohet në Pro-Data: <b>${esc(d.emri)}</b>…`;
+  for (let i = 0; i < 20; i++) {
+    await new Promise((r) => setTimeout(r, 2000));
+    const { data: x } = await sb.from('regjistrimet_mallit').select('statusi, artikulli_id, kodi, gabimi').eq('id', id).maybeSingle();
+    if (x && x.artikulli_id) {
+      m.className = 'mesazh ok'; m.innerHTML = `✅ Artikulli u krijua në Pro-Data: <b>${esc(d.emri)}</b> · kodi <b style="font-size:17px">${esc(x.kodi)}</b> · ${eur(d.cmimi_shitjes)} €`
+        + (+d.sasia > 0 ? `<br><span class="zbehte">Sasia ${+d.sasia} ${esc(d.njesia || '')} është ruajtur dhe kalon në stokun e Pro-Data-s sapo të aktivizohet hyrja e mallit.</span>` : '');
+      NGARKUESIT.mall(); return;
+    }
+    if (x && x.statusi === 'gabim') { m.className = 'mesazh gabim'; m.innerHTML = '❌ Pro-Data nuk e pranoi: ' + esc(x.gabimi || ''); NGARKUESIT.mall(); return; }
+  }
+  m.className = 'mesazh pritje'; m.innerHTML = `⏳ U ruajt. Ura nuk u përgjigj ende; artikulli krijohet në Pro-Data sapo ura të jetë e lidhur (shiko listën poshtë).`;
+}
 async function mgRuaj(teDhenat, artikulliId) {   // ruan regjistrimin + fotot
   const btn = $('mg-ruaj'); btn.disabled = true; const m = $('mg-mesazh');
   try {
@@ -1268,6 +1282,7 @@ async function mgRuaj(teDhenat, artikulliId) {   // ruan regjistrimin + fotot
     m.className = 'mesazh ok'; m.innerHTML = `✅ U regjistrua: <b>${esc(MG_LLOJET[d.lloji])}</b> · ${esc(d.emri || '')}${d.sasia ? ' · ' + d.sasia + ' ' + esc(d.njesia || '') : ''}.<br><span class="zbehte">Ruhet te sistemi ynë dhe kalon në Pro-Data sapo të aktivizohet ky lloj veprimi.</span>`;
     $('mg-forma').innerHTML = ''; $('mg-rezultati').innerHTML = ''; $('mg-kerko').value = ''; mgFotot = [];
     NGARKUESIT.mall();
+    if (d.lloji === 'artikull_i_ri') await mgPritArtikullin(r.id, d, m);   // ura e krijon artikullin në Pro-Data brenda pak sekondash
   } catch (e) { m.className = 'mesazh gabim'; m.textContent = '❌ ' + e.message; }
   btn.disabled = false;
 }
@@ -1282,7 +1297,9 @@ NGARKUESIT.mall = async (ngaRealtime) => {
   const url = new Map(); const rr = data || [];
   const fotot = rr.map((r) => (r.fotot || [])[0]).filter(Boolean);
   if (fotot.length) { const { data: u } = await sb.storage.from('produktet-fotot').createSignedUrls(fotot, 3600); (u || []).forEach((x, i) => url.set(fotot[i], x.signedUrl)); }
-  $('mg-lista').innerHTML = rr.map((r) => { const [t, c] = MG_STATUSET[r.statusi] || [r.statusi, '']; const f = (r.fotot || [])[0];
+  $('mg-lista').innerHTML = rr.map((r) => { const f = (r.fotot || [])[0];
+    // artikulli i ri i krijuar në Pro-Data, por sasia e tij pret recetën e hyrjes
+    const [t, c] = r.lloji === 'artikull_i_ri' && r.artikulli_id && r.statusi === 'ne_pritje' ? ['✅ Në Pro-Data · ⏳ sasia pret', 's-pritje'] : MG_STATUSET[r.statusi] || [r.statusi, ''];
     return `<div class="ar-karte" style="cursor:default"><div class="rresht" style="justify-content:space-between;margin:0"><b>${esc(MG_LLOJET[r.lloji] || r.lloji)}</b><span class="shenje ${c}">${t}</span></div>
       <div style="display:flex;gap:10px;margin-top:6px">${f && url.get(f) ? `<img src="${esc(url.get(f))}" style="width:56px;height:56px;border-radius:8px;object-fit:cover" alt="">` : ''}
       <div><b>${esc(r.emri || '')}</b><div class="zbehte">${esc(r.kodi || r.barkodi || '')}${r.sasia ? ' · ' + (+r.sasia) + ' ' + esc(r.njesia || '') : ''}${r.magazina ? ' · mag. ' + esc(r.magazina) : ''}${r.cmimi_shitjes ? ' · ' + eur(r.cmimi_shitjes) + ' €' : ''}</div>
