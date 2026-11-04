@@ -150,8 +150,25 @@
   .fazat span.kryer { background:#d6f0e2; color:#14653f; }
   .fazat span.tani { background:#1f8a5b; color:#fff; font-weight:600; }
   .fazat span.keq { background:#c0392b; color:#fff; font-weight:600; }
-  #fotot-shikues { position:fixed; inset:0; background:rgba(0,0,0,.85); z-index:999; overflow:auto; padding:16px; text-align:center; }
-  #fotot-shikues img { max-width:min(100%, 720px); margin:8px auto; display:block; border-radius:8px; }
+  /* Shikuesi i fotove me zoom: dy gishta / rrota e mausit / dy prekje; rrëshqit majtas-djathtas për foton tjetër */
+  #zoom { position:fixed; inset:0; background:#0b0a0c; z-index:999; display:flex; flex-direction:column; color:#fff; }
+  #zoom .zm-bar { display:flex; justify-content:space-between; align-items:center; padding:10px 12px; gap:8px; }
+  #zoom .zm-bar button, #zoom .zm-shig { background:rgba(255,255,255,.14); color:#fff; border:0; border-radius:12px; min-width:44px; height:44px; font-size:22px; cursor:pointer; }
+  #zoom .zm-bar button + button { margin-left:6px; }
+  #zoom .zm-skena { flex:1; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center; touch-action:none; cursor:grab; }
+  #zoom .zm-skena img { max-width:100%; max-height:100%; transform-origin:center center; user-select:none; -webkit-user-drag:none; will-change:transform; }
+  #zoom .zm-shig { position:absolute; top:50%; transform:translateY(-50%); width:48px; height:64px; font-size:34px; }
+  #zoom .zm-maj { left:8px; } #zoom .zm-dj { right:8px; }
+  #zoom .zm-tekst { padding:10px 14px 16px; font-size:14px; line-height:1.4; opacity:.92; text-align:center; }
+  .mn-dita { margin:18px 0 8px; font-weight:700; color:var(--kryesor-err); }
+  .mn-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px; }
+  .mn-karte { background:#fff; border:1px solid var(--vije); border-radius:14px; overflow:hidden; display:flex; flex-direction:column; }
+  .mn-karte .mn-foto { position:relative; aspect-ratio:3/4; background:#f4f2f5; border:0; padding:0; cursor:zoom-in; }
+  .mn-karte .mn-foto img { width:100%; height:100%; object-fit:cover; display:block; }
+  .mn-karte .mn-sa { position:absolute; right:6px; bottom:6px; background:rgba(0,0,0,.65); color:#fff; border-radius:999px; padding:2px 8px; font-size:12px; font-weight:700; }
+  .mn-karte .mn-info { padding:8px 10px; font-size:13px; line-height:1.35; }
+  .mn-karte .mn-info .heq { float:right; font-size:16px; }
+  .onl-b-mungesa { background:linear-gradient(135deg, #9f1239, #f43f5e); }
   .sh-totali-kuti { display:flex; justify-content:space-between; align-items:center; background:linear-gradient(135deg, #3a1240, #7A2A78); color:#fff;
                     border-radius:16px; padding:14px 18px; margin:12px 0; } .sh-totali-kuti b { font-size:28px; }
   @media (max-width: 600px) {
@@ -260,6 +277,7 @@
       <button class="onl-buton onl-b-porosite" data-shko="llogaria">📋<b>Faturat e mia</b><small id="fiz-home-nr">Faturat e sotme</small></button>
       <button class="onl-buton onl-b-llogaria" data-shko="mall">📦<b>Regjistro mall</b><small>Artikull i ri · shto sasi · foto</small></button>
       <button class="onl-buton onl-b-dalje" data-shko="regjistrim">📝<b>Dalje / shpenzime</b><small>Mall që del pa shitje</small></button>
+      <button class="onl-buton onl-b-mungesa" data-shko="mungesat">🔍<b>S'e kemi</b><small>Klienti kërkoi diçka që mungon · foto</small></button>
     </div>
   </section>
 
@@ -304,6 +322,7 @@
       <button class="onl-buton onl-b-porosite" data-shko="onl_porosite">📦<b>Porositë</b><small id="onl-home-nr">Porositë e regjistruara</small></button>
       <button class="onl-buton onl-b-llogaria" data-shko="llogaria">👤<b>Llogaria ime</b><small>Puna ime sot</small></button>
       <button class="onl-buton onl-b-dalje" data-shko="mall">📦<b>Regjistro mall</b><small>Artikull i ri · shto sasi · foto</small></button>
+      <button class="onl-buton onl-b-mungesa" data-shko="mungesat">🔍<b>S'e kemi</b><small>Klienti kërkoi diçka që mungon · screenshot</small></button>
     </div>
   </section>
 
@@ -453,6 +472,31 @@
     <h3>Faturat e mia sot</h3>
     <div class="ar-pritje" id="ll-faturat"></div>
     <div id="ll-barkodi"></div>
+  </section>
+
+  <!-- ===== S'E KEMI: produktet që klientët i kërkojnë, por mungojnë ===== -->
+  <section class="faqe" id="f-mungesat">
+    <h2>🔍 Klienti kërkoi, s'e kemi</h2>
+    <div class="karte mn-forma">
+      <p class="zbehte" style="margin-top:0">Kur një klient kërkon një produkt që s'e kemi, ruaj screenshot-in e bisedës ose foton e produktit. Kështu e dimë çfarë kërkohet.</p>
+      <div class="foto-zona"><span class="ikona">🖼️</span><b>Screenshot ose foto *</b><small>1 deri 6 foto · <span id="mn-nr">0 / 6</span> · në kompjuter mund edhe ta ngjitësh (Ctrl+V)</small>
+        <div class="butona" style="justify-content:center;margin-top:8px"><button class="kryesor" type="button" id="mn-gal">🖼️ Screenshot / galeria</button><button class="dyte" type="button" id="mn-kam">📷 Bëj foto</button></div></div>
+      <input type="file" id="mn-gal-inp" accept="image/*" multiple class="fsheh"><input type="file" id="mn-kam-inp" accept="image/*" capture="environment" class="fsheh">
+      <div class="onl-fotot" id="mn-fotot"></div>
+      <div class="zbehte" style="margin:4px 0 6px">Ku e kërkoi klienti?</div>
+      <div class="chips" id="mn-kanali"></div>
+      <label style="margin-top:10px;display:block">Çka kërkoi? (opsional) <input id="mn-pershkrimi" maxlength="500" placeholder="p.sh. dantellë e kuqe me rruza, 3 m" style="width:100%"></label>
+      <div class="butona"><button class="kryesor" id="mn-ruaj">✅ Ruaje kërkesën</button></div>
+      <div class="mesazh" id="mn-mesazh"></div>
+    </div>
+    <div id="mn-admin" hidden>
+      <div class="chips" id="mn-periudha" style="margin:14px 0 8px"></div>
+      <div class="rresht"><label>Shitësja <select id="mn-shitesja"><option value="">Të gjitha</option></select></label>
+        <label>Kanali <select id="mn-f-kanali"><option value="">Të gjithë</option></select></label></div>
+    </div>
+    <h3 id="mn-titulli">Kërkesat e mia sot</h3>
+    <div class="zbehte" id="mn-permbledhja"></div>
+    <div id="mn-galeria"></div>
   </section>
 
   <!-- ===== TRANSFER ===== -->
@@ -706,14 +750,14 @@ const stokuHTML = (a) => (teGjithaMag()
 
 // ---------- Rolet dhe menytë ----------
 const MENYTE = {
-  admin: [['paneli', '📊 Paneli'], ['arka', '🧾 Arka'], ['shitjet', '🛒 Shitjet'], ['onl_porosite', '📦 Porositë online'], ['blerjet', '📦 Blerjet'], ['depo', '🏭 Depo'], ['pagesat', '💶 Arka dhe pagesat'],
+  admin: [['paneli', '📊 Paneli'], ['arka', '🧾 Arka'], ['shitjet', '🛒 Shitjet'], ['onl_porosite', '📦 Porositë online'], ['mungesat', "🔍 S'e kemi"], ['blerjet', '📦 Blerjet'], ['depo', '🏭 Depo'], ['pagesat', '💶 Arka dhe pagesat'],
           ['stafi', '👷 Burime njerëzore'], ['klientet', '👥 Klientët'], ['produktet', '🧵 Produktet'], ['mall', '📦 Regjistro mall'], ['kontabiliteti', '📒 Kontabiliteti'], ['admin', '⚙️ Administrimi'], ['shitje', '➕ Faturë'], ['regjistrim', '📝 Regjistrim'], ['transfer', '🔁 Transfer']],
   depo: [['depo', '🏭 Depo']],
   // Depo dhe Transferi (magazina të tjera) mbeten vetëm te Super Admini
   arka: [['arka', '🧾 Arka'], ['shitje', '➕ Faturë'], ['shitjet', '🛒 Shitjet'], ['onl_porosite', '📦 Porositë online'], ['blerjet', '📦 Blerjet'], ['pagesat', '💶 Arka dhe pagesat'], ['stafi', '👷 Burime njerëzore'],
-         ['klientet', '👥 Klientët'], ['produktet', '🧵 Produktet'], ['mall', '📦 Regjistro mall'], ['kontabiliteti', '📒 Kontabiliteti'], ['admin', '⚙️ Administrimi'], ['regjistrim', '📝 Regjistrim']],
-  shitese_online: [['onl_home', '🏠 Kryefaqja'], ['onl_shitje', '🛒 Shitje'], ['onl_porosite', '📦 Porositë'], ['llogaria', '👤 Llogaria ime'], ['mall', '📦 Regjistro mall']],
-  shitese_fizike: [['fiz_home', '🏠 Kryefaqja'], ['shitje', '🧾 Faturë e re'], ['llogaria', '📋 Faturat e mia'], ['mall', '📦 Regjistro mall'], ['regjistrim', '📝 Regjistrim']],
+         ['klientet', '👥 Klientët'], ['produktet', '🧵 Produktet'], ['mall', '📦 Regjistro mall'], ['kontabiliteti', '📒 Kontabiliteti'], ['admin', '⚙️ Administrimi'], ['regjistrim', '📝 Regjistrim'], ['mungesat', "🔍 S'e kemi"]],
+  shitese_online: [['onl_home', '🏠 Kryefaqja'], ['onl_shitje', '🛒 Shitje'], ['onl_porosite', '📦 Porositë'], ['llogaria', '👤 Llogaria ime'], ['mall', '📦 Regjistro mall'], ['mungesat', "🔍 S'e kemi"]],
+  shitese_fizike: [['fiz_home', '🏠 Kryefaqja'], ['shitje', '🧾 Faturë e re'], ['llogaria', '📋 Faturat e mia'], ['mall', '📦 Regjistro mall'], ['regjistrim', '📝 Regjistrim'], ['mungesat', "🔍 S'e kemi"]],
 };
 // Shitëset (online dhe fizike) kanë kryefaqe me butona të mëdhenj në vend të menysë lart
 const KRYEFAQJA = { shitese_online: 'onl_home', shitese_fizike: 'fiz_home' };
@@ -1355,6 +1399,196 @@ NGARKUESIT.fiz_home = async () => {
   $('fiz-home-nr').textContent = `${sot.length} sot · ${sot.filter((f) => f.statusi === 'ne_arke').length} në arkë`;
 };
 
+// ---------- S'E KEMI: kërkesat e klientëve për produkte që mungojnë ----------
+// Shitësja ruan 1–6 screenshot/foto; Super Admini i sheh të gjitha sipas periudhës (RLS: të tjerët vetëm të vetat).
+const MN_KANALET = ['Instagram', 'Facebook', 'TikTok', 'WhatsApp', 'Viber', 'Në dyqan', 'Tjetër'];
+const MN_PERIUDHAT = [['sot', 'Sot'], ['dje', 'Dje'], ['java', 'Kjo javë'], ['java_kaluar', 'Java e kaluar'], ['muaji', 'Ky muaj'], ['30', '30 ditët e fundit']];
+let mnFotot = [], mnKanali = null, mnPeriudha = 'sot', mnLista = [], mnUrl = new Map();
+const ditaPlus = (dita, n) => { const d = new Date(dita + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+function fillimiDitesKS(dita) {   // ora 00:00 në Kosovë si moment UTC, pavarësisht orës së pajisjes
+  const t = new Date(dita + 'T00:00:00Z');
+  const ks = new Date(t.toLocaleString('en-US', { timeZone: 'Europe/Belgrade' })), utc = new Date(t.toLocaleString('en-US', { timeZone: 'UTC' }));
+  return new Date(t.getTime() - (ks - utc));
+}
+function mnKufijte(p) {   // → [prej, deri) si data KS
+  const sot = dataKS(), neser = ditaPlus(sot, 1), dh = (new Date(sot + 'T12:00:00Z').getUTCDay() + 6) % 7, eHena = ditaPlus(sot, -dh);   // java nis të hënën
+  return { sot: [sot, neser], dje: [ditaPlus(sot, -1), sot], java: [eHena, neser], java_kaluar: [ditaPlus(eHena, -7), eHena],
+    muaji: [sot.slice(0, 8) + '01', neser], 30: [ditaPlus(sot, -29), neser] }[p];
+}
+function mnFototVizato() {
+  $('mn-nr').textContent = `${mnFotot.length} / 6`;
+  $('mn-fotot').innerHTML = mnFotot.map((f, i) => `<div class="foto"><img src="${f.url}" alt="foto ${i + 1}"><button class="rrezik" data-i="${i}">✕</button></div>`).join('');
+  $('mn-fotot').querySelectorAll('button').forEach((b) => b.onclick = () => { URL.revokeObjectURL(mnFotot[+b.dataset.i].url); mnFotot.splice(+b.dataset.i, 1); mnFototVizato(); });
+  $('mn-fotot').querySelectorAll('img').forEach((im, i) => im.onclick = () => hapZoom(mnFotot.map((f) => ({ url: f.url })), i));
+}
+async function mnShtoFotot(fajllat) {
+  for (const f of fajllat) {
+    if (mnFotot.length >= 6) { alert('Lejohen deri 6 foto për një kërkesë.'); break; }
+    try { const blob = await zvogelo(f, 2200); mnFotot.push({ blob, url: URL.createObjectURL(blob) }); } catch (err) { alert(err.message); }   // 2200 px: teksti i screenshot-it lexohet qartë
+  }
+  mnFototVizato();
+}
+$('mn-gal-inp').onchange = $('mn-kam-inp').onchange = (e) => { const f = [...e.target.files]; e.target.value = ''; mnShtoFotot(f); };
+$('mn-gal').onclick = () => $('mn-gal-inp').click();
+$('mn-kam').onclick = () => $('mn-kam-inp').click();
+document.addEventListener('paste', (e) => {   // në kompjuter: Ctrl+V e një screenshot-i
+  if (!$('f-mungesat').classList.contains('aktive')) return;
+  const f = [...(e.clipboardData?.files || [])].filter((x) => x.type.startsWith('image/'));
+  if (f.length) { e.preventDefault(); mnShtoFotot(f); }
+});
+function mnKanaletVizato() {
+  $('mn-kanali').innerHTML = MN_KANALET.map((k) => `<button type="button" class="${k === mnKanali ? 'on' : ''}">${k}</button>`).join('');
+  $('mn-kanali').querySelectorAll('button').forEach((b) => b.onclick = () => { mnKanali = b.textContent; try { localStorage.setItem('mn-kanali', mnKanali); } catch {} mnKanaletVizato(); });
+}
+$('mn-ruaj').onclick = async () => {
+  const m = $('mn-mesazh');
+  if (!mnFotot.length) { m.className = 'mesazh gabim'; m.textContent = 'Shto të paktën 1 screenshot ose foto.'; return; }
+  const btn = $('mn-ruaj'); btn.disabled = true; m.className = 'mesazh pritje'; m.textContent = '⏳ Po ruhen fotot…';
+  const muaji = dataKS().slice(0, 7), rruget = [];
+  try {
+    for (const f of mnFotot) {
+      const rruga = `${muaji}/${[...crypto.getRandomValues(new Uint8Array(12))].map((x) => x.toString(16).padStart(2, '0')).join('')}.jpg`;
+      const { error } = await sb.storage.from('kerkesat-fotot').upload(rruga, f.blob, { contentType: 'image/jpeg' });
+      if (error) throw new Error('Fotot nuk u ngarkuan: ' + error.message);
+      rruget.push(rruga);
+    }
+    const { error } = await sb.from('kerkesat_mungese').insert({ krijuar_emri: profili.emri || null, kanali: mnKanali, pershkrimi: $('mn-pershkrimi').value.trim() || null, fotot: rruget });
+    if (error) throw new Error(error.message);
+    mnFotot.forEach((f) => URL.revokeObjectURL(f.url)); mnFotot = []; mnFototVizato(); $('mn-pershkrimi').value = '';
+    m.className = 'mesazh ok'; m.textContent = `✅ U ruajt (${rruget.length} foto). Faleminderit!`;
+    mnNgarko();
+  } catch (e) {
+    if (rruget.length) await sb.storage.from('kerkesat-fotot').remove(rruget);   // mos lër foto pa kërkesë
+    m.className = 'mesazh gabim'; m.textContent = '❌ ' + e.message;
+  }
+  btn.disabled = false;
+};
+async function mnNgarko() {
+  const eAdmin = profili.roli === 'admin';
+  const [prej, deri] = eAdmin ? mnKufijte(mnPeriudha) : mnKufijte('sot');
+  $('mn-galeria').innerHTML = '<p class="zbehte">⏳ Po ngarkohen…</p>';
+  const { data, error } = await sb.from('kerkesat_mungese').select('*').gte('krijuar', fillimiDitesKS(prej).toISOString()).lt('krijuar', fillimiDitesKS(deri).toISOString())
+    .order('krijuar', { ascending: false }).limit(500);
+  if (error) { $('mn-galeria').innerHTML = `<p class="mesazh gabim">❌ ${esc(error.message)}</p>`; return; }
+  mnLista = data || [];
+  const rruget = [...new Set(mnLista.flatMap((k) => k.fotot))].filter((r) => !mnUrl.has(r));
+  for (let i = 0; i < rruget.length; i += 200) {   // URL të përkohshme (1 orë), sepse fotot janë private
+    const { data: u } = await sb.storage.from('kerkesat-fotot').createSignedUrls(rruget.slice(i, i + 200), 3600);
+    (u || []).forEach((x) => { if (x.signedUrl) mnUrl.set(x.path, x.signedUrl); });
+  }
+  if (eAdmin) {
+    const vlerat = (fusha) => [...new Set(mnLista.map((k) => k[fusha]).filter(Boolean))].sort();
+    for (const [id, fusha] of [['mn-shitesja', 'krijuar_emri'], ['mn-f-kanali', 'kanali']]) {
+      const s = $(id), z = s.value;
+      s.innerHTML = s.options[0].outerHTML + vlerat(fusha).map((v) => `<option ${v === z ? 'selected' : ''}>${esc(v)}</option>`).join('');
+    }
+  }
+  mnVizato();
+}
+function mnVizato() {
+  const eAdmin = profili.roli === 'admin', sh = eAdmin ? $('mn-shitesja').value : '', ka = eAdmin ? $('mn-f-kanali').value : '';
+  const lista = mnLista.filter((k) => (!sh || k.krijuar_emri === sh) && (!ka || k.kanali === ka));
+  const nrFoto = lista.reduce((s, k) => s + k.fotot.length, 0);
+  $('mn-permbledhja').textContent = lista.length ? `${lista.length} kërkesa · ${nrFoto} foto${eAdmin ? ' · kliko foton për ta hapur të madhe (zoom)' : ''}` : '';
+  if (!lista.length) { $('mn-galeria').innerHTML = `<p class="zbehte">${eAdmin ? 'Asnjë kërkesë në këtë periudhë.' : 'Ende asnjë kërkesë sot.'}</p>`; return; }
+  // të gjitha fotot e periudhës në një varg, që në zoom të kalohet nga njëra te tjetra
+  const fotot = lista.flatMap((k) => k.fotot.map((r, j) => ({ url: mnUrl.get(r), tekst: `${oraKS(k.krijuar)} · ${k.krijuar_emri || ''}${k.kanali ? ' · ' + k.kanali : ''}${k.pershkrimi ? ' · ' + k.pershkrimi : ''}${k.fotot.length > 1 ? ` · foto ${j + 1}/${k.fotot.length}` : ''}` })));
+  const fillimi = new Map(); let n = 0; lista.forEach((k) => { fillimi.set(k.id, n); n += k.fotot.length; });
+  const ditet = new Map(); lista.forEach((k) => { const d = dataKS(new Date(k.krijuar)); if (!ditet.has(d)) ditet.set(d, []); ditet.get(d).push(k); });
+  const DITET = ['E diel', 'E hënë', 'E martë', 'E mërkurë', 'E enjte', 'E premte', 'E shtunë'];   // jo toLocaleDateString: disa shfletues s'kanë shqipen
+  const emriDites = (d) => (d === dataKS() ? 'Sot · ' : d === ditaPlus(dataKS(), -1) ? 'Dje · ' : '') + `${DITET[new Date(d + 'T12:00:00Z').getUTCDay()]} ${d.slice(8)}.${d.slice(5, 7)}`;
+  $('mn-galeria').innerHTML = [...ditet].map(([d, kk]) => `<div class="mn-dita">${esc(emriDites(d))} · ${kk.length} kërkesa</div><div class="mn-grid">${kk.map((k) => {
+    const oraVet = new Date(k.krijuar).toLocaleTimeString('sq-AL', { timeZone: 'Europe/Belgrade', hour: '2-digit', minute: '2-digit' });
+    const fshihet = eAdmin || (k.krijuar_nga === perdoruesi.id && Date.now() - new Date(k.krijuar) < 864e5);
+    return `<div class="mn-karte"><button class="mn-foto" data-i="${fillimi.get(k.id)}" title="Hape të madhe">${mnUrl.get(k.fotot[0]) ? `<img src="${esc(mnUrl.get(k.fotot[0]))}" loading="lazy" alt="kërkesa e klientit">` : ''}${k.fotot.length > 1 ? `<span class="mn-sa">${k.fotot.length} foto</span>` : ''}</button>
+      <div class="mn-info">${fshihet ? `<button class="heq" data-fshi="${k.id}" title="Fshije">🗑</button>` : ''}<b>${esc(oraVet)}</b>${k.kanali ? ' · ' + esc(k.kanali) : ''}<br><span class="zbehte">${esc(k.krijuar_emri || '')}</span>${k.pershkrimi ? `<div>${esc(k.pershkrimi)}</div>` : ''}</div></div>`; }).join('')}</div>`).join('');
+  $('mn-galeria').querySelectorAll('.mn-foto').forEach((b) => b.onclick = () => hapZoom(fotot, +b.dataset.i));
+  $('mn-galeria').querySelectorAll('[data-fshi]').forEach((b) => b.onclick = async () => {
+    const k = mnLista.find((x) => x.id === b.dataset.fshi);
+    if (!confirm(`Ta fshij këtë kërkesë (${k.fotot.length} foto)?`)) return;
+    const { error } = await sb.from('kerkesat_mungese').delete().eq('id', k.id);
+    if (error) return alert('❌ ' + error.message);
+    await sb.storage.from('kerkesat-fotot').remove(k.fotot); mnNgarko();
+  });
+}
+$('mn-shitesja').onchange = $('mn-f-kanali').onchange = () => mnVizato();
+NGARKUESIT.mungesat = () => {
+  const eAdmin = profili.roli === 'admin';
+  if (!mnKanali) { try { mnKanali = localStorage.getItem('mn-kanali'); } catch {} }
+  if (!MN_KANALET.includes(mnKanali)) mnKanali = profili.roli === 'shitese_fizike' ? 'Në dyqan' : 'Instagram';
+  mnKanaletVizato(); mnFototVizato();
+  $('mn-admin').hidden = !eAdmin;
+  $('mn-titulli').textContent = eAdmin ? 'Të gjitha kërkesat' : 'Kërkesat e mia sot';
+  $('mn-periudha').innerHTML = MN_PERIUDHAT.map(([k, t]) => `<button type="button" data-p="${k}" class="${k === mnPeriudha ? 'on' : ''}">${t}</button>`).join('');
+  $('mn-periudha').querySelectorAll('button').forEach((b) => b.onclick = () => { mnPeriudha = b.dataset.p; NGARKUESIT.mungesat(); });
+  mnNgarko();
+};
+
+// ---------- Shikuesi i fotove me zoom ----------
+// items: [{ url, tekst }]. Zoom: dy gishta, rrota e mausit, dy prekje / dy klikime, butonat ＋ −. Kur s'ka zoom: rrëshqit për foton tjetër.
+function hapZoom(items, i0 = 0) {
+  items = items.filter((x) => x && x.url); if (!items.length) return;
+  let i = Math.min(Math.max(0, i0), items.length - 1), s = 1, x = 0, y = 0;
+  const d = document.createElement('div'); d.id = 'zoom';
+  d.innerHTML = `<div class="zm-bar"><b class="zm-nr"></b><span><button data-a="minus" title="Zvogëlo">−</button><button data-a="plus" title="Zmadho">＋</button><button data-a="reset" title="Madhësia fillestare">⟲</button><button data-a="mbyll" title="Mbyll">✕</button></span></div>
+    <div class="zm-skena"><img alt="foto"></div>
+    ${items.length > 1 ? '<button class="zm-shig zm-maj" data-a="prev" title="Foto e mëparshme">‹</button><button class="zm-shig zm-dj" data-a="next" title="Foto tjetër">›</button>' : ''}
+    <div class="zm-tekst"></div>`;
+  document.body.appendChild(d); document.body.style.overflow = 'hidden';
+  const sk = d.querySelector('.zm-skena'), img = d.querySelector('img');
+  const kufizo = () => {   // fotoja s'del jashtë ekranit kur zhvendoset
+    const mx = Math.max(0, (img.offsetWidth * s - sk.clientWidth) / 2), my = Math.max(0, (img.offsetHeight * s - sk.clientHeight) / 2);
+    x = Math.min(mx, Math.max(-mx, x)); y = Math.min(my, Math.max(-my, y));
+  };
+  const apliko = () => { kufizo(); img.style.transform = `translate(${x}px, ${y}px) scale(${s})`; sk.style.cursor = s > 1 ? 'grab' : 'zoom-in'; };
+  const zoomTe = (ns, cx, cy) => {   // zoom rreth pikës (cx, cy) në ekran
+    ns = Math.min(8, Math.max(1, ns)); const r = sk.getBoundingClientRect();
+    const px = (cx ?? r.left + r.width / 2) - (r.left + r.width / 2), py = (cy ?? r.top + r.height / 2) - (r.top + r.height / 2);
+    x = px - (px - x) * (ns / s); y = py - (py - y) * (ns / s); s = ns; if (s === 1) x = y = 0; apliko();
+  };
+  const shfaq = () => {
+    s = 1; x = y = 0; img.src = items[i].url; apliko();
+    d.querySelector('.zm-nr').textContent = items.length > 1 ? `${i + 1} / ${items.length}` : '';
+    d.querySelector('.zm-tekst').textContent = items[i].tekst || '';
+  };
+  const shko = (h) => { if (items.length > 1) { i = (i + h + items.length) % items.length; shfaq(); } };
+  const mbyll = () => { d.remove(); document.body.style.overflow = ''; document.removeEventListener('keydown', tastiera); window.removeEventListener('resize', apliko); };
+  const tastiera = (e) => { if (e.key === 'Escape') mbyll(); else if (e.key === 'ArrowRight') shko(1); else if (e.key === 'ArrowLeft') shko(-1); else if (e.key === '+') zoomTe(s * 1.4); else if (e.key === '-') zoomTe(s / 1.4); };
+  document.addEventListener('keydown', tastiera);
+  d.querySelectorAll('[data-a]').forEach((b) => b.onclick = (e) => { e.stopPropagation();
+    ({ minus: () => zoomTe(s / 1.5), plus: () => zoomTe(s * 1.5), reset: () => zoomTe(1), mbyll, prev: () => shko(-1), next: () => shko(1) })[b.dataset.a](); });
+  sk.addEventListener('wheel', (e) => { e.preventDefault(); zoomTe(s * (e.deltaY < 0 ? 1.2 : 1 / 1.2), e.clientX, e.clientY); }, { passive: false });
+  const gishtat = new Map(); let fillim = null, prekjaFundit = 0;
+  sk.addEventListener('pointerdown', (e) => {
+    sk.setPointerCapture(e.pointerId); gishtat.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const p = [...gishtat.values()];
+    fillim = p.length === 2 ? { dist: Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y), s } : { x: e.clientX, y: e.clientY, x0: x, y0: y, s };
+  });
+  sk.addEventListener('pointermove', (e) => {
+    if (!gishtat.has(e.pointerId) || !fillim) return;
+    gishtat.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const p = [...gishtat.values()];
+    if (p.length === 2 && fillim.dist) zoomTe(fillim.s * Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y) / fillim.dist, (p[0].x + p[1].x) / 2, (p[0].y + p[1].y) / 2);
+    else if (p.length === 1 && s > 1 && fillim.x0 !== undefined) { x = fillim.x0 + e.clientX - fillim.x; y = fillim.y0 + e.clientY - fillim.y; apliko(); }
+  });
+  const leshim = (e) => {
+    if (!gishtat.has(e.pointerId)) return;
+    const pa = gishtat.size; gishtat.delete(e.pointerId);
+    if (pa === 1 && fillim && fillim.x !== undefined) {
+      const dx = e.clientX - fillim.x, dy = e.clientY - fillim.y;
+      if (fillim.s === 1 && Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy)) shko(dx < 0 ? 1 : -1);   // rrëshqitje → foto tjetër
+      else if (Math.abs(dx) < 8 && Math.abs(dy) < 8) {   // prekje: dy prekje radhazi = zoom 2.5× / kthim
+        if (Date.now() - prekjaFundit < 320) { zoomTe(s > 1 ? 1 : 2.5, e.clientX, e.clientY); prekjaFundit = 0; } else prekjaFundit = Date.now();
+      }
+    }
+    fillim = null;
+    if (gishtat.size === 1) { const [p] = gishtat.values(); fillim = { x: p.x, y: p.y, x0: x, y0: y, s }; }
+  };
+  sk.addEventListener('pointerup', leshim); sk.addEventListener('pointercancel', leshim);
+  img.onload = apliko; window.addEventListener('resize', apliko);
+  shfaq();
+}
+
 // ---------- TRANSFER ----------
 let tr = { rreshtat: [], celesi: celesRi('TR') };
 function trVizato() {
@@ -1599,9 +1833,7 @@ async function ngarkoFotot(lista = onl.fotot) {   // → rrugët në bucket poro
 async function shikoFotot(rruget, bucket = 'porosi-fotot') {
   const { data, error } = await sb.storage.from(bucket).createSignedUrls(rruget, 600);
   if (error) return alert('Fotot nuk u hapën: ' + error.message);
-  const d = document.createElement('div'); d.id = 'fotot-shikues';
-  d.innerHTML = '<p style="color:#fff">Kliko kudo për ta mbyllur</p>' + data.map((x) => `<img src="${esc(x.signedUrl)}" alt="foto e bisedës">`).join('');
-  d.onclick = () => d.remove(); document.body.appendChild(d);
+  hapZoom(data.map((x, i) => ({ url: x.signedUrl, tekst: data.length > 1 ? `Foto ${i + 1} / ${data.length}` : '' })));   // i njëjti shikues me zoom
 }
 function onlTeDhenat() {
   const t = onlTotalet();
