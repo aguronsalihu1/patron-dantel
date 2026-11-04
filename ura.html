@@ -1247,14 +1247,18 @@ function mgFotoEkzistues(a) {
     <div class="butona"><button class="kryesor" id="mg-ruaj-foto">✅ Ruaj fotot</button><button class="dyte" id="mg-anulo">Anulo</button></div></div>`;
   mgFotoLidh(); $('mg-anulo').onclick = () => { $('mg-forma').innerHTML = ''; };
   $('mg-ruaj-foto').onclick = async () => {
-    if (!mgFotot.length) return alert('Zgjidh të paktën 1 foto.');
+    if (!mgFotot.length) return alert('Bëj ose zgjidh të paktën 1 foto.');
+    const btn = $('mg-ruaj-foto'); btn.disabled = true; btn.textContent = '⏳ Po ruhen fotot…';
     try {
       const rruget = await mgNgarkoFotot();
       const { error } = await sb.from('artikujt_fotot').insert(rruget.map((rruga) => ({ artikulli_id: a.prodata_id, rruga })));
       if (error) throw new Error(error.message);
       $('mg-forma').innerHTML = ''; $('mg-mesazh').className = 'mesazh ok'; $('mg-mesazh').textContent = `✅ Fotot e "${a.emri}" u ruajtën.`; mgKontrollo();
-    } catch (e) { alert('❌ ' + e.message); }
+      $('mg-mesazh').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } catch (e) { btn.disabled = false; btn.textContent = '✅ Ruaj fotot'; alert('❌ ' + e.message); }
   };
+  // forma del poshtë listës së rezultateve: zbrit te ajo, përndryshe në tablet duket sikur s'ndodh asgjë
+  $('mg-forma').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 async function mgCaktivizo(a) {
   const arsyeja = prompt(`Çaktivizo "${a.emri}" (kodi ${a.kodi})?\nNuk do të shfaqet më në lista dhe shitje; historia ruhet dhe mund të rikthehet.\n\nArsyeja:`, 'Regjistruar gabim');
