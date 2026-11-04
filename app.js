@@ -55,6 +55,9 @@ async function startScanner(onDecoded){
 }
 
 function phoneToEmail(phone){
+  // username (ka të paktën një shkronjë) → u.<username>@patrondantel.local, si te ura.html; përndryshe telefoni
+  const u = String(phone).trim().toLowerCase().replace(/ë/g,'e').replace(/ç/g,'c').replace(/\s+/g,'');
+  if (/[a-z]/.test(u) && !u.includes('@')) return `u.${u}@patrondantel.local`;
   const digits = String(phone).replace(/\D/g,'');
   return `p${digits}@patrondantel.local`;
 }
@@ -69,7 +72,7 @@ $('#login-form').addEventListener('submit', async (e)=>{
   if(error && raw.includes('@')){
     ({ error } = await sb.auth.signInWithPassword({ email: raw, password: pass }));
   }
-  if(error){ $('#login-error').textContent = 'Numri i telefonit/email-i ose fjalëkalimi gabim.'; $('#login-error').style.display='block'; return; }
+  if(error){ $('#login-error').textContent = 'Numri i telefonit/username ose fjalëkalimi gabim.'; $('#login-error').style.display='block'; return; }
   await afterLogin();
 });
 $('#logout-link').addEventListener('click', async (e)=>{ e.preventDefault(); await sb.auth.signOut(); location.reload(); });

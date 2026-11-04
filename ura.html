@@ -223,7 +223,7 @@
 <div id="hyrja">
   <h2>Hyrja</h2>
   <form id="forma-hyrja">
-    <label>Numri i telefonit <input id="h-tel" type="text" autocomplete="username" placeholder="p.sh. 044 123 456" required></label>
+    <label>Numri i telefonit ose username <input id="h-tel" type="text" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="p.sh. 044 123 456 ose florjeta" required></label>
     <label>Fjalëkalimi <input id="h-pass" type="password" autocomplete="current-password" required></label>
     <button class="kryesor" type="submit" style="width:100%">Hyr</button>
   </form>
@@ -599,12 +599,12 @@
       <div class="tit">+ Përdorues i ri</div>
       <div class="rresht" style="margin-top:8px">
         <label>Emri <input id="ad-k-emri" placeholder="p.sh. Florjeta" style="width:170px"></label>
-        <label>Numri i telefonit <input id="ad-k-tel" inputmode="tel" placeholder="044 123 456" style="width:150px"></label>
+        <label>Telefoni ose username <input id="ad-k-tel" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="044 123 456 ose florjeta" style="width:190px"></label>
         <label>Fjalëkalimi <span style="display:flex;gap:6px"><input id="ad-k-pass" style="width:150px" autocomplete="new-password"><button class="dyte" type="button" id="ad-k-gjenero" title="Gjenero">↻</button></span></label>
         <label>Roli <select id="ad-k-roli"></select></label>
         <button class="kryesor" id="ad-k-krijo">Krijo llogarinë</button>
       </div>
-      <div class="zbehte">Punëtori hyn me këtë numër telefoni dhe fjalëkalim, si te kjo faqe, ashtu edhe te Patron Dantel. Fjalëkalimi: të paktën 8 shenja.</div>
+      <div class="zbehte">Punëtori hyn me këtë numër telefoni ose username dhe fjalëkalim, si te kjo faqe, ashtu edhe te Patron Dantel. Username: 3–30 shenja (shkronja, shifra, . _ -), pa hapësira. Fjalëkalimi: të paktën 8 shenja.</div>
     </div>
     <div class="rresht"><label>Kërko <input id="ad-kerko" placeholder="emri, telefoni ose emaili" style="width:260px"></label>
       <label>Shfaq <select id="ad-filtri"><option value="te_gjitha">Të gjitha</option><option value="me_qasje">Vetëm me qasje</option><option value="pa_qasje">Vetëm pa qasje</option></select></label></div>
@@ -732,13 +732,18 @@ $('shtepia').onclick = () => { if (history.state && history.state.faqe) history.
 window.addEventListener('popstate', () => { if (profili && KRYEFAQJA[profili.roli]) hapFaqen(KRYEFAQJA[profili.roli]); });
 
 // ---------- Hyrja ----------
+// Llogaritë hyjnë me telefon (p<shifrat>@patrondantel.local, si te Patron Dantel) ose me username (u.<username>@patrondantel.local).
+// Username: shkronja të vogla pa ë/ç, shifra, . _ - ; duhet të ketë të paktën një shkronjë (që të mos ngatërrohet me telefonin).
+const pastroUsername = (s) => String(s || '').trim().toLowerCase().replace(/ë/g, 'e').replace(/ç/g, 'c').replace(/\s+/g, '');
+const eshteUsername = (s) => /[a-z]/.test(pastroUsername(s)) && !String(s).includes('@');
+const emailIHyrjes = (raw) => (eshteUsername(raw) ? `u.${pastroUsername(raw)}@patrondantel.local` : `p${String(raw).replace(/\D/g, '')}@patrondantel.local`);
 $('forma-hyrja').onsubmit = async (e) => {
   e.preventDefault();
   const m = $('h-mesazh'); m.className = 'mesazh pritje'; m.textContent = 'Duke hyrë…';
   const raw = $('h-tel').value.trim(), pass = $('h-pass').value;
-  let { error } = await sb.auth.signInWithPassword({ email: `p${raw.replace(/\D/g, '')}@patrondantel.local`, password: pass });
+  let { error } = await sb.auth.signInWithPassword({ email: emailIHyrjes(raw), password: pass });
   if (error && raw.includes('@')) ({ error } = await sb.auth.signInWithPassword({ email: raw, password: pass }));
-  if (error) { m.className = 'mesazh gabim'; m.textContent = 'Numri i telefonit ose fjalëkalimi gabim.'; return; }
+  if (error) { m.className = 'mesazh gabim'; m.textContent = 'Numri i telefonit / username ose fjalëkalimi gabim.'; return; }
   m.className = 'mesazh'; $('h-pass').value = '';
 };
 $('dil').onclick = () => sb.auth.signOut();
@@ -2503,14 +2508,17 @@ $('ad-k-pass').value = fjalekalimProvizor();
 $('ad-k-gjenero').onclick = () => { $('ad-k-pass').value = fjalekalimProvizor(); };
 $('ad-k-krijo').onclick = async () => {
   const emri = $('ad-k-emri').value.trim(), tel = $('ad-k-tel').value.trim(), pass = $('ad-k-pass').value, roli = $('ad-k-roli').value;
-  if (!emri || tel.replace(/\D/g, '').length < 8 || pass.length < 8) return alert('Plotëso emrin, numrin e telefonit dhe fjalëkalimin (të paktën 8 shenja).');
+  const meUsername = eshteUsername(tel), username = pastroUsername(tel);
+  if (!emri || pass.length < 8) return alert('Plotëso emrin dhe fjalëkalimin (të paktën 8 shenja).');
+  if (meUsername && !/^[a-z0-9._-]{3,30}$/.test(username)) return alert('Username: 3–30 shenja, vetëm shkronja (pa ë/ç), shifra, pikë, _ ose -, pa hapësira.');
+  if (!meUsername && tel.replace(/\D/g, '').length < 8) return alert('Shkruaj numrin e telefonit (të paktën 8 shifra) ose një username.');
   if (!confirm(`Krijo llogarinë:\n${emri} · ${tel} · ${ROLET[roli]}?`)) return;
   const btn = $('ad-k-krijo'); btn.disabled = true;
   const m = $('ad-mesazh'); m.className = 'mesazh pritje'; m.textContent = 'Duke krijuar llogarinë…';
-  const r = await thirrMenaxhimin({ veprimi: 'krijo', emri, telefoni: tel, fjalekalimi: pass, roli });
+  const r = await thirrMenaxhimin({ veprimi: 'krijo', emri, ...(meUsername ? { username } : { telefoni: tel }), fjalekalimi: pass, roli });
   btn.disabled = false;
   if (r.ok) {
-    m.className = 'mesazh ok'; m.innerHTML = `✅ ${esc(r.mesazhi)} Jepja personit: <b>${esc(tel)}</b> dhe fjalëkalimin që zgjodhe.`;
+    m.className = 'mesazh ok'; m.innerHTML = `✅ ${esc(r.mesazhi)} Jepja personit: ${meUsername ? 'username' : 'numrin'} <b>${esc(meUsername ? username : tel)}</b> dhe fjalëkalimin që zgjodhe.`;
     $('ad-k-emri').value = ''; $('ad-k-tel').value = ''; $('ad-k-pass').value = fjalekalimProvizor(); NGARKUESIT.admin();
   } else { m.className = 'mesazh gabim'; m.textContent = '❌ ' + r.error; }
 };
