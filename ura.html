@@ -317,10 +317,13 @@
       <h2 style="margin:0">Paneli raportues <span class="live">LIVE</span></h2>
       <div class="rresht" style="margin:0">
         <label>Pika e shitjes <select id="p-pika"><option value="">Të gjitha pikat</option></select></label>
-        <label>Periudha <select id="p-periudha"><option value="sot">Sot</option><option value="dje">Dje</option><option value="7">7 ditët e fundit</option><option value="muaj">Ky muaj</option></select></label>
+        <label>Periudha <select id="p-periudha"><option value="sot">Sot</option><option value="dje">Dje</option><option value="7">7 ditët e fundit</option><option value="muaj">Ky muaj</option><option value="muaj_kaluar">Muaji i kaluar</option><option value="zgjidh">📅 Zgjidh datat…</option></select></label>
+        <label id="p-prej-l" hidden>Prej <input type="date" id="p-prej"></label>
+        <label id="p-deri-l" hidden>Deri <input type="date" id="p-deri"></label>
       </div>
     </div>
     <p class="zbehte" id="p-rifreskuar"></p>
+    <div class="udhezim" id="p-kufiri" hidden></div>
     <div id="p-pikat-blloku"><h3>Sipas pikave të shitjes</h3><div class="karta" id="p-pikat"></div></div>
     <h3>Shitjet</h3><div class="karta" id="p-shitjet"></div>
     <h3>Pagesat e pranuara</h3><div class="karta" id="p-pagesat"></div>
@@ -2699,16 +2702,42 @@ async function ngarkoPikat() {
   pikat = data || [];
   $('p-pika').innerHTML = '<option value="">Të gjitha pikat</option>' + pikat.map((p) => `<option value="${esc(p.kodi)}">${esc(p.emri)}</option>`).join('');
 }
+// Periudha e panelit: edhe muaji i kaluar dhe çfarëdo datash të zgjedhura (një ditë: e njëjta datë te "Prej" dhe "Deri")
+function panelPeriudha() {
+  const v = $('p-periudha').value;
+  if (v === 'muaj_kaluar') { const d = new Date(dataKS().slice(0, 8) + '01T12:00:00Z'); d.setUTCDate(0); const fund = d.toISOString().slice(0, 10); return [fund.slice(0, 8) + '01', fund]; }
+  if (v !== 'zgjidh') return periudha(v);
+  const sot = dataKS();
+  if (!$('p-prej').value) $('p-prej').value = sot;
+  if (!$('p-deri').value) $('p-deri').value = $('p-prej').value;
+  if ($('p-prej').value > $('p-deri').value) $('p-deri').value = $('p-prej').value;   // "Deri" s'mund të jetë para "Prej"
+  return [$('p-prej').value, $('p-deri').value];
+}
+const dataShqip = (d) => d.split('-').reverse().join('.');
+let panelKufijte = null, panelNr = 0;
+async function panelKufiri(prej) {   // të dhënat në panel nuk fillojnë nga dita e parë e Pro-Data-s: tregoje, që 0 të mos lexohet si "s'ka pasur shitje"
+  if (!panelKufijte) {
+    const [a, b] = await Promise.all([sb.from('prodata_shitjet').select('data').order('data').limit(1).maybeSingle(), sb.from('prodata_pagesat_ditore').select('data').order('data').limit(1).maybeSingle()]);
+    panelKufijte = { shitjet: a.data ? dataKS(new Date(a.data.data)) : null, pagesat: b.data ? String(b.data.data).slice(0, 10) : null };
+  }
+  const m = [panelKufijte.shitjet, panelKufijte.pagesat].filter(Boolean).sort().pop();
+  const el = $('p-kufiri'); el.hidden = !(m && prej < m);
+  if (!el.hidden) el.textContent = `⚠️ Paneli ka të dhëna vetëm nga ${dataShqip(m)} e tutje. Para kësaj date raporti del i paplotë, edhe pse në Pro-Data ka dokumente.`;
+}
 async function paneli() {
+  const nr = ++panelNr;   // ndryshim i shpejtë datash: vetëm përgjigjja e fundit vizatohet
   await ngarkoPikat();
-  const [prej, deri] = periudha($('p-periudha').value);
+  const [prej, deri] = panelPeriudha();
   const pika = pikat.find((p) => p.kodi === $('p-pika').value) || null;
   const fillim = new Date(new Date(prej + 'T00:00:00Z').getTime() - 3 * 3600e3).toISOString();
+  const fund = new Date(new Date(deri + 'T00:00:00Z').getTime() + 27 * 3600e3).toISOString();
+  panelKufiri(prej).catch(() => {});
   let [{ data: shPD }, { data: pag }, { data: bl }, { data: app }] = await Promise.all([
     sb.from('prodata_shitjet').select('databaza, txn, magazina, agjenti, menyra_pagese, totali, data').gte('data', prej + 'T00:00:00+02:00').lte('data', deri + 'T23:59:59+02:00').limit(10000),
     sb.from('prodata_pagesat_ditore').select('*').gte('data', prej).lte('data', deri).limit(10000),
     sb.from('prodata_blerjet_ditore').select('*').gte('data', prej).lte('data', deri).limit(10000),
-    sb.from('app_faturat').select('kanali, shitesja_emri, statusi, totali, krijuar, posta_nr, magazina').gte('krijuar', fillim)]);
+    sb.from('app_faturat').select('kanali, shitesja_emri, statusi, totali, krijuar, posta_nr, magazina').gte('krijuar', fillim).lt('krijuar', fund)]);
+  if (nr !== panelNr) return;
   const sum = (a, f = (x) => +x.totali) => a.reduce((t, x) => t + (f(x) || 0), 0);
   const karte = (tit, vl, det = '') => `<div class="karte"><div class="tit">${tit}</div><div class="vl">${vl}</div><div class="det">${det}</div></div>`;
   const appGj = (app || []).filter((f) => { const x = ditaKS(f.krijuar); return x >= prej && x <= deri; });
@@ -2744,16 +2773,19 @@ async function paneli() {
   $('p-stafi').innerHTML = karte('Shitësja më e mirë', top[0] ? esc(top[0][0]) : '—', top.slice(0, 5).map(([k, v]) => `${esc(k)}: ${eur(v)} €`).join('<br>'))
     + karte('Porosi online nga aplikacioni', appP.filter((f) => f.kanali === 'online' && f.statusi !== 'anuluar').length, `me nr. poste: ${appP.filter((f) => f.posta_nr).length}`)
     + karte('Porosi të dorëzuara në postë', '—', 'Lidhja me postën lokale dhe export-in: në pritje');
-  const { data: dp } = await sb.from('prodata_komandat').select('statusi, payload, krijuar').eq('lloji', 'transfer').eq('payload->>burimi', 'depo').gte('krijuar', fillim);
+  const { data: dp } = await sb.from('prodata_komandat').select('statusi, payload, krijuar').eq('lloji', 'transfer').eq('payload->>burimi', 'depo').gte('krijuar', fillim).lt('krijuar', fund);
+  if (nr !== panelNr) return;
   const dpP = (dp || []).filter((x) => { const d = ditaKS(x.krijuar); return d >= prej && d <= deri; });
   const dpN = (t) => dpP.filter((x) => (x.payload || {}).tipi === t);
   const art = (a) => a.reduce((t, x) => t + ((x.payload || {}).rreshtat || []).length, 0);
   $('p-depo').innerHTML = karte('📥 Hyrje interne', dpN('hyrje').length, art(dpN('hyrje')) + ' rreshta artikujsh')
     + karte('📤 Dalje interne', dpN('dalje').length, art(dpN('dalje')) + ' rreshta artikujsh')
     + karte('Në pritje / gabime', `${dpP.filter((x) => x.statusi === 'ne_pritje' || x.statusi === 'ne_proces').length} / ${dpP.filter((x) => x.statusi === 'gabim').length}`, 'kontrollo Administrimi → Komandat');
-  $('p-rifreskuar').textContent = `Rifreskuar: ${new Date().toLocaleTimeString('sq-AL', { timeZone: 'Europe/Belgrade' })} · të dhënat e Pro-Data-s vijnë çdo 1 minutë, faturat e aplikacionit menjëherë.`;
+  $('p-rifreskuar').textContent = `Raporti: ${prej === deri ? dataShqip(prej) : dataShqip(prej) + ' – ' + dataShqip(deri)} · Rifreskuar: ${new Date().toLocaleTimeString('sq-AL', { timeZone: 'Europe/Belgrade' })} · të dhënat e Pro-Data-s vijnë çdo 1 minutë, faturat e aplikacionit menjëherë.`;
 }
-$('p-periudha').onchange = paneli; $('p-pika').onchange = paneli;
+$('p-periudha').onchange = () => { const z = $('p-periudha').value === 'zgjidh'; $('p-prej-l').hidden = !z; $('p-deri-l').hidden = !z; paneli(); };
+$('p-pika').onchange = paneli;
+$('p-prej').onchange = $('p-deri').onchange = paneli;
 NGARKUESIT.paneli = paneli;
 setInterval(() => { const a = document.querySelector('section.faqe.aktive'); if (a && a.id === 'f-paneli') paneli(); }, 30000);
 
