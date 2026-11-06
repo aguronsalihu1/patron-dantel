@@ -218,6 +218,12 @@
   .mg-foto-bosh { border:2px dashed var(--kryesor) !important; color:var(--kryesor); cursor:pointer; flex-direction:column; font-size:22px !important; font-weight:700; padding:0; }
   .mg-foto-bosh small { font-size:10px; }
   .mg-forma { background:#fff; border:2px solid var(--kryesor); border-radius:18px; padding:16px; margin:12px 0; }
+  .tl-porosi { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:10px; padding:11px 2px; border-top:1px solid var(--vije); }
+  .tl-porosi b { overflow-wrap:anywhere; }
+  .tl-porosi .tl-det { font-size:13px; color:var(--zbehte); line-height:1.4; overflow-wrap:anywhere; }
+  .tl-porosi .tl-dj { text-align:right; }
+  .tl-porosi .tl-dj div { margin-top:4px; font-weight:600; }
+  .tl-porosi .tl-dj small { display:block; font-weight:400; color:var(--zbehte); }
   .tp-dy { display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:14px; align-items:start; }
   .tp-grafike { display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:12px; }
   .tp-grafike h4 { margin:0 0 10px; font-size:14px; }
@@ -373,6 +379,7 @@
   <section class="faqe" id="f-onl_home">
     <div class="onl-butonat">
       <button class="onl-buton onl-b-shitje" data-shko="onl_shitje">🛒<b>Shitje</b><small>Porosi e re online</small></button>
+      <button class="onl-buton onl-b-porosite" data-shko="tp_lista">📮<b>Tel-Post</b><small>Porositë dhe statusi i tyre</small></button>
       <button class="onl-buton onl-b-llogaria" data-shko="llogaria">👤<b>Llogaria ime</b><small>Puna ime sot</small></button>
       <button class="onl-buton onl-b-dalje" data-shko="mall">📦<b>Regjistro mall</b><small>Artikull i ri · shto sasi · foto</small></button>
       <button class="onl-buton onl-b-mungesa" data-shko="mungesat">🔍<b>S'e kemi</b><small>Klienti kërkoi diçka që mungon · screenshot</small></button>
@@ -568,6 +575,14 @@
     </div>
     <div class="tabela" id="tp-tabela"></div>
     <div class="tp-tt" id="tp-tt" hidden></div>
+  </section>
+
+  <!-- ===== TEL-POST: lista e thjeshtë për shitëset online dhe arkën ===== -->
+  <section class="faqe" id="f-tp_lista">
+    <div class="rresht" style="justify-content:space-between;margin:0 0 4px"><h2 style="margin:0">📮 Tel-Post: porositë</h2><span class="zbehte" id="tl-koha"></span></div>
+    <input id="tl-kerko" placeholder="Kërko: kodi, emri, telefoni, qyteti…" aria-label="Kërko porosi" autocomplete="off" style="width:100%;box-sizing:border-box;margin:10px 0">
+    <div class="chips" id="tl-filtrat" style="margin-bottom:10px"></div>
+    <div id="tl-lista"></div>
   </section>
 
   <!-- ===== TRANSFER ===== -->
@@ -825,9 +840,9 @@ const MENYTE = {
           ['stafi', '👷 Burime njerëzore'], ['klientet', '👥 Klientët'], ['produktet', '🧵 Produktet'], ['mall', '📦 Regjistro mall'], ['kontabiliteti', '📒 Kontabiliteti'], ['admin', '⚙️ Administrimi'], ['shitje', '➕ Faturë'], ['regjistrim', '📝 Regjistrim'], ['transfer', '🔁 Transfer']],
   depo: [['depo', '🏭 Depo']],
   // Depo dhe Transferi (magazina të tjera) mbeten vetëm te Super Admini
-  arka: [['arka', '🧾 Arka'], ['shitje', '➕ Faturë'], ['shitjet', '🛒 Shitjet'], ['blerjet', '📦 Blerjet'], ['pagesat', '💶 Arka dhe pagesat'], ['stafi', '👷 Burime njerëzore'],
+  arka: [['arka', '🧾 Arka'], ['shitje', '➕ Faturë'], ['shitjet', '🛒 Shitjet'], ['tp_lista', '📮 Tel-Post'], ['blerjet', '📦 Blerjet'], ['pagesat', '💶 Arka dhe pagesat'], ['stafi', '👷 Burime njerëzore'],
          ['klientet', '👥 Klientët'], ['produktet', '🧵 Produktet'], ['mall', '📦 Regjistro mall'], ['kontabiliteti', '📒 Kontabiliteti'], ['admin', '⚙️ Administrimi'], ['regjistrim', '📝 Regjistrim'], ['mungesat', "🔍 S'e kemi"]],
-  shitese_online: [['onl_home', '🏠 Kryefaqja'], ['onl_shitje', '🛒 Shitje'], ['llogaria', '👤 Llogaria ime'], ['mall', '📦 Regjistro mall'], ['mungesat', "🔍 S'e kemi"]],
+  shitese_online: [['onl_home', '🏠 Kryefaqja'], ['onl_shitje', '🛒 Shitje'], ['tp_lista', '📮 Tel-Post'], ['llogaria', '👤 Llogaria ime'], ['mall', '📦 Regjistro mall'], ['mungesat', "🔍 S'e kemi"]],
   shitese_fizike: [['fiz_home', '🏠 Kryefaqja'], ['shitje', '🧾 Faturë e re'], ['llogaria', '📋 Faturat e mia'], ['mall', '📦 Regjistro mall'], ['regjistrim', '📝 Regjistrim'], ['mungesat', "🔍 S'e kemi"]],
 };
 // Shitëset (online dhe fizike) kanë kryefaqe me butona të mëdhenj në vend të menysë lart
@@ -2209,6 +2224,39 @@ $('f-telposta').addEventListener('mouseleave', () => { $('tp-tt').hidden = true;
 window.addEventListener('scroll', () => { $('tp-tt').hidden = true; }, { passive: true });
 setInterval(() => { if ($('f-telposta').classList.contains('aktive') && !document.hidden) tpNgarko(); }, 60000);   // rifreskim vetë çdo minutë
 NGARKUESIT.telposta = tpNgarko;
+
+// --- Lista e thjeshtë për shitëset online dhe arkën: vetëm shikim, pa borxhe e analiza ---
+const TL_FILTRAT = [['', 'Të gjitha'], ['rruge', 'Në rrugë'], ['pritje', 'Në pritje'], ['dorezuar', 'Dorëzuar'], ['refuzuar', 'Refuzuar']];
+let tlP = [], tlFiltri = '';
+async function tlNgarko() {
+  try {
+    const rr = [];
+    for (let i = 0; ; i += 1000) {
+      const { data, error } = await sb.rpc('tp_lista_stafit').range(i, i + 999);
+      if (error) throw error;
+      rr.push(...data); if (data.length < 1000) break;
+    }
+    const [{ data: oraS }, { data: rb }] = await Promise.all([sb.rpc('tp_tani'), sb.from('telposta_robot').select('monitor_koha').eq('id', 1).maybeSingle()]);
+    tlP = rr;
+    const min = oraS && rb && rb.monitor_koha ? Math.max(0, Math.round((new Date(oraS) - new Date(rb.monitor_koha)) / 60000)) : null;
+    $('tl-koha').textContent = min === null ? '' : min > 20 ? `⚠️ Përditësuar para ${min} min: mund të mos jenë të fundit` : min === 0 ? 'Përditësuar tani' : `Përditësuar para ${min} min`;
+    tlVizato();
+  } catch (e) { $('tl-lista').innerHTML = `<p class="mesazh gabim" style="display:block">❌ ${esc(e.message)}</p>`; }
+}
+function tlVizato() {
+  const nr = (g) => (g ? tlP.filter((p) => tpGrupi(p.statusi) === g).length : tlP.length);
+  $('tl-filtrat').innerHTML = TL_FILTRAT.map(([k, t]) => `<button type="button" data-g="${k}" class="${k === tlFiltri ? 'on' : ''}">${t} ${nr(k)}</button>`).join('');
+  $('tl-filtrat').querySelectorAll('button').forEach((b) => b.onclick = () => { tlFiltri = b.dataset.g; tlVizato(); });
+  const q = $('tl-kerko').value.trim().toLowerCase();
+  const lista = tlP.filter((p) => (!tlFiltri || tpGrupi(p.statusi) === tlFiltri) && (!q || [p.kodi, p.pranuesi, p.telefoni, p.qyteti].some((v) => String(v || '').toLowerCase().includes(q))));
+  $('tl-lista').innerHTML = lista.slice(0, 300).map((p) => `<div class="tl-porosi"><div><b>${esc(p.kodi)} · ${esc(p.pranuesi || '—')}</b>
+      <div class="tl-det">${esc(p.telefoni || '')}${p.telefoni ? ' · ' : ''}${esc(p.qyteti || '')}${p.shteti ? ', ' + esc(p.shteti) : ''}<br>${tpData(p.data)} ${tpOra(p.data)}</div></div>
+    <div class="tl-dj">${tpShenja(p.statusi)}<div>${tpPara(p.vlera)}${+p.total !== +p.vlera ? `<small>me transport ${tpPara(p.total)}</small>` : ''}</div></div></div>`).join('')
+    + (lista.length > 300 ? '<p class="zbehte">Po shfaqen 300 të fundit. Përdor kërkimin.</p>' : '') || `<p class="zbehte">${tlP.length ? 'Asnjë porosi për këtë kërkim.' : 'Ende asnjë porosi.'}</p>`;
+}
+$('tl-kerko').oninput = tlVizato;
+setInterval(() => { if ($('f-tp_lista').classList.contains('aktive') && !document.hidden) tlNgarko(); }, 60000);
+NGARKUESIT.tp_lista = tlNgarko;
 
 // ---------- Shikuesi i fotove me zoom ----------
 // items: [{ url, tekst }]. Zoom: dy gishta, rrota e mausit, dy prekje / dy klikime, butonat ＋ −. Kur s'ka zoom: rrëshqit për foton tjetër.
