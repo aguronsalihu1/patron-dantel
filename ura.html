@@ -2671,7 +2671,8 @@ NGARKUESIT.onl_porosite = async () => {
   const { data: rb } = await sb.from('telposta_robot').select('*').eq('id', 1).maybeSingle();
   const r = $('onl-p-robot'); r.hidden = !rb || !rb.koha;
   if (rb && rb.koha) {
-    const iVdekur = Date.now() - new Date(rb.koha) > 10 * 60e3;
+    const { data: oraS } = await sb.rpc('tp_tani');   // ora e serverit: me orën e pajisjes, PC-ja e zyrës (9 orë gabim) e tregonte robotin gjithmonë të vdekur
+    const iVdekur = (oraS ? new Date(oraS).getTime() : Date.now()) - new Date(rb.koha) > 10 * 60e3;
     const [shenja, tekst] = !rb.aktiv ? ['⏸️', 'Roboti i Telpostës është i ndalur.'] : iVdekur ? ['🔴', 'Roboti i Telpostës nuk po përgjigjet (PC-ja e zyrës e fikur ose në gjumë?).']
       : rb.statusi === 'duhet_hyrje' ? ['🔴', 'Tel-Post kërkon hyrje: hyni te dritarja e robotit në PC-në e zyrës.'] : rb.statusi === 'gabim' ? ['🟠', 'Roboti i Telpostës: ' + (rb.mesazhi || 'gabim')]
       : rb.statusi === 'prove' ? ['🟡', 'Roboti i Telpostës në PROVË (verifikon, por nuk ruan). ' + (rb.mesazhi || '')] : ['🟢', 'Roboti i Telpostës aktiv: porositë e reja dërgohen vetë. ' + (rb.mesazhi || '')];
