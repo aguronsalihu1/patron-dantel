@@ -225,6 +225,19 @@
   .mg-foto-bosh { border:2px dashed var(--kryesor) !important; color:var(--kryesor); cursor:pointer; flex-direction:column; font-size:22px !important; font-weight:700; padding:0; }
   .mg-foto-bosh small { font-size:10px; }
   .mg-forma { background:#fff; border:2px solid var(--kryesor); border-radius:18px; padding:16px; margin:12px 0; }
+  .onl-b-gjej { background:linear-gradient(135deg, #0f766e, #14b8a6); }
+  .gj-karte { display:grid; grid-template-columns:96px minmax(0, 1fr); gap:12px; padding:12px; margin-top:10px; background:#fff; border:1px solid var(--vije); border-radius:14px; }
+  .gj-karte.ekzakt { border:2px solid var(--kryesor); }
+  .gj-foto { width:96px; height:120px; padding:0; border:0; border-radius:10px; overflow:hidden; background:#f4f2f5; cursor:zoom-in; }
+  .gj-foto img { width:100%; height:100%; object-fit:cover; display:block; }
+  .gj-pafoto { width:96px; height:120px; border-radius:10px; background:#f4f2f5; color:var(--zbehte); display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:12px; gap:4px; text-align:center; }
+  .gj-pafoto span { font-size:24px; }
+  .gj-emri { font-weight:700; overflow-wrap:anywhere; }
+  .gj-kodi { font-size:13px; color:var(--zbehte); overflow-wrap:anywhere; margin:2px 0 8px; }
+  .gj-fakte { display:grid; grid-template-columns:repeat(auto-fit, minmax(110px, 1fr)); gap:6px; }
+  .gj-fakt { background:#f6f4f8; border-radius:8px; padding:6px 9px; font-size:13px; overflow-wrap:anywhere; }
+  .gj-fakt small { display:block; color:var(--zbehte); font-size:12px; }
+  .gj-fakt b { font-size:15px; }
   .tl-porosi { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:10px; padding:11px 2px; border-top:1px solid var(--vije); }
   .tl-porosi b { overflow-wrap:anywhere; }
   .tl-porosi .tl-det { font-size:13px; color:var(--zbehte); line-height:1.4; overflow-wrap:anywhere; }
@@ -347,8 +360,9 @@
   <!-- ===== SHITJA FIZIKE: KRYEFAQJA ===== -->
   <section class="faqe" id="f-fiz_home">
     <div class="onl-butonat">
-      <button class="onl-buton onl-b-shitje" data-shko="shitje">🧾<b>Faturë e re</b><small>Produktet → barkodi → arka</small></button>
-      <button class="onl-buton onl-b-porosite" data-shko="llogaria">📋<b>Faturat e mia</b><small id="fiz-home-nr">Faturat e sotme</small></button>
+      <button class="onl-buton onl-b-shitje" data-shko="shitje">🧾<b>Shitje</b><small>Produktet → barkodi → arka</small></button>
+      <button class="onl-buton onl-b-gjej" data-shko="gjej">🔎<b>Gjej artikullin</b><small>Foto · kodi · ku gjendet · sasia · të shitura</small></button>
+      <button class="onl-buton onl-b-porosite" data-shko="llogaria">👤<b>Llogaria ime</b><small id="fiz-home-nr">Faturat e sotme</small></button>
       <button class="onl-buton onl-b-llogaria" data-shko="mall">📦<b>Regjistro mall</b><small>Artikull i ri · shto sasi · foto</small></button>
       <button class="onl-buton onl-b-dalje" data-shko="regjistrim">📝<b>Dalje / shpenzime</b><small>Mall që del pa shitje</small></button>
       <button class="onl-buton onl-b-mungesa" data-shko="mungesat">🔍<b>S'e kemi</b><small>Klienti kërkoi diçka që mungon · foto</small></button>
@@ -356,7 +370,7 @@
   </section>
 
   <section class="faqe" id="f-shitje">
-    <div class="rresht" style="justify-content:space-between"><h2 style="margin:0">🧾 Faturë e re</h2><span class="zbehte" id="sh-ora"></span></div>
+    <div class="rresht" style="justify-content:space-between"><h2 style="margin:0" id="sh-titulli">🧾 Faturë e re</h2><span class="zbehte" id="sh-ora"></span></div>
     <div class="tp-forma" style="margin-bottom:6px">
       <label>Pika e shitjes <select id="sh-magazina"></select></label>
       <label>Emri i klientit <input id="sh-klienti-emri" placeholder="opsionale, p.sh. Arta K."></label>
@@ -589,6 +603,15 @@
     </div>
     <div class="tabela" id="tp-tabela"></div>
     <div class="tp-tt" id="tp-tt" hidden></div>
+  </section>
+
+  <!-- ===== GJEJ ARTIKULLIN: shitëset fizike, vetëm shikim ===== -->
+  <section class="faqe" id="f-gjej">
+    <h2>🔎 Gjej artikullin</h2>
+    <div class="ar-skano-kuti"><span class="ikona">▥</span>
+      <input id="gj-kerko" placeholder="barkodi, kodi ose emri i artikullit…" autocomplete="off" aria-label="Kërko artikull">
+      <button class="kryesor" type="button" id="gj-skano">📷 Skano</button></div>
+    <div id="gj-lista"></div>
   </section>
 
   <!-- ===== TEL-POST: lista e thjeshtë për shitëset online dhe arkën ===== -->
@@ -874,7 +897,7 @@ const MENYTE = {
   arka: [['arka', '🧾 Arka'], ['shitje', '➕ Faturë'], ['shitjet', '🛒 Shitjet'], ['tp_lista', '📮 Tel-Post'], ['blerjet', '📦 Blerjet'], ['pagesat', '💶 Arka dhe pagesat'], ['stafi', '👷 Burime njerëzore'],
          ['klientet', '👥 Klientët'], ['produktet', '🧵 Produktet'], ['mall', '📦 Regjistro mall'], ['kontabiliteti', '📒 Kontabiliteti'], ['admin', '⚙️ Administrimi'], ['regjistrim', '📝 Regjistrim'], ['mungesat', "🔍 S'e kemi"]],
   shitese_online: [['onl_home', '🏠 Kryefaqja'], ['onl_shitje', '🛒 Shitje'], ['tp_lista', '📮 Tel-Post'], ['llogaria', '👤 Llogaria ime'], ['mall', '📦 Regjistro mall'], ['mungesat', "🔍 S'e kemi"]],
-  shitese_fizike: [['fiz_home', '🏠 Kryefaqja'], ['shitje', '🧾 Faturë e re'], ['llogaria', '📋 Faturat e mia'], ['mall', '📦 Regjistro mall'], ['regjistrim', '📝 Regjistrim'], ['mungesat', "🔍 S'e kemi"]],
+  shitese_fizike: [['fiz_home', '🏠 Kryefaqja'], ['shitje', '🧾 Shitje'], ['gjej', '🔎 Gjej artikullin'], ['llogaria', '👤 Llogaria ime'], ['mall', '📦 Regjistro mall'], ['regjistrim', '📝 Regjistrim'], ['mungesat', "🔍 S'e kemi"]],
 };
 // Shitëset (online dhe fizike) kanë kryefaqe me butona të mëdhenj në vend të menysë lart
 const KRYEFAQJA = { shitese_online: 'onl_home', shitese_fizike: 'fiz_home' };
@@ -1067,7 +1090,7 @@ function shfaqBarkodin(el, f, meFatureRe) {
   el.innerHTML = `<div class="barkodi"><div class="nr">Fatura nr. ${f.nr}</div><div class="tot">${eur(f.totali)} €</div><svg id="bk-${f.nr}"></svg>
     <div>Statusi: <span class="bk-st" data-id="${f.id}">${shenje(f.statusi)}${f.porosia_nr ? ' → <b>' + esc(f.porosia_nr) + '</b>' : ''}</span></div>
     <p class="zbehte">Printoje biletën dhe jepja klientit, ose tregoja barkodin arkëtares.</p>
-    <div class="butona" style="justify-content:center"><button class="kryesor bk-print">🖨️ Printo biletën me barkod</button>${meFatureRe ? '<button class="dyte bk-re">+ Faturë e re</button>' : ''}</div></div>`;
+    <div class="butona" style="justify-content:center"><button class="kryesor bk-print">🖨️ Printo biletën me barkod</button>${meFatureRe ? `<button class="dyte bk-re">+ ${profili.roli === 'shitese_fizike' ? 'Shitje e re' : 'Faturë e re'}</button>` : ''}</div></div>`;
   JsBarcode(`#bk-${f.nr}`, 'PD' + f.nr, { format: 'CODE128', height: 90, displayValue: true, fontSize: 18 });
   el.hidden = false;
   el.querySelector('.bk-print').onclick = () => printoBileten(f);
@@ -1105,6 +1128,7 @@ async function rifreskoStatusetBk() {
   for (const x of el) { const f = (data || []).find((d) => d.id === x.dataset.id); if (f) x.innerHTML = shenje(f.statusi) + (f.porosia_nr ? ' → <b>' + esc(f.porosia_nr) + '</b>' : ''); }
 }
 NGARKUESIT.shitje = async () => {
+  $('sh-titulli').textContent = profili.roli === 'shitese_fizike' ? '🧾 Shitje' : '🧾 Faturë e re';
   const ePlote = ['admin', 'arka'].includes(profili.roli);   // shitësja fizike: pa kod klienti dhe pa "shitje direkte"
   $('sh-kodi-l').hidden = $('sh-direkt').hidden = !ePlote;
   rifreskoStatusetBk();
@@ -1741,10 +1765,42 @@ NGARKUESIT.mall = async (ngaRealtime) => {
       ${r.gabimi ? `<div style="color:var(--gabim)">${esc(r.gabimi)}</div>` : ''}</div></div></div>`; }).join('') || '<p class="zbehte">Ende asnjë regjistrim.</p>';
 };
 
+// ---------- GJEJ ARTIKULLIN (shitëset fizike): vetëm shikim ----------
+let gjNr = 0;
+const gjSasi = (x, nj) => `${(+x || 0).toLocaleString('de-DE', { maximumFractionDigits: 2 })}${nj ? ' ' + esc(nj) : ''}`;
+async function gjKerko() {
+  const q = $('gj-kerko').value.trim(), el = $('gj-lista'), nr = ++gjNr;
+  if (q.length < 2) { el.innerHTML = '<p class="zbehte">Skano barkodin ose shkruaj të paktën 2 shkronja.</p>'; return; }
+  el.innerHTML = '<p class="zbehte">⏳ Po kërkohet…</p>';
+  try {
+    const art = await kerkoArtikuj(q);
+    if (nr !== gjNr) return;
+    if (!art.length) { el.innerHTML = '<p class="zbehte">Asnjë artikull me këtë kod ose emër.</p>'; return; }
+    const idt = art.map((a) => a.prodata_id);
+    const [fotot, sh] = await Promise.all([fotoArtikujsh(idt), sb.rpc('artikull_shitur', { p_artikujt: idt })]);
+    if (nr !== gjNr) return;
+    if (sh.error) throw new Error(sh.error.message);
+    const shitur = new Map((sh.data || []).map((x) => [x.artikulli_id, x]));
+    el.innerHTML = art.map((a) => {
+      const f = fotot.get(a.prodata_id), ekz = a.barkodi === q || a.kodi === q, s = shitur.get(a.prodata_id), total = a.stoku.reduce((t, x) => t + x.sasia, 0);
+      const ku = a.stoku.map((x) => `${esc(emriMag(x.magazina))}: <b>${gjSasi(x.sasia, a.njesia)}</b>`).join('<br>') || 'Nuk gjendet në stok';
+      return `<div class="gj-karte ${ekz ? 'ekzakt' : ''}">${f ? `<button class="gj-foto" type="button" data-foto="${esc(a.prodata_id)}" title="Hape të madhe"><img src="${esc(f)}" alt="foto e artikullit" loading="lazy"></button>` : '<div class="gj-pafoto"><span>📷</span>Pa foto</div>'}
+        <div><div class="gj-emri">${esc(a.emri)}</div><div class="gj-kodi">Kodi <b>${esc(a.kodi)}</b>${a.barkodi && a.barkodi !== a.kodi ? ' · Barkodi ' + esc(a.barkodi) : ''} · ${eur(a.cmimi)} €</div>
+          <div class="gj-fakte"><div class="gj-fakt"><small>📍 Ku gjendet</small>${ku}</div><div class="gj-fakt"><small>📦 Sasia</small><b>${gjSasi(total, a.njesia)}</b></div>
+            <div class="gj-fakt"><small>🛒 Të shitura (nga 1.1.2026)</small><b>${gjSasi(s ? s.sasia : 0, a.njesia)}</b>${s && s.e_fundit ? `<small>e fundit ${esc(dataShqip(String(s.e_fundit).slice(0, 10)))}</small>` : ''}</div></div></div></div>`;
+    }).join('');
+    el.querySelectorAll('[data-foto]').forEach((b) => b.onclick = () => shikoFototArtikullit(b.dataset.foto));
+  } catch (e) { if (nr === gjNr) el.innerHTML = `<p class="mesazh gabim" style="display:block">❌ ${esc(e.message)}</p>`; }
+}
+(() => { let t; $('gj-kerko').oninput = () => { clearTimeout(t); t = setTimeout(gjKerko, 300); }; })();
+$('gj-kerko').onkeydown = (e) => { if (e.key === 'Enter') gjKerko(); };
+$('gj-skano').onclick = () => dkSkaneri((kodi) => { $('gj-kerko').value = kodi; gjKerko(); });
+NGARKUESIT.gjej = (ngaRealtime) => { if (!ngaRealtime) setTimeout(() => $('gj-kerko').focus(), 50); };
+
 // ---------- LLOGARIA IME ----------
 NGARKUESIT.llogaria = async () => {
   const fill = new Date(dataKS() + 'T00:00:00');
-  $('ll-titulli').textContent = profili.roli === 'shitese_fizike' ? '📋 Faturat e mia' : 'Llogaria ime';
+  $('ll-titulli').textContent = profili.roli === 'shitese_fizike' ? '👤 Llogaria ime' : 'Llogaria ime';
   const { data } = await sb.from('app_faturat').select('*').eq('shitesja_id', perdoruesi.id).gte('krijuar', new Date(fill.getTime() - 3 * 3600e3).toISOString()).order('krijuar', { ascending: false });
   const sot = (data || []).filter((f) => dataKS(new Date(f.krijuar)) === dataKS());
   const reg = sot.filter((f) => f.statusi === 'regjistruar');
