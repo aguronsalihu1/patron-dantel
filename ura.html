@@ -657,7 +657,7 @@
   <!-- ===== BLERJET ===== -->
   <section class="faqe" id="f-blerjet">
     <h2>Blerjet dhe shpenzimet (nga Pro-Data)</h2>
-    <div class="tabela"><table><thead><tr><th>Data</th><th>Lloji</th><th class="num">Dokumente</th><th class="num">Vlera me TVSH</th></tr></thead><tbody id="bl-tabela"></tbody></table></div>
+    <div class="tabela"><table><thead><tr><th>Data</th><th>Departamenti</th><th>Lloji</th><th class="num">Dokumente</th><th class="num">Vlera me TVSH</th></tr></thead><tbody id="bl-tabela"></tbody></table></div>
   </section>
 
   <!-- ===== DEPO (Depoja Kryesore dhe magazinat e tjera) ===== -->
@@ -2962,7 +2962,9 @@ NGARKUESIT.blerjet = async () => {
   let q = sb.from('prodata_blerjet_ditore').select('*'); const mags = depMagazinat(); if (mags) q = q.in('magazina', mags);
   const { data } = await q.order('data', { ascending: false }).limit(200);
   const n = { BLS01: 'Shpenzime / shërbime', BLV01: 'Blerje vendore', BLI01: 'Blerje import' };
-  $('bl-tabela').innerHTML = (data || []).map((x) => `<tr><td>${x.data}</td><td>${n[x.txn] || x.txn}</td><td class="num">${x.nr}</td><td class="num">${eur(x.shuma)} €</td></tr>`).join('') || '<tr><td colspan="4" class="zbehte">Asnjë</td></tr>';
+  // emri nga pikat (edhe kodet që Pro-Data i shkruan ndryshe, si 008 dhe 12), pastaj nga magazinat; bosh = dokument pa departament
+  const emriDep = (x) => { const p = pikat.find((y) => iPerket(y, x.databaza, x.magazina)); return p ? p.emri : x.magazina ? emriMag(x.magazina) : 'Pa departament'; };
+  $('bl-tabela').innerHTML = (data || []).map((x) => `<tr><td>${x.data}</td><td>${esc(emriDep(x))}</td><td>${n[x.txn] || x.txn}</td><td class="num">${x.nr}</td><td class="num">${eur(x.shuma)} €</td></tr>`).join('') || '<tr><td colspan="5" class="zbehte">Asnjë</td></tr>';
 };
 NGARKUESIT.pagesat = async () => {
   await ngarkoPikat();
