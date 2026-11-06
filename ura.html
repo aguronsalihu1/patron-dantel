@@ -168,6 +168,21 @@
   .mn-karte .mn-info .heq { float:right; font-size:16px; }
   .onl-b-mungesa { background:linear-gradient(135deg, #9f1239, #f43f5e); }
   .fr-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:12px; margin-top:12px; }
+  .fr-rresht { display:grid; grid-template-columns:52px minmax(0, 1fr) auto; gap:12px; align-items:center; width:100%; padding:10px 12px; margin-top:8px; background:#fff; color:inherit; border:1px solid var(--vije); border-radius:12px; text-align:left; font:inherit; cursor:pointer; box-shadow:none; }
+  .fr-rresht:hover { border-color:var(--kryesor); background:#fff; }
+  .fr-mini { width:52px; height:52px; border-radius:8px; background:#f4f2f5 center/cover no-repeat; display:flex; align-items:center; justify-content:center; font-size:22px; }
+  .fr-rr-tit { font-weight:700; overflow-wrap:anywhere; line-height:1.3; }
+  .fr-rr-det { font-size:13px; color:var(--zbehte); overflow-wrap:anywhere; line-height:1.35; }
+  .fr-rr-dj { text-align:right; font-size:13px; white-space:nowrap; }
+  .fr-rr-dj b { display:block; font-size:15px; }
+  .fr-nf-i { display:inline-block; background:var(--kryesor); color:#fff; border-radius:999px; padding:0 8px; font-size:12px; font-weight:700; margin-right:6px; }
+  .fr-kartela { display:grid; grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); gap:4px 16px; margin-top:8px; font-size:14px; }
+  .fr-kartela small { display:block; color:var(--zbehte); font-size:12px; }
+  .fr-porosi-koka-b { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:10px; align-items:center; width:100%; background:none; border:0; padding:0; color:inherit; font:inherit; text-align:left; cursor:pointer; box-shadow:none; }
+  .fr-porosi-koka-b:hover { background:none; }
+  .fr-shigjeta { display:inline-block; transition:transform .15s; color:var(--zbehte); margin-left:6px; }
+  .fr-porosi.hapur .fr-shigjeta { transform:rotate(90deg); }
+  .fr-veprimet { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:10px; }
   .fr-karte { display:flex; flex-direction:column; text-align:left; padding:0; background:#fff; color:inherit; border:1px solid var(--vije); border-radius:14px; overflow:hidden; cursor:pointer; box-shadow:var(--hije); font:inherit; }
   .fr-karte:hover { border-color:var(--kryesor); }
   .fr-kopertina { height:130px; width:100%; background:#f4f2f5 center/cover no-repeat; display:flex; align-items:center; justify-content:center; font-size:34px; position:relative; }
@@ -578,7 +593,7 @@
   <section class="faqe" id="f-furnitoret">
     <h2>🚚 Furnitorët</h2>
     <div id="fr-pamja"></div>
-    <input type="file" id="fr-gal-inp" accept="image/*" multiple class="fsheh"><input type="file" id="fr-kam-inp" accept="image/*" capture="environment" class="fsheh">
+    <input type="file" id="fr-gal-inp" accept="image/*" multiple class="fsheh"><input type="file" id="fr-kam-inp" accept="image/*" capture="environment" class="fsheh"><input type="file" id="fr-excel-inp" accept=".xlsx,.xls" class="fsheh">
   </section>
 
   <!-- ===== TEL-POST: pasqyra e llogarisë, vetëm Super Admin ===== -->
@@ -1977,7 +1992,10 @@ NGARKUESIT.mungesat = () => {
 // ---------- FURNITORËT (vetëm Super Admin) ----------
 const FR_STATUSET = { pa_konfirmim: '❔ Pa konfirmim', porositur: '📝 Porositur', ne_rruge: '🚢 Në rrugë', pranuar: '✅ Pranuar', anuluar: '🚫 Anuluar' };
 const FR_MAX_FOTO = 4;
+const FR_KLASA = { pa_konfirmim: 's-hapur', porositur: 's-pritje', ne_rruge: 's-pritje', pranuar: 's-ok', anuluar: 's-gabim' };
 let frF = [], frP = [], frR = [], frUrl = new Map(), frUrlKoha = 0, frZgjedhur = null, frKerkimi = '', frForma = null, frFormaF = null, frFotoPer = 0;
+let frPamjaL = 'furnitoret', frFiltriS = '', frHapur = new Set(), frExcelFurnitor = null, frExcelFile = null;
+const frTotali = (rr) => { const g = {}; rr.forEach((r) => { if (r.sasia != null) g[r.njesia || ''] = (g[r.njesia || ''] || 0) + Number(r.sasia); }); return Object.entries(g).map(([n, s]) => `${s.toLocaleString('de-DE')}${n ? ' ' + n : ''}`).join(' + '); };
 const frData = (d) => (d ? d.split('-').reverse().join('.') : 'pa datë');
 const frEmri = (f) => f.emri || `Furnitori ${f.kodi}`;
 const frRreshtat = (pid) => frR.filter((r) => r.porosi_id === pid).sort((a, b) => a.renditja - b.renditja);
@@ -2017,31 +2035,61 @@ async function frNgarko() {
 }
 function frVizato() { if (frZgjedhur && frF.some((f) => f.id === frZgjedhur)) frDetajet(); else { frZgjedhur = null; frLista(); } }
 
+// Një rresht porosie: përdoret te "Të gjitha porositë" dhe te kërkimi
+function frRreshtPorosi(p) {
+  const f = frF.find((x) => x.id === p.furnitor_id) || {}, rr = frRreshtat(p.id), foto = rr.flatMap((r) => r.fotot).map((x) => frUrl.get(x)).find(Boolean), tot = frTotali(rr);
+  return `<button class="fr-rresht" type="button" data-porosi="${p.id}"><span class="fr-mini" ${foto ? `style="background-image:url('${esc(foto)}')"` : ''}>${foto ? '' : '📋'}</span>
+    <span><span class="fr-rr-tit">${esc(p.titulli)}</span><span class="fr-rr-det" style="display:block"><span class="fr-nf-i">${esc(f.kodi || '')}</span>${esc(frEmri(f))} · ${frData(p.data)}</span></span>
+    <span class="fr-rr-dj"><span class="shenje ${FR_KLASA[p.statusi] || 's-hapur'}">${FR_STATUSET[p.statusi] || esc(p.statusi)}</span>${tot ? `<b style="margin-top:4px">${esc(tot)}</b>` : ''}</span></button>`;
+}
+function frLidhPorosite(vendi) {
+  vendi.querySelectorAll('[data-porosi]').forEach((b) => b.onclick = () => { const p = frP.find((x) => x.id === b.dataset.porosi); frZgjedhur = p.furnitor_id; frFiltriS = ''; frHapur.add(p.id); frKerkimi = ''; frForma = null; frFormaF = null; frVizato(); window.scrollTo(0, 0); });
+}
 function frLista() {
   const kartat = frF.map((f) => { const pp = frPorosite(f.id); return { f, pp, fundit: pp[0]?.data || '' }; })
     .sort((a, b) => b.fundit.localeCompare(a.fundit) || a.f.kodi.localeCompare(b.f.kodi));
-  $('fr-pamja').innerHTML = `<div class="rresht" style="align-items:flex-end">
-      <label style="flex:1;min-width:200px">Kërko <input id="fr-kerko" value="${esc(frKerkimi)}" placeholder="furnitor, kod artikulli, ngjyrë…" style="width:100%;box-sizing:border-box" autocomplete="off"></label>
-      <button class="kryesor" id="fr-i-ri" type="button">➕ Furnitor i ri</button></div>
-    <div id="fr-forma-f"></div><div id="fr-rezultati"></div>`;
-  const vizatoRezultatin = () => {
-    const q = frTek(frKerkimi.trim());
-    const dukshme = !q ? kartat : kartat.filter(({ f }) => [f.kodi, f.kodi_prodata, f.emri, f.shteti, f.adresa].some((v) => frTek(v).includes(q)));
-    const pFurn = new Map(frP.map((p) => [p.id, p]));
-    const gjetur = !q ? [] : frR.filter((r) => [r.kodi, r.ngjyra, pFurn.get(r.porosi_id)?.titulli].some((v) => frTek(v).includes(q)));
-    $('fr-rezultati').innerHTML = `${dukshme.length ? `<div class="fr-grid">${dukshme.map(({ f, pp, fundit }) => {
-      const foto = pp.flatMap((p) => frRreshtat(p.id)).flatMap((r) => r.fotot).map((x) => frUrl.get(x)).find(Boolean);
-      const nr = pp.reduce((s, p) => s + frRreshtat(p.id).length, 0);
-      return `<button class="fr-karte" type="button" data-f="${f.id}"><span class="fr-kopertina" ${foto ? `style="background-image:url('${esc(foto)}')"` : ''}><span class="fr-nf">${esc(f.kodi)}</span>${foto ? '' : '🧵'}</span>
-        <span class="fr-karte-info"><b>${esc(frEmri(f))}</b><small>${esc(f.shteti || '')}${f.shteti ? ' · ' : ''}${pp.length} porosi · ${nr} rreshta</small><small>${fundit ? 'E fundit: ' + frData(fundit) : 'Ende pa porosi'}</small></span></button>`; }).join('')}</div>` : (q && !gjetur.length ? '<p class="zbehte">Asgjë nuk u gjet.</p>' : '')}
-      ${gjetur.length ? `<h3>Në porosi (${gjetur.length})</h3><div class="tabela"><table><thead><tr><th>Furnitori</th><th>Porosia</th><th>Kodi</th><th>Ngjyra</th><th class="num">Sasia</th></tr></thead><tbody>${gjetur.slice(0, 200).map((r) => { const p = pFurn.get(r.porosi_id), f = frF.find((x) => x.id === p.furnitor_id);
-        return `<tr class="fr-rr" data-f="${f.id}" style="cursor:pointer"><td>${esc(f.kodi)} · ${esc(frEmri(f))}</td><td>${esc(p.titulli)}<br><small class="zbehte">${frData(p.data)}</small></td><td>${esc(r.kodi || '—')}</td><td>${esc(r.ngjyra || '—')}</td><td class="num">${esc(frSasi(r))}</td></tr>`; }).join('')}</tbody></table></div>` : ''}`;
-    $('fr-rezultati').querySelectorAll('[data-f]').forEach((b) => b.onclick = () => { frZgjedhur = b.dataset.f; frForma = null; frFormaF = null; frVizato(); window.scrollTo(0, 0); });
+  const nr = (ss) => frP.filter((p) => ss.includes(p.statusi)).length;
+  $('fr-pamja').innerHTML = `<div class="karta">
+      <div class="karte"><div class="tit">Furnitorë</div><div class="vl">${frF.length}</div><div class="det">${frF.filter((f) => !f.emri).length} pa emër</div></div>
+      <div class="karte"><div class="tit">Porosi gjithsej</div><div class="vl">${frP.length}</div><div class="det">${nr(['pranuar'])} të pranuara</div></div>
+      <div class="karte"><div class="tit">🚢 Në pritje të mallit</div><div class="vl">${nr(['porositur', 'ne_rruge'])}</div><div class="det">porositur ose në rrugë</div></div>
+      <div class="karte"><div class="tit">❔ Pa konfirmim</div><div class="vl">${nr(['pa_konfirmim'])}</div><div class="det">statusi duhet vendosur</div></div></div>
+    <div class="butona" style="margin-top:0"><button class="kryesor" id="fr-excel" type="button">📄 Ngarko porosi me Excel</button><button class="dyte" id="fr-i-ri" type="button">➕ Furnitor i ri</button></div>
+    <div id="fr-excel-zona"></div><div id="fr-forma-f"></div><div id="fr-forma-p"></div>
+    <div class="chips" style="margin:12px 0 8px"><button type="button" data-pamja="furnitoret" class="${frPamjaL === 'furnitoret' ? 'on' : ''}">🏭 Furnitorët</button><button type="button" data-pamja="porosite" class="${frPamjaL === 'porosite' ? 'on' : ''}">📋 Të gjitha porositë</button></div>
+    <input id="fr-kerko" value="${esc(frKerkimi)}" placeholder="Kërko: furnitor, porosi, kod artikulli, ngjyrë…" aria-label="Kërko" style="width:100%;box-sizing:border-box" autocomplete="off">
+    <div class="chips" id="fr-filtri-s" style="margin-top:8px"></div>
+    <div id="fr-rezultati"></div>`;
+  const vizato = () => {
+    const q = frTek(frKerkimi.trim()), z = $('fr-rezultati');
+    const perputhet = (p) => { const f = frF.find((x) => x.id === p.furnitor_id) || {};
+      return !q || [p.titulli, f.kodi, f.emri, frData(p.data)].some((v) => frTek(v).includes(q)) || frRreshtat(p.id).some((r) => [r.kodi, r.ngjyra].some((v) => frTek(v).includes(q))); };
+    $('fr-filtri-s').hidden = frPamjaL !== 'porosite';
+    if (frPamjaL === 'porosite') {
+      $('fr-filtri-s').innerHTML = [['', 'Të gjitha', frP.length], ...Object.entries(FR_STATUSET).map(([k, t]) => [k, t, frP.filter((p) => p.statusi === k).length])].filter((x) => !x[0] || x[2]).map(([k, t, n]) => `<button type="button" data-s="${k}" class="${k === frFiltriS ? 'on' : ''}">${t} ${n}</button>`).join('');
+      $('fr-filtri-s').querySelectorAll('button').forEach((b) => b.onclick = () => { frFiltriS = b.dataset.s; vizato(); });
+      const l = frP.filter((p) => (!frFiltriS || p.statusi === frFiltriS) && perputhet(p));
+      z.innerHTML = l.map(frRreshtPorosi).join('') || '<p class="zbehte">Asnjë porosi.</p>';
+    } else {
+      const dukshme = !q ? kartat : kartat.filter(({ f }) => [f.kodi, f.kodi_prodata, f.emri, f.shteti, f.adresa].some((v) => frTek(v).includes(q)));
+      const gjetur = q ? frP.filter(perputhet).filter((p) => !dukshme.some(({ f }) => f.id === p.furnitor_id)) : [];
+      z.innerHTML = dukshme.map(({ f, pp, fundit }) => {
+        const foto = pp.flatMap((p) => frRreshtat(p.id)).flatMap((r) => r.fotot).map((x) => frUrl.get(x)).find(Boolean), prit = pp.filter((p) => ['porositur', 'ne_rruge'].includes(p.statusi)).length;
+        return `<button class="fr-rresht" type="button" data-f="${f.id}"><span class="fr-mini" ${foto ? `style="background-image:url('${esc(foto)}')"` : ''}>${foto ? '' : '🏭'}</span>
+          <span><span class="fr-rr-tit"><span class="fr-nf-i">${esc(f.kodi)}</span>${esc(frEmri(f))}</span><span class="fr-rr-det" style="display:block">${esc(f.shteti || 'Shteti i pa shënuar')}${f.emri ? '' : ' · ⚠️ pa emër'}</span></span>
+          <span class="fr-rr-dj"><b>${pp.length} porosi</b>${fundit ? frData(fundit) : 'pa porosi'}${prit ? `<br>🚢 ${prit} në pritje` : ''}</span></button>`; }).join('')
+        + (gjetur.length ? `<h3>Në porositë (${gjetur.length})</h3>${gjetur.slice(0, 100).map(frRreshtPorosi).join('')}` : '') || '<p class="zbehte">Asgjë nuk u gjet.</p>';
+    }
+    z.querySelectorAll('[data-f]').forEach((b) => b.onclick = () => { frZgjedhur = b.dataset.f; frFiltriS = ''; frKerkimi = ''; frForma = null; frFormaF = null; frVizato(); window.scrollTo(0, 0); });
+    frLidhPorosite(z);
   };
-  $('fr-kerko').oninput = (e) => { frKerkimi = e.target.value; vizatoRezultatin(); };
+  $('fr-kerko').oninput = (e) => { frKerkimi = e.target.value; vizato(); };
+  document.querySelectorAll('#fr-pamja [data-pamja]').forEach((b) => b.onclick = () => { frPamjaL = b.dataset.pamja; frFiltriS = ''; frForma = null; frLista(); });
   $('fr-i-ri').onclick = () => { frFormaF = {}; frVizatoFormenF($('fr-forma-f')); };
-  vizatoRezultatin();
+  $('fr-excel').onclick = () => { frExcelFurnitor = null; $('fr-excel-inp').click(); };
+  vizato();
   if (frFormaF && !frZgjedhur) frVizatoFormenF($('fr-forma-f'));
+  if (frForma && !frZgjedhur) frVizatoFormenP();
 }
 
 function frVizatoFormenF(vendi) {
@@ -2069,35 +2117,51 @@ function frVizatoFormenF(vendi) {
 }
 
 function frDetajet() {
-  const f = frF.find((x) => x.id === frZgjedhur), pp = frPorosite(f.id);
+  const f = frF.find((x) => x.id === frZgjedhur), teGjitha = frPorosite(f.id), pp = teGjitha.filter((p) => !frFiltriS || p.statusi === frFiltriS);
   // të gjitha fotot e furnitorit në një varg, që në zoom të kalohet nga njëra te tjetra
-  const fotot = [], indeksi = new Map();
+  const fotot = [];
   const blloqet = pp.map((p) => {
     const dd = frDizajnet(frRreshtat(p.id));
-    return { p, dd: dd.map((d) => ({ ...d, nga: fotot.length, _: d.fotot.forEach((x) => { if (frUrl.get(x)) fotot.push({ url: frUrl.get(x), tekst: `${p.titulli} · ${frData(p.data)}${d.kodi ? ' · ' + d.kodi : ''} · ${d.rreshtat.map((r) => r.ngjyra).filter(Boolean).join(', ')}` }); }) })) };
+    return { p, dd: dd.map((d) => { const nga = fotot.length; d.fotot.forEach((x) => { if (frUrl.get(x)) fotot.push({ url: frUrl.get(x), tekst: `${p.titulli} · ${frData(p.data)}${d.kodi ? ' · ' + d.kodi : ''} · ${d.rreshtat.map((r) => r.ngjyra).filter(Boolean).join(', ')}` }); }); return { ...d, nga }; }) };
   });
-  const totali = (rr) => { const g = {}; rr.forEach((r) => { if (r.sasia != null) g[r.njesia || ''] = (g[r.njesia || ''] || 0) + Number(r.sasia); }); return Object.entries(g).map(([n, s]) => `${s.toLocaleString('de-DE')}${n ? ' ' + n : ''}`).join(' + '); };
   const info = [['Shteti', f.shteti], ['Adresa', f.adresa], ['Kontakti', f.kontakti], ['Telefoni', f.telefoni], ['Email', f.email], ['Kodi në Pro-Data', f.kodi_prodata]].filter(([, v]) => v);
+  const statuset = Object.entries(FR_STATUSET).map(([k, t]) => [k, t, teGjitha.filter((p) => p.statusi === k).length]).filter((x) => x[2]);
   $('fr-pamja').innerHTML = `<button class="dyte" type="button" id="fr-kthehu">‹ Të gjithë furnitorët</button>
-    <div class="karte" style="margin-top:10px"><div class="fr-porosi-koka"><h3 style="margin:0">${esc(f.kodi)} · ${esc(frEmri(f))}</h3><button class="dyte" type="button" id="fr-ndrysho">✏️ Ndrysho</button></div>
-      ${info.length ? `<div class="zbehte" style="margin-top:6px">${info.map(([k, v]) => `${k}: <b>${esc(v)}</b>`).join(' · ')}</div>` : ''}${f.shenim ? `<p class="fr-shenim">${esc(f.shenim)}</p>` : ''}</div>
+    <div class="karte" style="margin-top:10px"><div class="fr-porosi-koka"><h3 style="margin:0;overflow-wrap:anywhere"><span class="fr-nf-i">${esc(f.kodi)}</span>${esc(frEmri(f))}</h3><button class="dyte" type="button" id="fr-ndrysho">✏️ Ndrysho</button></div>
+      ${f.emri ? '' : '<p class="fr-shenim">⚠️ Ky furnitor nuk ka emër: shtoje me ✏️ Ndrysho.</p>'}
+      ${info.length ? `<div class="fr-kartela">${info.map(([k, v]) => `<div><small>${k}</small>${esc(v)}</div>`).join('')}</div>` : ''}${f.shenim ? `<p class="fr-shenim">${esc(f.shenim)}</p>` : ''}</div>
     <div id="fr-forma-f"></div>
-    <div class="butona" style="margin-top:12px"><button class="kryesor" type="button" id="fr-porosi-re">➕ Porosi e re</button></div>
-    <div id="fr-forma-p"></div>
-    <div class="zbehte" style="margin-top:10px">${pp.length} porosi${fotot.length ? ' · kliko foton për ta hapur të madhe (zoom)' : ''}</div>
-    ${blloqet.map(({ p, dd }) => `<div class="karte fr-porosi"><div class="fr-porosi-koka"><div><h4>${esc(p.titulli)}</h4><span class="zbehte">${frData(p.data)}${totali(frRreshtat(p.id)) ? ' · Gjithsej ' + esc(totali(frRreshtat(p.id))) : ''}</span></div>
-        <div class="butona" style="margin:0"><select data-statusi="${p.id}" aria-label="Statusi">${Object.entries(FR_STATUSET).map(([k, t]) => `<option value="${k}" ${k === p.statusi ? 'selected' : ''}>${t}</option>`).join('')}</select><button class="dyte" type="button" data-ndrysho="${p.id}">✏️</button><button class="heq" type="button" data-fshi="${p.id}" title="Fshije porosinë">🗑</button></div></div>
-      ${p.mberritja ? `<p class="fr-shenim">🛬 Mbërritja: <b>${esc(p.mberritja)}</b></p>` : ''}${p.shenim ? `<p class="fr-shenim">📝 ${esc(p.shenim)}</p>` : ''}${p.burimi ? `<p class="fr-shenim">📄 ${esc(p.burimi.replace(/#.*$/, ''))}</p>` : ''}
-      ${dd.map((d) => { const url = d.fotot.map((x) => frUrl.get(x)).filter(Boolean); return `<div class="fr-dizajn ${url.length ? '' : 'pa-foto'}">${url.length ? `<div class="fr-fotot">${url.map((u, i) => `<button class="fr-foto" type="button" data-z="${d.nga + i}" title="Hape të madhe"><img src="${esc(u)}" loading="lazy" alt="foto e artikullit"></button>`).join('')}</div>` : ''}
-        <div>${d.kodi ? `<div class="fr-kodi">Kodi: ${esc(d.kodi)}</div>` : ''}<table class="fr-ngjyrat"><tbody>${d.rreshtat.map((r) => `<tr><td>${esc(r.ngjyra || '—')}</td><td class="num">${esc(frSasi(r))}</td></tr>`).join('')}</tbody></table></div></div>`; }).join('')}</div>`).join('') || '<p class="zbehte">Ende pa porosi.</p>'}`;
-  $('fr-kthehu').onclick = () => { frZgjedhur = null; frForma = null; frFormaF = null; frVizato(); window.scrollTo(0, 0); };
+    <div class="butona" style="margin-top:12px"><button class="kryesor" type="button" id="fr-excel">📄 Ngarko porosi me Excel</button><button class="dyte" type="button" id="fr-porosi-re">➕ Porosi e re me dorë</button></div>
+    <div id="fr-excel-zona"></div><div id="fr-forma-p"></div>
+    <h3 style="margin-bottom:6px">Porositë (${teGjitha.length})</h3>
+    ${statuset.length > 1 ? `<div class="chips" id="fr-filtri-d" style="margin-bottom:6px">${[['', 'Të gjitha', teGjitha.length], ...statuset].map(([k, t, n]) => `<button type="button" data-s="${k}" class="${k === frFiltriS ? 'on' : ''}">${t} ${n}</button>`).join('')}</div>` : ''}
+    ${blloqet.map(({ p, dd }) => { const hapur = frHapur.has(p.id), rr = frRreshtat(p.id), tot = frTotali(rr), kopertina = rr.flatMap((r) => r.fotot).map((x) => frUrl.get(x)).find(Boolean);
+      return `<div class="karte fr-porosi ${hapur ? 'hapur' : ''}" data-porosia="${p.id}"><button class="fr-porosi-koka-b" type="button" data-hap="${p.id}" aria-expanded="${hapur}">
+          <span style="display:flex;gap:10px;align-items:center;min-width:0"><span class="fr-mini" ${kopertina ? `style="background-image:url('${esc(kopertina)}')"` : ''}>${kopertina ? '' : '📋'}</span>
+            <span style="min-width:0"><span class="fr-rr-tit" style="display:block">${esc(p.titulli)}</span><span class="fr-rr-det" style="display:block">${frData(p.data)} · ${rr.length} rreshta${tot ? ' · Gjithsej ' + esc(tot) : ''}</span></span></span>
+          <span style="white-space:nowrap"><span class="shenje ${FR_KLASA[p.statusi] || 's-hapur'}">${FR_STATUSET[p.statusi] || esc(p.statusi)}</span><span class="fr-shigjeta">›</span></span></button>
+        <div class="fr-trupi" ${hapur ? '' : 'hidden'}>
+          ${p.mberritja ? `<p class="fr-shenim">🛬 Mbërritja: <b>${esc(p.mberritja)}</b></p>` : ''}${p.shenim ? `<p class="fr-shenim">📝 ${esc(p.shenim)}</p>` : ''}
+          ${dd.map((d) => { const url = d.fotot.map((x) => frUrl.get(x)).filter(Boolean); return `<div class="fr-dizajn ${url.length ? '' : 'pa-foto'}">${url.length ? `<div class="fr-fotot">${url.map((u, i) => `<button class="fr-foto" type="button" data-z="${d.nga + i}" title="Hape të madhe"><img src="${esc(u)}" loading="lazy" alt="foto e artikullit"></button>`).join('')}</div>` : ''}
+            <div>${d.kodi ? `<div class="fr-kodi">Kodi: ${esc(d.kodi)}</div>` : ''}<table class="fr-ngjyrat"><tbody>${d.rreshtat.map((r) => `<tr><td>${esc(r.ngjyra || '—')}</td><td class="num">${esc(frSasi(r))}</td></tr>`).join('')}</tbody></table></div></div>`; }).join('')}
+          ${p.burimi ? `<p class="fr-shenim">📄 Skedari: ${esc(p.burimi.split('#')[0])}</p>` : ''}
+          <div class="fr-veprimet"><label style="flex-direction:row;align-items:center;gap:6px">Statusi <select data-statusi="${p.id}">${Object.entries(FR_STATUSET).map(([k, t]) => `<option value="${k}" ${k === p.statusi ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+            <button class="dyte" type="button" data-ndrysho="${p.id}">✏️ Ndrysho</button><button class="rrezik" type="button" data-fshi="${p.id}">🗑 Fshije</button></div></div></div>`; }).join('') || `<p class="zbehte">${teGjitha.length ? 'Asnjë porosi me këtë status.' : 'Ende pa porosi.'}</p>`}`;
+  $('fr-kthehu').onclick = () => { frZgjedhur = null; frForma = null; frFormaF = null; frFiltriS = ''; frVizato(); window.scrollTo(0, 0); };
   $('fr-ndrysho').onclick = () => { frFormaF = { ...f }; frVizatoFormenF($('fr-forma-f')); };
-  $('fr-porosi-re').onclick = () => { frForma = { furnitor_id: f.id, titulli: `ORDER LIST ${f.kodi}`, data: dataKS(), statusi: 'porositur', mberritja: '', shenim: '', dizajnet: [{ kodi: '', fotot: [], rreshtat: [{ ngjyra: '', sasia: '', njesia: '' }] }], fshijFotot: [] }; frVizatoFormenP(); };
+  $('fr-excel').onclick = () => { frExcelFurnitor = f.id; $('fr-excel-inp').click(); };
+  $('fr-porosi-re').onclick = () => { frForma = { furnitor_id: f.id, titulli: `ORDER LIST ${f.kodi}`, data: dataKS(), statusi: 'porositur', mberritja: '', shenim: '', dizajnet: [{ kodi: '', fotot: [], rreshtat: [{ ngjyra: '', sasia: '', njesia: '' }] }] }; frVizatoFormenP(); };
+  if ($('fr-filtri-d')) $('fr-filtri-d').querySelectorAll('button').forEach((b) => b.onclick = () => { frFiltriS = b.dataset.s; frDetajet(); });
+  $('fr-pamja').querySelectorAll('[data-hap]').forEach((b) => b.onclick = () => {
+    const id = b.dataset.hap, k = b.closest('.fr-porosi'), hap = !frHapur.has(id);
+    if (hap) frHapur.add(id); else frHapur.delete(id);
+    k.classList.toggle('hapur', hap); k.querySelector('.fr-trupi').hidden = !hap; b.setAttribute('aria-expanded', String(hap));
+  });
   $('fr-pamja').querySelectorAll('[data-z]').forEach((b) => b.onclick = () => hapZoom(fotot, +b.dataset.z));
   $('fr-pamja').querySelectorAll('[data-statusi]').forEach((s) => s.onchange = async () => {
     const { error } = await sb.from('furnitor_porosite').update({ statusi: s.value }).eq('id', s.dataset.statusi);
     if (error) { alert('❌ ' + error.message); return frNgarko(); }
-    frP.find((x) => x.id === s.dataset.statusi).statusi = s.value;
+    frP.find((x) => x.id === s.dataset.statusi).statusi = s.value; frDetajet();
   });
   $('fr-pamja').querySelectorAll('[data-ndrysho]').forEach((b) => b.onclick = () => {
     const p = frP.find((x) => x.id === b.dataset.ndrysho);
@@ -2114,13 +2178,15 @@ function frDetajet() {
     if (eVeta.length) await sb.storage.from('furnitoret-fotot').remove(eVeta);
     frNgarko();
   });
+  if (frFormaF) frVizatoFormenF($('fr-forma-f'));
   if (frForma) frVizatoFormenP();
 }
 
 function frVizatoFormenP() {
   const v = frForma;
   $('fr-forma-p').innerHTML = `<div class="karte fr-forma"><h3 style="margin-top:0">${v.id ? '✏️ Ndrysho porosinë' : '➕ Porosi e re'}</h3>
-    <div class="fr-fusha"><label>Furnitori <select data-p="furnitor_id">${frF.map((f) => `<option value="${f.id}" ${f.id === v.furnitor_id ? 'selected' : ''}>${esc(f.kodi)} · ${esc(frEmri(f))}</option>`).join('')}</select></label>
+    <div class="fr-fusha"><label>Furnitori <select data-p="furnitor_id">${frF.map((f) => `<option value="${f.id}" ${f.id === v.furnitor_id ? 'selected' : ''}>${esc(f.kodi)} · ${esc(frEmri(f))}</option>`).join('')}<option value="__ri" ${v.furnitor_id === '__ri' ? 'selected' : ''}>➕ Furnitor i ri…</option></select></label>
+      <label id="fr-kodi-ri-l" ${v.furnitor_id === '__ri' ? '' : 'hidden'}>Numri i furnitorit të ri (N.F) * <input data-p="kodiRi" value="${esc(v.kodiRi || '')}" maxlength="60"></label>
       <label>Titulli * <input data-p="titulli" value="${esc(v.titulli)}" maxlength="120"></label><label>Data <input type="date" data-p="data" value="${esc(v.data)}"></label>
       <label>Statusi <select data-p="statusi">${Object.entries(FR_STATUSET).map(([k, t]) => `<option value="${k}" ${k === v.statusi ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
       <label>Mbërritja <input data-p="mberritja" value="${esc(v.mberritja)}" maxlength="120" placeholder="p.sh. 25.02.2025"></label></div>
@@ -2135,7 +2201,7 @@ function frVizatoFormenP() {
     <div class="butona"><button class="dyte" type="button" id="fr-shto-d">➕ Dizajn tjetër</button></div>
     <div class="butona"><button class="kryesor" type="button" id="fr-p-ruaj">✅ Ruaje porosinë</button><button class="dyte" type="button" id="fr-p-anulo">Anulo</button></div><div class="mesazh" id="fr-p-mesazh"></div></div>`;
   const z = $('fr-forma-p');
-  z.querySelectorAll('[data-p]').forEach((i) => i.oninput = i.onchange = () => { v[i.dataset.p] = i.value; });
+  z.querySelectorAll('[data-p]').forEach((i) => i.oninput = i.onchange = () => { v[i.dataset.p] = i.value; if (i.dataset.p === 'furnitor_id') $('fr-kodi-ri-l').hidden = i.value !== '__ri'; });
   z.querySelectorAll('[data-d]').forEach((i) => i.oninput = () => { v.dizajnet[+i.dataset.d].kodi = i.value; });
   z.querySelectorAll('[data-r]').forEach((i) => i.oninput = () => { const [a, b, k] = i.dataset.r.split(':'); v.dizajnet[+a].rreshtat[+b][k] = i.value; });
   z.querySelectorAll('[data-shto-r]').forEach((b) => b.onclick = () => { v.dizajnet[+b.dataset.shtoR].rreshtat.push({ ngjyra: '', sasia: '', njesia: '' }); frVizatoFormenP(); });
@@ -2145,7 +2211,7 @@ function frVizatoFormenP() {
   z.querySelectorAll('[data-gal]').forEach((b) => b.onclick = () => { frFotoPer = +b.dataset.gal; $('fr-gal-inp').click(); });
   z.querySelectorAll('[data-kam]').forEach((b) => b.onclick = () => { frFotoPer = +b.dataset.kam; $('fr-kam-inp').click(); });
   $('fr-shto-d').onclick = () => { v.dizajnet.push({ kodi: '', fotot: [], rreshtat: [{ ngjyra: '', sasia: '', njesia: '' }] }); frVizatoFormenP(); };
-  $('fr-p-anulo').onclick = () => { frForma = null; z.innerHTML = ''; };
+  $('fr-p-anulo').onclick = () => { (v.dizajnet || []).forEach((d) => d.fotot.forEach((x) => { if (x.blob && x.url) URL.revokeObjectURL(x.url); })); frForma = null; z.innerHTML = ''; };
   $('fr-p-ruaj').onclick = frRuajPorosine;
 }
 $('fr-gal-inp').onchange = $('fr-kam-inp').onchange = async (e) => {
@@ -2162,12 +2228,14 @@ async function frRuajPorosine() {
   const v = frForma, m = $('fr-p-mesazh'), btn = $('fr-p-ruaj');
   const gabim = (t) => { m.className = 'mesazh gabim'; m.textContent = t; };
   if (!v.titulli.trim()) return gabim('Shkruaj titullin e porosisë.');
-  const sasiaE = (s) => { const t = String(s).trim().replace(',', '.'); return t === '' ? null : Number(t); };
+  if (v.furnitor_id === '__ri' && !String(v.kodiRi || '').trim()) return gabim('Shkruaj numrin e furnitorit të ri.');
+  if (!v.id && v.ngaExcel && frP.some((p) => p.furnitor_id === v.furnitor_id && (p.data || '') === v.data && p.titulli === v.titulli.trim()) && !confirm('Një porosi me këtë titull dhe datë ekziston te ky furnitor. Ta ruaj gjithsesi?')) return;
+  const sasiaE = (s) => { const t = String(s).trim(); if (t === '') return null; if (/^\d{1,3}[.,]\d{3}$/.test(t)) return NaN; return Number(t.replace(',', '.')); };   // "1,000" është i paqartë: një apo një mijë?
   const rreshtat = [];
   for (const d of v.dizajnet) for (const r of d.rreshtat) {
     if (!String(r.ngjyra).trim() && String(r.sasia).trim() === '') continue;
     const s = sasiaE(r.sasia);
-    if (s !== null && !(s >= 0)) return gabim(`Sasia "${r.sasia}" nuk është numër.`);
+    if (s !== null && !(s >= 0)) return gabim(`Sasia "${r.sasia}" nuk është e qartë: shkruaje pa pikë e presje.`);
     rreshtat.push({ d, r, s });
   }
   if (!rreshtat.length) return gabim('Shto të paktën një ngjyrë ose sasi.');
@@ -2180,10 +2248,16 @@ async function frRuajPorosine() {
       if (error) throw new Error('Fotot nuk u ngarkuan: ' + error.message);
       x.rruga = rruga; reja.push(rruga);
     }
+    if (v.furnitor_id === '__ri') {
+      const { data: fr, error } = await sb.from('furnitoret').insert({ kodi: v.kodiRi.trim() }).select('id').single();
+      if (error) throw new Error(error.code === '23505' ? 'Ky numër furnitori ekziston: zgjidhe nga lista.' : error.message);
+      v.furnitor_id = fr.id;
+    }
     const koka = { furnitor_id: v.furnitor_id, titulli: v.titulli.trim(), data: v.data || null, statusi: v.statusi, mberritja: v.mberritja.trim() || null, shenim: v.shenim.trim() || null };
+    if (!v.id && v.burimi) koka.burimi = v.burimi;
     let pid = v.id;
     if (pid) { const { error } = await sb.from('furnitor_porosite').update(koka).eq('id', pid); if (error) throw error; }
-    else { const { data, error } = await sb.from('furnitor_porosite').insert(koka).select('id').single(); if (error) throw error; pid = data.id; }
+    else { const { data, error } = await sb.from('furnitor_porosite').insert(koka).select('id').single(); if (error) throw (error.code === '23505' ? new Error('Ky skedar me të njëjtën përmbajtje është ngarkuar më parë.') : error); pid = data.id; }
     const teVjetrat = v.id ? frRreshtat(v.id) : [];
     const { error: e1 } = await sb.from('furnitor_porosi_rreshtat').insert(rreshtat.map(({ d, r, s }, i) => ({ porosi_id: pid, renditja: i, nr: r.nr ?? i + 1, kodi: d.kodi.trim() || null, ngjyra: String(r.ngjyra).trim() || null, sasia: s, njesia: String(r.njesia).trim() || null, fotot: d.fotot.map((x) => x.rruga) })));
     if (e1) { if (!v.id) await sb.from('furnitor_porosite').delete().eq('id', pid); throw e1; }
@@ -2192,12 +2266,120 @@ async function frRuajPorosine() {
     const tashPerdoren = new Set([...frR.filter((r) => !teVjetrat.includes(r)).flatMap((r) => r.fotot), ...v.dizajnet.flatMap((d) => d.fotot.map((x) => x.rruga))]);
     const teHequra = [...new Set(teVjetrat.flatMap((r) => r.fotot))].filter((x) => !tashPerdoren.has(x));
     if (teHequra.length) await sb.storage.from('furnitoret-fotot').remove(teHequra);
-    frForma = null; frZgjedhur = koka.furnitor_id; frNgarko();
+    frForma = null; frZgjedhur = koka.furnitor_id; frHapur.add(pid); frNgarko();
   } catch (e) {
     if (reja.length) await sb.storage.from('furnitoret-fotot').remove(reja);   // mos lër foto pa porosi
     gabim('❌ ' + e.message); btn.disabled = false;
   }
 }
+// --- Ngarko porosi me Excel: lexon listën (edhe fotot brenda skedarit), mbush formën; asgjë s'ruhet pa "Ruaje porosinë" ---
+const frXml = (x) => new DOMParser().parseFromString(x, 'application/xml');
+const frSkedar = (wb, rruga) => { const k = (wb.keys || []).find((p) => p.replace(/^\//, '').toLowerCase() === rruga.toLowerCase()); return k ? wb.files[k] : null; };
+const frTekst = (s) => { const c = s && s.content; return !c ? '' : typeof c === 'string' ? c : new TextDecoder().decode(c instanceof Uint8Array ? c : new Uint8Array(c)); };
+const frBashkoRruge = (baza, rel) => { const pj = baza.split('/').slice(0, -1); for (const p of rel.replace(/^\//, '').split('/')) { if (p === '..') pj.pop(); else if (p !== '.') pj.push(p); } return rel.startsWith('/') ? rel.slice(1) : pj.join('/'); };
+function frFotoFlete(wb, emri) {   // → [{ nga, deri, rruga }] rreshtat 0-bazë ku qëndron secila foto
+  try {
+    const lib = frXml(frTekst(frSkedar(wb, 'xl/workbook.xml'))), rels = frXml(frTekst(frSkedar(wb, 'xl/_rels/workbook.xml.rels')));
+    const sh = [...lib.getElementsByTagNameNS('*', 'sheet')].find((s) => s.getAttribute('name') === emri); if (!sh) return [];
+    const rid = sh.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id') || sh.getAttribute('r:id');
+    const rel = [...rels.getElementsByTagName('Relationship')].find((r) => r.getAttribute('Id') === rid); if (!rel) return [];
+    const rrFlete = frBashkoRruge('xl/workbook.xml', rel.getAttribute('Target'));
+    const rrR = rrFlete.replace(/([^/]+)$/, '_rels/$1.rels'), rF = frSkedar(wb, rrR); if (!rF) return [];
+    const dr = [...frXml(frTekst(rF)).getElementsByTagName('Relationship')].find((r) => /\/drawing$/.test(r.getAttribute('Type'))); if (!dr) return [];
+    const rrD = frBashkoRruge(rrFlete, dr.getAttribute('Target')), dX = frSkedar(wb, rrD); if (!dX) return [];
+    const rD = frSkedar(wb, rrD.replace(/([^/]+)$/, '_rels/$1.rels')); if (!rD) return [];
+    const imazhet = new Map([...frXml(frTekst(rD)).getElementsByTagName('Relationship')].map((r) => [r.getAttribute('Id'), frBashkoRruge(rrD, r.getAttribute('Target'))]));
+    const doc = frXml(frTekst(dX)), dal = [];
+    for (const lloji of ['twoCellAnchor', 'oneCellAnchor']) for (const a of doc.getElementsByTagNameNS('*', lloji)) {
+      const blip = a.getElementsByTagNameNS('*', 'blip')[0]; if (!blip) continue;
+      const id = blip.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'embed') || blip.getAttribute('r:embed');
+      const nr = (el, t) => +((el && el.getElementsByTagNameNS('*', t)[0] || {}).textContent || 0);
+      const nga = a.getElementsByTagNameNS('*', 'from')[0], deri = a.getElementsByTagNameNS('*', 'to')[0];
+      const r0 = nr(nga, 'row'); let r1 = deri ? nr(deri, 'row') : r0;
+      if (deri && r1 > r0 && nr(deri, 'rowOff') < 95250) r1--;   // foto që vetëm prek skajin e rreshtit tjetër (më pak se ~10 px) s'i përket atij
+      if (imazhet.get(id)) dal.push({ nga: r0, deri: r1, rruga: imazhet.get(id) });
+    }
+    return dal;
+  } catch { return []; }
+}
+function frDataNgaQeliza(v) {
+  if (typeof v === 'number' && v > 30000 && v < 80000) { const d = XLSX.SSF.parse_date_code(v); return `${d.y}-${String(d.m).padStart(2, '0')}-${String(d.d).padStart(2, '0')}`; }
+  const m = String(v ?? '').trim().match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);
+  return m ? `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}` : null;
+}
+function frFletaPorosi(wb, emri) {   // → të dhënat e një flete ose null nëse s'është listë porosie
+  const ws = wb.Sheets[emri]; if (!ws || !ws['!ref']) return null;
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '', blankrows: true });
+  const fillimi = XLSX.utils.decode_range(ws['!ref']).s;
+  for (const m of ws['!merges'] || []) for (let r = m.s.r; r <= m.e.r; r++) for (let c = m.s.c; c <= m.e.c; c++) {   // qelizat e bashkuara: vlera vlen për të gjitha
+    const R = r - fillimi.r, C = c - fillimi.c; if (m.s.r === m.e.r || !rows[R]) continue; rows[R][C] = rows[m.s.r - fillimi.r]?.[m.s.c - fillimi.c] ?? '';
+  }
+  const k = mxGjejKoken(rows); if (k.i < 0) return null;
+  const harta = {}; let iNF = -1;
+  rows[k.i].forEach((t, i) => { const f = mxFusha(t); if (f && harta[f] == null) harta[f] = i; if (/^(n f|nf|furnitori|supplier)$/.test(mxNormal(t))) iNF = i; if (mxNormal(t) === 'nr' || mxNormal(t) === 'no') harta.nr = i; });
+  const siper = rows.slice(0, k.i).flat().map((x) => x).filter((x) => mxQelize(x));
+  const titulli = mxQelize(siper.find((x) => /[a-z]/i.test(String(x))) || '').replace(/\s+/g, ' ');
+  const dataRe = siper.map(frDataNgaQeliza).find(Boolean) || null;
+  const qel = (r, f) => (harta[f] != null ? r[harta[f]] : '');
+  const rreshtat = []; let mberritja = '', pranuar = false; const gabime = [];
+  for (let i = k.i + 1; i < rows.length; i++) {
+    const r = rows[i], tekst = r.map(mxQelize).filter(Boolean).join(' '); if (!tekst) continue;
+    const ar = tekst.match(/(?:arrival(?: time)?|mberritja|mbërritja)\s*:?\s*(.+)/i); if (ar) { mberritja = ar[1].trim(); continue; }
+    if (/malli u pranu|pranuar ne dyqan/i.test(tekst)) { pranuar = true; continue; }
+    if (/^(total|totali|gjithsej|shuma|sum)\b/i.test(tekst)) continue;
+    const sRaw = qel(r, 'sasia'), ngj = mxQelize(qel(r, 'ngjyra')), kodi = mxQelize(qel(r, 'kodi')) || mxQelize(qel(r, 'barkodi')) || mxQelize(qel(r, 'emri'));
+    if (mxQelize(sRaw) === '' && !ngj) continue;
+    const s = mxNumri(sRaw);
+    if (s.gabim) gabime.push(`Rreshti ${i + 1}: ${s.gabim}`);
+    rreshtat.push({ i: i + fillimi.r, nr: parseInt(mxQelize(qel(r, 'nr')), 10) || null, kodi, ngjyra: ngj, sasia: s.gabim ? mxQelize(sRaw) : (s.n ?? ''), njesia: mxQelize(qel(r, 'njesia')) || s.njesi || '', nf: iNF >= 0 ? mxQelize(r[iNF]) : '' });
+  }
+  if (!rreshtat.length) return null;
+  const nfNr = {}; rreshtat.forEach((r) => { if (r.nf) nfNr[r.nf] = (nfNr[r.nf] || 0) + 1; });
+  const nf = Object.entries(nfNr).sort((a, b) => b[1] - a[1])[0]?.[0] || '';
+  return { emri, titulli, data: dataRe, rreshtat, mberritja, pranuar, gabime, nf, kaKod: harta.kodi != null };
+}
+async function frNgaFleta(wb, f, skedari) {
+  const nrTitulli = (f.titulli.match(/\b(\d{3})\b/) || [])[1] || '';
+  const gjeje = (k) => k && frF.find((x) => [x.kodi, x.kodi_prodata].some((v) => String(v || '').toLowerCase() === k.toLowerCase()));
+  const furn = (frExcelFurnitor && frF.find((x) => x.id === frExcelFurnitor)) || gjeje(f.nf) || gjeje(nrTitulli) || null;
+  // N.F jo-numerike kur lista s'ka kolonë kodi (p.sh. A05220): është kod artikulli
+  if (!f.kaKod && f.nf && !gjeje(f.nf)) f.rreshtat.forEach((r) => { if (!r.kodi) r.kodi = r.nf; });
+  const fotot = frFotoFlete(wb, f.emri), blob = new Map();
+  for (const p of new Set(fotot.map((x) => x.rruga))) { const s = frSkedar(wb, p); if (!s) continue;
+    try { const c = s.content; blob.set(p, await zvogelo(new Blob([c instanceof Uint8Array ? c : new Uint8Array(c)]), 2000)); } catch {} }
+  const dd = [];
+  for (const r of f.rreshtat) {
+    const rr = [...new Set(fotot.filter((x) => r.i >= x.nga && r.i <= x.deri).map((x) => x.rruga))].filter((x) => blob.has(x)).slice(0, FR_MAX_FOTO), cel = r.kodi + '|' + rr.join('|'), z = dd[dd.length - 1];
+    const rresht = { nr: r.nr, ngjyra: r.ngjyra, sasia: r.sasia, njesia: r.njesia };
+    if (z && z.cel === cel) z.rreshtat.push(rresht); else dd.push({ cel, kodi: r.kodi, foton: rr, rreshtat: [rresht] });
+  }
+  const urlE = new Map(); [...blob].forEach(([k, b]) => urlE.set(k, URL.createObjectURL(b)));
+  const gjurma = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(JSON.stringify([f.titulli, f.data, f.rreshtat.map((r) => [r.kodi, r.ngjyra, r.sasia, r.njesia])])));
+  const hash = [...new Uint8Array(gjurma)].slice(0, 6).map((x) => x.toString(16).padStart(2, '0')).join('');
+  frForma = { ngaExcel: true, furnitor_id: furn ? furn.id : '__ri', kodiRi: furn ? '' : (nrTitulli || f.nf), titulli: f.titulli || `ORDER LIST ${furn ? furn.kodi : ''}`.trim(), data: f.data || '', statusi: f.pranuar ? 'pranuar' : 'porositur', mberritja: f.mberritja, shenim: '',
+    burimi: `${skedari}#${f.emri}#${hash}`, dizajnet: dd.map((d) => ({ kodi: d.kodi, fotot: d.foton.map((p) => ({ blob: blob.get(p), url: urlE.get(p) })), rreshtat: d.rreshtat })) };
+  frZgjedhur = furn ? furn.id : null;
+  frVizato();
+  const nrF = blob.size, m = $('fr-p-mesazh');
+  m.className = f.gabime.length ? 'mesazh gabim' : 'mesazh pritje';
+  m.textContent = `📄 U lexuan ${f.rreshtat.length} rreshta dhe ${nrF} foto nga "${skedari}". Kontrolloji, pastaj shtyp "Ruaje porosinë".${f.gabime.length ? ' ⚠️ ' + f.gabime.join(' · ') : ''}${furn ? '' : ' Furnitori nuk u njoh: zgjidhe nga lista ose shkruaj numrin.'}`;
+  $('fr-forma-p').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+async function frHapExcel(file) {
+  const z = $('fr-excel-zona'); z.innerHTML = '<p class="zbehte">⏳ Po lexohet skedari…</p>';
+  try {
+    if (file.size > 30 * 1048576) throw new Error('Skedari është më i madh se 30 MB.');
+    await ngarkoXLSX();
+    const wb = XLSX.read(await file.arrayBuffer(), { type: 'array', bookFiles: true });
+    const fletet = wb.SheetNames.map((n) => frFletaPorosi(wb, n)).filter(Boolean);
+    if (!fletet.length) throw new Error('Nuk u gjet listë porosie. Skedari duhet të ketë kolonën e sasisë (Quantity / Sasia).');
+    if (fletet.length === 1) { z.innerHTML = ''; return await frNgaFleta(wb, fletet[0], file.name); }
+    z.innerHTML = `<div class="karte fr-forma"><b>Ky skedar ka ${fletet.length} lista. Cilën ta ngarkoj?</b><div class="butona">${fletet.map((f, i) => `<button class="dyte" type="button" data-fl="${i}">${esc(f.titulli || f.emri)}${f.data ? ' · ' + frData(f.data) : ''} · ${f.rreshtat.length} rreshta</button>`).join('')}<button class="dyte" type="button" id="fr-fl-anulo">Anulo</button></div></div>`;
+    z.querySelectorAll('[data-fl]').forEach((b) => b.onclick = async () => { z.innerHTML = '<p class="zbehte">⏳ Po përgatitet…</p>'; try { await frNgaFleta(wb, fletet[+b.dataset.fl], file.name); } catch (e) { z.innerHTML = `<p class="mesazh gabim" style="display:block">❌ ${esc(e.message)}</p>`; } });
+    $('fr-fl-anulo').onclick = () => { z.innerHTML = ''; };
+  } catch (e) { z.innerHTML = `<p class="mesazh gabim" style="display:block">❌ Skedari nuk u lexua: ${esc(e.message)}</p>`; }
+}
+$('fr-excel-inp').onchange = (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) frHapExcel(f); };
 NGARKUESIT.furnitoret = () => { frForma = null; frFormaF = null; frNgarko(); };
 
 // ---------- TEL-POST: pasqyra e llogarisë (roboti i lexon të dhënat, faqja vetëm i tregon) ----------
