@@ -227,6 +227,27 @@
   .mg-foto-bosh { border:2px dashed var(--kryesor) !important; color:var(--kryesor); cursor:pointer; flex-direction:column; font-size:22px !important; font-weight:700; padding:0; }
   .mg-foto-bosh small { font-size:10px; }
   .mg-forma { background:#fff; border:2px solid var(--kryesor); border-radius:18px; padding:16px; margin:12px 0; }
+  .tp-dy { display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:14px; align-items:start; }
+  .tp-grafike { display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:12px; }
+  .tp-grafike h4 { margin:0 0 10px; font-size:14px; }
+  .tp-rr { display:grid; grid-template-columns:minmax(70px, 34%) minmax(0, 1fr) auto; gap:8px; align-items:center; font-size:13px; padding:4px 0; }
+  .tp-rr .em { overflow-wrap:anywhere; line-height:1.2; }
+  .tp-rr .vl { white-space:nowrap; font-weight:600; text-align:right; }
+  .tp-rr .vl small { font-weight:400; color:var(--zbehte); }
+  .tp-shirit { background:#f4f1f6; border-radius:0 4px 4px 0; height:10px; }
+  .tp-shirit i { display:block; height:100%; min-width:2px; background:var(--kryesor); border-radius:0 4px 4px 0; }
+  .tp-ditet { display:flex; align-items:flex-end; gap:2px; height:130px; border-bottom:1px solid var(--vije); }
+  .tp-ditet .kol { flex:1 1 0; min-width:3px; max-width:46px; height:100%; display:flex; align-items:flex-end; border:0; padding:0; background:transparent; cursor:default; }
+  .tp-ditet .kol i { display:block; width:100%; min-height:2px; background:var(--kryesor); border-radius:4px 4px 0 0; }
+  .tp-ditet .kol:hover i, .tp-ditet .kol:focus i { background:var(--kryesor-err); }
+  .tp-ditet-x { display:flex; justify-content:space-between; font-size:12px; color:var(--zbehte); margin-top:4px; }
+  .tp-tt { position:fixed; z-index:50; background:#22182a; color:#fff; border-radius:8px; padding:6px 10px; font-size:13px; line-height:1.3; pointer-events:none; max-width:240px; }
+  .tp-levizjet { max-height:380px; overflow-y:auto; padding-top:4px; padding-bottom:4px; }
+  .tp-lev { display:grid; grid-template-columns:24px minmax(0, 1fr); gap:6px; padding:7px 0; border-bottom:1px solid #f2eef4; font-size:13px; line-height:1.3; }
+  .tp-lev:last-child { border-bottom:0; }
+  .tp-lev small { color:var(--zbehte); display:block; }
+  .tp-lev button, .tp-lidhje { background:none; border:0; padding:0; color:var(--kryesor); font:inherit; font-weight:600; cursor:pointer; text-decoration:underline; }
+  #tp-tabela td small { color:var(--zbehte); display:block; }
   .mx-kolonat { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:8px; }
   .mx-kolonat label { display:block; font-size:13px; }
   .mx-kolonat select { width:100%; box-sizing:border-box; }
@@ -550,6 +571,30 @@
     <input type="file" id="fr-gal-inp" accept="image/*" multiple class="fsheh"><input type="file" id="fr-kam-inp" accept="image/*" capture="environment" class="fsheh">
   </section>
 
+  <!-- ===== TEL-POST: pasqyra e llogarisë, vetëm Super Admin ===== -->
+  <section class="faqe" id="f-telposta">
+    <div class="rresht" style="justify-content:space-between;margin:0 0 6px"><h2 style="margin:0">📮 Tel-Post</h2><button class="dyte" type="button" id="tp-rifresko">↻ Rifresko</button></div>
+    <div class="zbehte" id="tp-robot" style="margin-bottom:12px"></div>
+    <div class="karta" id="tp-kpi"></div>
+    <h3>📈 Analiza</h3>
+    <div class="chips" id="tp-periudha" style="margin-bottom:8px"></div>
+    <div class="chips" id="tp-shtetet" style="margin-bottom:10px"></div>
+    <div id="tp-analiza"></div>
+    <div id="tp-vonesa"></div>
+    <div class="tp-dy">
+      <div><h3>🔔 Lëvizjet e fundit</h3><div class="karte tp-levizjet" id="tp-levizjet"></div></div>
+      <div><h3>💶 Barazimet</h3><div class="karte" id="tp-barazimet"></div></div>
+    </div>
+    <h3 id="tp-porosite-tit">📦 Porositë</h3>
+    <div class="rresht" style="align-items:flex-end">
+      <label style="flex:1;min-width:200px">Kërko <input id="tp-kerko" placeholder="kodi, emri, telefoni, qyteti…" autocomplete="off" style="width:100%;box-sizing:border-box"></label>
+      <label>Statusi <select id="tp-f-statusi"><option value="">Të gjitha</option></select></label>
+      <button class="dyte" type="button" id="tp-pastro" hidden>✕ Hiq filtrin</button>
+    </div>
+    <div class="tabela" id="tp-tabela"></div>
+    <div class="tp-tt" id="tp-tt" hidden></div>
+  </section>
+
   <!-- ===== TRANSFER ===== -->
   <section class="faqe" id="f-transfer">
     <h2>Transfer ndërmjet magazinave</h2>
@@ -801,7 +846,7 @@ const stokuHTML = (a) => (teGjithaMag()
 
 // ---------- Rolet dhe menytë ----------
 const MENYTE = {
-  admin: [['paneli', '📊 Paneli'], ['arka', '🧾 Arka'], ['shitjet', '🛒 Shitjet'], ['onl_porosite', '📦 Porositë online'], ['mungesat', "🔍 S'e kemi"], ['blerjet', '📦 Blerjet'], ['furnitoret', '🚚 Furnitorët'], ['depo', '🏭 Depo'], ['pagesat', '💶 Arka dhe pagesat'],
+  admin: [['paneli', '📊 Paneli'], ['arka', '🧾 Arka'], ['shitjet', '🛒 Shitjet'], ['onl_porosite', '📦 Porositë online'], ['telposta', '📮 Tel-Post'], ['mungesat', "🔍 S'e kemi"], ['blerjet', '📦 Blerjet'], ['furnitoret', '🚚 Furnitorët'], ['depo', '🏭 Depo'], ['pagesat', '💶 Arka dhe pagesat'],
           ['stafi', '👷 Burime njerëzore'], ['klientet', '👥 Klientët'], ['produktet', '🧵 Produktet'], ['mall', '📦 Regjistro mall'], ['kontabiliteti', '📒 Kontabiliteti'], ['admin', '⚙️ Administrimi'], ['shitje', '➕ Faturë'], ['regjistrim', '📝 Regjistrim'], ['transfer', '🔁 Transfer']],
   depo: [['depo', '🏭 Depo']],
   // Depo dhe Transferi (magazina të tjera) mbeten vetëm te Super Admini
@@ -2049,6 +2094,146 @@ async function frRuajPorosine() {
   }
 }
 NGARKUESIT.furnitoret = () => { frForma = null; frFormaF = null; frNgarko(); };
+
+// ---------- TEL-POST: pasqyra e llogarisë (roboti i lexon të dhënat, faqja vetëm i tregon) ----------
+const TP_PERIUDHAT = [['sot', 'Sot'], ['7', '7 ditë'], ['30', '30 ditë'], ['muaji', 'Ky muaj'], ['te', 'Të gjitha']];
+const TP_IKONAT = { 'order.status.acceptance': '📥', 'order.status.transport': '🚚', 'order.status.delivered': '✅', 'porosi.e_re': '🆕', 'porosi.statusi': '🔁', 'barazim.i_ri': '💶', 'barazim.pranuar': '🤝' };
+let tpP = [], tpB = [], tpN = [], tpR = null, tpPeriudha = 'te', tpShteti = '', tpFiltriB = null, tpDif = 0;
+const tpTani = () => Date.now() + tpDif;   // ora e serverit, sepse ora e pajisjes mund të jetë gabim (si te PC-ja e zyrës)
+const tpSot = () => dataKS(new Date(tpTani()));
+const tpPara = (x) => `${(+x || 0).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+const tpData = (d) => { if (!d) return '—'; const s = dataKS(new Date(d)); return `${s.slice(8)}.${s.slice(5, 7)}.${s.slice(2, 4)}`; };
+const tpOra = (d) => (d ? new Date(d).toLocaleTimeString('sq-AL', { timeZone: 'Europe/Belgrade', hour: '2-digit', minute: '2-digit', hour12: false }) : '');
+function tpGrupi(s) {
+  if (/^dor[eë]zuar$/i.test(s || '')) return 'dorezuar';
+  if (/refuz|kthyer/i.test(s || '')) return 'refuzuar';
+  if (/pritje/i.test(s || '')) return 'pritje';
+  if (/nuk ekziston|anul/i.test(s || '')) return 'tjeter';
+  return 'rruge';
+}
+const tpShenja = (s) => `<span class="shenje ${{ dorezuar: 's-ok', refuzuar: 's-gabim', pritje: 's-pritje', rruge: 's-hapur', tjeter: 's-hapur' }[tpGrupi(s)]}">${esc(s || '—')}</span>`;
+function tpNePeriudhe(p) {
+  if (tpShteti && p.shteti !== tpShteti) return false;
+  if (tpPeriudha === 'te') return true;
+  if (!p.data) return false;
+  const d = dataKS(new Date(p.data)), sot = tpSot();
+  if (tpPeriudha === 'sot') return d === sot;
+  if (tpPeriudha === 'muaji') return d.slice(0, 7) === sot.slice(0, 7);
+  return d >= ditaPlus(sot, 1 - +tpPeriudha);
+}
+async function tpNgarko() {
+  try {
+    const rr = [];
+    for (let i = 0; ; i += 1000) {
+      const { data, error } = await sb.from('tp_porosite').select('*').order('data', { ascending: false, nullsFirst: false }).order('kodi').range(i, i + 999);
+      if (error) throw error;
+      rr.push(...data); if (data.length < 1000) break;
+    }
+    const [b, n, r] = await Promise.all([sb.from('tp_barazimet').select('*').order('data', { ascending: false }).limit(500), sb.from('tp_ngjarjet').select('*').order('koha', { ascending: false }).limit(1000),
+      sb.from('telposta_robot').select('koha, statusi, mesazhi, monitor_koha, monitor_mesazh').eq('id', 1).maybeSingle()]);
+    if (b.error || n.error) throw (b.error || n.error);
+    const { data: oraS } = await sb.rpc('tp_tani');
+    if (oraS) tpDif = new Date(oraS).getTime() - Date.now();
+    tpP = rr; tpB = b.data; tpN = n.data; tpR = r.data;
+    tpVizato();
+  } catch (e) { $('tp-robot').innerHTML = `<span class="mesazh gabim" style="display:block">❌ ${esc(e.message)}</span>`; }
+}
+function tpShiritat(rreshtat, vlera = (x) => x.n, teksti = (x) => `${x.n}${x.v != null ? ` <small>· ${tpPara(x.v)}</small>` : ''}`) {   // shirita horizontalë: një ngjyrë, gjatësia = sasia
+  const max = Math.max(1, ...rreshtat.map(vlera));
+  return rreshtat.map((x) => `<div class="tp-rr"><span class="em">${esc(x.emri)}</span><span class="tp-shirit" data-tt="${esc(x.emri)}: ${x.n} porosi${x.v != null ? ' · ' + tpPara(x.v) : ''}"><i style="width:${Math.round(vlera(x) / max * 100)}%"></i></span><span class="vl">${teksti(x)}</span></div>`).join('') || '<p class="zbehte">S\'ka të dhëna.</p>';
+}
+const tpGrumbullo = (lista, celes) => { const m = new Map(); for (const p of lista) { const k = celes(p) || '—'; const x = m.get(k) || { emri: k, n: 0, v: 0 }; x.n++; x.v += +p.vlera || 0; m.set(k, x); } return [...m.values()].sort((a, b) => b.n - a.n || b.v - a.v); };
+function tpVizato() {
+  // gjendja e robotit
+  const koha = tpR && tpR.monitor_koha ? new Date(tpR.monitor_koha) : null, min = koha ? Math.max(0, Math.round((tpTani() - koha) / 60000)) : null;
+  const iGjalle = koha && min <= 20 && tpR.statusi !== 'duhet_hyrje';
+  $('tp-robot').innerHTML = (iGjalle ? '🟢' : '🔴') + ' ' + (tpR && tpR.statusi === 'duhet_hyrje' ? '<b>Roboti kërkon hyrje në Tel-Post</b>: hyni te dritarja e tij në PC-në e zyrës.'
+    : koha ? `Roboti lexoi llogarinë <b>${min === 0 ? 'tani' : `para ${min} min`}</b> · ${esc(tpR.monitor_mesazh || '')}${iGjalle ? '' : ' · <b>Roboti po vonon: të dhënat mund të mos jenë të fundit.</b>'}` : 'Roboti ende nuk e ka lexuar llogarinë.');
+  // gjendja e tanishme: nuk varet nga periudha
+  const aktive = tpP.filter((p) => p.aktive), rruge = aktive.filter((p) => tpGrupi(p.statusi) === 'rruge'), pritje = aktive.filter((p) => tpGrupi(p.statusi) === 'pritje');
+  const hapur = tpB.filter((b) => b.e_hapur), borxhi = hapur.reduce((s, b) => s + (+b.produkti || 0), 0), nrHapur = hapur.reduce((s, b) => s + (+b.nr_dorezuar || 0), 0);
+  const dor = tpP.filter((p) => tpGrupi(p.statusi) === 'dorezuar'), ref = tpP.filter((p) => tpGrupi(p.statusi) === 'refuzuar');
+  const shuma = (l) => l.reduce((s, p) => s + (+p.vlera || 0), 0);
+  const perqindje = dor.length + ref.length ? Math.round(dor.length / (dor.length + ref.length) * 100) : null;
+  $('tp-kpi').innerHTML = [
+    ['💶 Tel-Post na ka borxh', tpPara(borxhi), `${hapur.length} barazime pa u pranuar · ${nrHapur} porosi`],
+    ['🚚 Në rrugë', rruge.length, `Vlera ${tpPara(shuma(rruge))}`],
+    ['⏳ Në pritje', pritje.length, `Vlera ${tpPara(shuma(pritje))}`],
+    ['✅ Të dorëzuara', dor.length, `Vlera ${tpPara(shuma(dor))}`],
+    ['↩️ Të refuzuara', ref.length, perqindje != null ? `${perqindje}% e të mbyllurave u dorëzuan` : ''],
+    ['📦 Gjithsej porosi', tpP.length, `Vlera ${tpPara(shuma(tpP))}${tpP.length ? ` · mesatarja ${tpPara(shuma(tpP) / tpP.length)}` : ''}`],
+  ].map(([t, v, d]) => `<div class="karte"><div class="tit">${t}</div><div class="vl">${v}</div><div class="det">${d}</div></div>`).join('');
+  // filtrat e analizës
+  $('tp-periudha').innerHTML = TP_PERIUDHAT.map(([k, t]) => `<button type="button" data-p="${k}" class="${k === tpPeriudha ? 'on' : ''}">${t}</button>`).join('');
+  $('tp-periudha').querySelectorAll('button').forEach((b) => b.onclick = () => { tpPeriudha = b.dataset.p; tpVizato(); });
+  const shtetet = [...new Set(tpP.map((p) => p.shteti).filter(Boolean))].sort();
+  $('tp-shtetet').innerHTML = [['', '🌍 Të gjitha shtetet'], ...shtetet.map((s) => [s, s])].map(([k, t]) => `<button type="button" data-s="${esc(k)}" class="${k === tpShteti ? 'on' : ''}">${esc(t)}</button>`).join('');
+  $('tp-shtetet').querySelectorAll('button').forEach((b) => b.onclick = () => { tpShteti = b.dataset.s; tpVizato(); });
+  // analiza
+  const lista = tpP.filter(tpNePeriudhe), ditet = new Map();
+  for (const p of lista) if (p.data) { const d = dataKS(new Date(p.data)); const x = ditet.get(d) || { n: 0, v: 0 }; x.n++; x.v += +p.vlera || 0; ditet.set(d, x); }
+  const dd = [...ditet.keys()].sort(); let seri = [];
+  if (dd.length) for (let d = dd[0]; d <= dd[dd.length - 1] && seri.length < 120; d = ditaPlus(d, 1)) seri.push([d, ditet.get(d) || { n: 0, v: 0 }]);
+  const maxD = Math.max(1, ...seri.map(([, x]) => x.n)), dt = (d) => `${d.slice(8)}.${d.slice(5, 7)}`;
+  const ePara = seri.reduce((m, x) => (x[1].n > m[1].n ? x : m), seri[0] || ['', { n: 0 }]);
+  const nrD = lista.filter((p) => tpGrupi(p.statusi) === 'dorezuar').length, nrR = lista.filter((p) => tpGrupi(p.statusi) === 'refuzuar').length;
+  // koha nga pranimi te dorëzimi, nga njoftimet e Tel-Post
+  const pranim = new Map(); tpN.forEach((n) => { if (n.lloji === 'order.status.acceptance' && n.kodi) pranim.set(n.kodi, new Date(n.koha)); });
+  const kodetL = new Set(lista.map((p) => p.kodi)), kohet = tpN.filter((n) => n.lloji === 'order.status.delivered' && kodetL.has(n.kodi) && pranim.has(n.kodi)).map((n) => (new Date(n.koha) - pranim.get(n.kodi)) / 864e5).filter((x) => x >= 0);
+  const mesK = kohet.length ? kohet.reduce((s, x) => s + x, 0) / kohet.length : null;
+  const njeSasi = (x) => `${x.n} <small>· ${tpPara(x.v)}</small>`;
+  $('tp-analiza').innerHTML = !lista.length ? '<p class="zbehte">Asnjë porosi në këtë periudhë.</p>' : `<div class="karta">
+      <div class="karte"><div class="tit">Porosi në periudhë</div><div class="vl">${lista.length}</div><div class="det">Vlera ${tpPara(shuma(lista))}</div></div>
+      <div class="karte"><div class="tit">Dita më e mirë</div><div class="vl">${ePara[0] ? dt(ePara[0]) : '—'}</div><div class="det">${ePara[1].n} porosi${ePara[1].v != null ? ' · ' + tpPara(ePara[1].v) : ''}</div></div>
+      <div class="karte"><div class="tit">Dorëzuar / refuzuar</div><div class="vl">${nrD} / ${nrR}</div><div class="det">${nrD + nrR ? Math.round(nrR / (nrD + nrR) * 100) + '% refuzime' : 'Ende asnjë e mbyllur'}</div></div>
+      <div class="karte"><div class="tit">Koha e dorëzimit</div><div class="vl">${mesK != null ? mesK.toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' ditë' : '—'}</div><div class="det">${kohet.length ? `mesatarisht nga pranimi, ${kohet.length} porosi` : 'Ende pa të dhëna të mjaftueshme'}</div></div></div>
+    <div class="tp-grafike">
+      <div class="karte" style="grid-column:1/-1"><h4>Porosi për ditë</h4><div class="tp-ditet">${seri.map(([d, x]) => `<button type="button" class="kol" data-tt="${dt(d)}: ${x.n} porosi · ${tpPara(x.v)}" aria-label="${dt(d)}: ${x.n} porosi"><i style="height:${x.n ? Math.max(2, Math.round(x.n / maxD * 100)) : 0}%"></i></button>`).join('')}</div>
+        <div class="tp-ditet-x"><span>${seri[0] ? dt(seri[0][0]) : ''}</span><span>më së shumti ${maxD} në ditë</span><span>${seri.length ? dt(seri[seri.length - 1][0]) : ''}</span></div></div>
+      <div class="karte"><h4>🌍 Ku shitet më shumë: shtetet</h4>${tpShiritat(tpGrumbullo(lista, (p) => p.shteti), (x) => x.n, njeSasi)}</div>
+      <div class="karte"><h4>🏙️ Qytetet kryesore</h4>${tpShiritat(tpGrumbullo(lista, (p) => p.qyteti).slice(0, 10), (x) => x.n, njeSasi)}</div>
+      <div class="karte"><h4>📊 Statuset</h4>${tpShiritat(tpGrumbullo(lista, (p) => p.statusi), (x) => x.n, njeSasi)}</div>
+      <div class="karte"><h4>👤 Te kush janë tani porositë aktive</h4>${tpShiritat(tpGrumbullo(lista.filter((p) => p.aktive), (p) => p.pergjegjesi).slice(0, 8), (x) => x.n, njeSasi)}</div>
+    </div>`;
+  // porositë që po vonojnë: aktive, jo të refuzuara, më të vjetra se 5 ditë
+  const vonesa = aktive.filter((p) => p.data && tpGrupi(p.statusi) !== 'refuzuar' && tpTani() - new Date(p.data) > 5 * 864e5).sort((a, b) => new Date(a.data) - new Date(b.data));
+  $('tp-vonesa').innerHTML = vonesa.length ? `<h3>⚠️ Po vonojnë (mbi 5 ditë): ${vonesa.length}</h3><div class="karte">${vonesa.slice(0, 15).map((p) => `<div class="tp-rr" style="grid-template-columns:auto minmax(0,1fr) auto"><button type="button" class="tp-lidhje" data-kodi="${esc(p.kodi)}">${esc(p.kodi)}</button><span class="em">${esc(p.qyteti || '')}, ${esc(p.statusi || '')} · ${esc(p.pergjegjesi || '')}</span><span class="vl">${Math.floor((tpTani() - new Date(p.data)) / 864e5)} ditë</span></div>`).join('')}</div>` : '';
+  // lëvizjet
+  $('tp-levizjet').innerHTML = tpN.slice(0, 80).map((n) => `<div class="tp-lev"><span>${TP_IKONAT[n.lloji] || '🔔'}</span><div>${n.kodi ? esc(n.titulli || '').replace(esc(n.kodi), `<button type="button" data-kodi="${esc(n.kodi)}">${esc(n.kodi)}</button>`) : esc(n.titulli || '')}<small>${tpData(n.koha)} ${tpOra(n.koha)}</small></div></div>`).join('') || '<p class="zbehte">Ende asnjë lëvizje.</p>';
+  // barazimet
+  $('tp-barazimet').innerHTML = tpB.length ? `<div class="tabela"><table><thead><tr><th>Barazimi</th><th class="num">Porosi</th><th class="num">Produkti</th><th>Statusi</th></tr></thead><tbody>${tpB.slice(0, 40).map((b) => `<tr><td><button type="button" class="tp-lidhje" data-baraz="${esc(b.nr)}">${esc(b.nr)}</button><br><small class="zbehte">${tpData(b.data)} · shërbimi ${tpPara(b.sherbimi)}</small></td><td class="num">${b.nr_dorezuar ?? '—'}</td><td class="num"><b>${tpPara(b.produkti)}</b></td><td>${b.e_hapur ? '<span class="shenje s-pritje">⏳ Pa pranuar</span>' : '<span class="shenje s-ok">✅ U pranua</span>'}</td></tr>`).join('')}</tbody></table></div>` : '<p class="zbehte">Ende asnjë barazim.</p>';
+  const s = $('tp-f-statusi'), z = s.value;
+  s.innerHTML = s.options[0].outerHTML + [...new Set(tpP.map((p) => p.statusi).filter(Boolean))].sort().map((v) => `<option ${v === z ? 'selected' : ''}>${esc(v)}</option>`).join('');
+  $('f-telposta').querySelectorAll('[data-kodi]').forEach((b) => b.onclick = () => { $('tp-kerko').value = b.dataset.kodi; tpFiltriB = null; tpTabela(); $('tp-porosite-tit').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+  $('f-telposta').querySelectorAll('[data-baraz]').forEach((b) => b.onclick = () => { tpFiltriB = b.dataset.baraz; $('tp-kerko').value = ''; tpTabela(); $('tp-porosite-tit').scrollIntoView({ behavior: 'smooth', block: 'start' }); });
+  tpTabela();
+}
+function tpTabela() {
+  const q = $('tp-kerko').value.trim().toLowerCase(), st = $('tp-f-statusi').value;
+  $('tp-pastro').hidden = !(q || st || tpFiltriB);
+  const lista = tpP.filter((p) => (!tpFiltriB || p.barazimi === tpFiltriB) && (!st || p.statusi === st)
+    && (tpFiltriB || q ? true : tpNePeriudhe(p)) && (!q || [p.kodi, p.pranuesi, p.telefoni, p.qyteti, p.adresa, p.referenca].some((v) => String(v || '').toLowerCase().includes(q))));
+  $('tp-porosite-tit').textContent = `📦 Porositë (${lista.length})${tpFiltriB ? ' · barazimi ' + tpFiltriB : ''}`;
+  $('tp-tabela').innerHTML = lista.length ? `<table><thead><tr><th>Data</th><th>Kodi</th><th>Statusi</th><th>Pranuesi</th><th>Qyteti</th><th class="num">Vlera</th><th class="num">Total</th><th>Te kush</th></tr></thead><tbody>${lista.slice(0, 300).map((p) => `<tr><td>${tpData(p.data)}<small>${tpOra(p.data)}</small></td>
+    <td><a href="https://app.tel-post.com/porosia/${encodeURIComponent(p.kodi)}" target="_blank" rel="noopener">${esc(p.kodi)}</a>${p.ndrrim ? '<small>🔁 Ndrrim</small>' : ''}</td><td>${tpShenja(p.statusi)}${p.barazimi ? `<small>${esc(p.barazimi)}</small>` : ''}</td>
+    <td>${esc(p.pranuesi || '—')}<small>${esc(p.telefoni || '')}</small></td><td>${esc(p.qyteti || '—')}<small>${esc(p.shteti || '')}</small></td><td class="num">${tpPara(p.vlera)}</td><td class="num">${tpPara(p.total)}</td><td>${esc(p.pergjegjesi || '—')}</td></tr>`).join('')}</tbody></table>${lista.length > 300 ? '<p class="zbehte">Po shfaqen 300 të parat. Përdor kërkimin.</p>' : ''}` : '<p class="zbehte">Asnjë porosi.</p>';
+}
+$('tp-kerko').oninput = () => { tpFiltriB = null; tpTabela(); };
+$('tp-f-statusi').onchange = tpTabela;
+$('tp-pastro').onclick = () => { $('tp-kerko').value = ''; $('tp-f-statusi').value = ''; tpFiltriB = null; tpTabela(); };
+$('tp-rifresko').onclick = tpNgarko;
+// shënimi mbi shiritat dhe shtyllat (me maus dhe me prekje)
+['mouseover', 'focusin', 'click'].forEach((ev) => $('f-telposta').addEventListener(ev, (e) => {
+  const t = e.target.closest && e.target.closest('[data-tt]'), tt = $('tp-tt');
+  if (!t) { if (ev !== 'focusin') tt.hidden = true; return; }
+  tt.textContent = t.dataset.tt; tt.hidden = false;
+  const r = t.getBoundingClientRect(), g = tt.offsetWidth;
+  tt.style.left = Math.max(8, Math.min(innerWidth - g - 8, r.left + r.width / 2 - g / 2)) + 'px'; tt.style.top = Math.max(8, r.top - tt.offsetHeight - 8) + 'px';
+}));
+$('f-telposta').addEventListener('mouseleave', () => { $('tp-tt').hidden = true; });
+window.addEventListener('scroll', () => { $('tp-tt').hidden = true; }, { passive: true });
+setInterval(() => { if ($('f-telposta').classList.contains('aktive') && !document.hidden) tpNgarko(); }, 60000);   // rifreskim vetë çdo minutë
+NGARKUESIT.telposta = tpNgarko;
 
 // ---------- Shikuesi i fotove me zoom ----------
 // items: [{ url, tekst }]. Zoom: dy gishta, rrota e mausit, dy prekje / dy klikime, butonat ＋ −. Kur s'ka zoom: rrëshqit për foton tjetër.
