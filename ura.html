@@ -20,6 +20,13 @@
   header button:hover { background:rgba(255,255,255,.26); }
   header #shtepia { background:#fff; color:var(--kryesor); font-size:15px; padding:8px 16px; }
   header #shtepia:hover { background:#f3e9f3; }
+  .dep { position:relative; }
+  .dep-panel { position:absolute; left:0; top:calc(100% + 6px); z-index:40; background:#fff; color:var(--tekst); border-radius:12px; padding:6px; min-width:270px; max-width:calc(100vw - 32px); box-shadow:0 8px 24px rgba(40,20,50,.25); }
+  .dep-panel label { display:flex; flex-direction:row; align-items:center; justify-content:flex-start; gap:10px; margin:0; padding:9px 10px; border-radius:8px; color:var(--tekst); font-size:14px; font-weight:500; text-align:left; cursor:pointer; }
+  .dep-panel label:hover { background:#f6f0f7; }
+  .dep-panel label.te-gjitha { border-bottom:1px solid var(--vije); border-radius:8px 8px 0 0; margin-bottom:4px; font-weight:700; }
+  .dep-panel input { flex:none; width:18px; min-width:0; height:18px; margin:0; padding:0; accent-color:var(--kryesor); }
+  .dep-shenim { background:#fdf4e3; color:#7a5310; border-radius:10px; padding:8px 12px; margin:0 0 12px; font-size:13px; }
   .statusi { display:flex; gap:12px; font-size:12px; flex-wrap:wrap; }
   .drite { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:4px; background:#888; }
   .drite.ok { background:#3ddc84; } .drite.jo { background:#ff5a4e; }
@@ -290,6 +297,10 @@
 <header>
   <button id="shtepia" hidden title="Kthehu te kryefaqja">← Kryefaqja</button>
   <h1 id="titulli" hidden>Patron Dantel ↔ Pro-Data</h1>
+  <div class="dep" id="dep" hidden>
+    <button type="button" id="dep-btn" aria-haspopup="true" aria-expanded="false">🏢 <span id="dep-tek">Të gjitha departamentet</span> ▾</button>
+    <div class="dep-panel" id="dep-panel" hidden></div>
+  </div>
   <div class="statusi" id="statusi" hidden>
     <span><span id="d-lexim" class="drite"></span><span id="t-lexim">Leximi…</span></span>
     <span><span id="d-shkrim" class="drite"></span><span id="t-shkrim">Shkrimi…</span></span>
@@ -311,12 +322,12 @@
 <div id="aplikacioni">
 <nav id="menyja"></nav>
 <main>
+  <div class="dep-shenim" id="dep-shenim" hidden></div>
   <!-- ===== PANELI (Super Admin) ===== -->
   <section class="faqe" id="f-paneli">
     <div class="rresht" style="justify-content:space-between">
       <h2 style="margin:0">Paneli raportues <span class="live">LIVE</span></h2>
       <div class="rresht" style="margin:0">
-        <label>Pika e shitjes <select id="p-pika"><option value="">Të gjitha pikat</option></select></label>
         <label>Periudha <select id="p-periudha"><option value="sot">Sot</option><option value="dje">Dje</option><option value="7">7 ditët e fundit</option><option value="muaj">Ky muaj</option><option value="muaj_kaluar">Muaji i kaluar</option><option value="zgjidh">📅 Zgjidh datat…</option></select></label>
         <label id="p-prej-l" hidden>Prej <input type="date" id="p-prej"></label>
         <label id="p-deri-l" hidden>Deri <input type="date" id="p-deri"></label>
@@ -872,6 +883,7 @@ const NGARKUESIT = {};
 function hapFaqen(emri) {
   document.querySelectorAll('#menyja button').forEach((b) => b.classList.toggle('aktive', b.dataset.faqe === emri));
   document.querySelectorAll('section.faqe').forEach((s) => s.classList.toggle('aktive', s.id === 'f-' + emri));
+  depShenim(emri);
   const meKthim = !!(profili && KRYEFAQJA[profili.roli] && emri !== KRYEFAQJA[profili.roli]);
   $('shtepia').hidden = !meKthim;
   if (meKthim && !(history.state && history.state.faqe)) history.pushState({ faqe: emri }, '');   // butoni "prapa" i telefonit → kryefaqja
@@ -922,6 +934,7 @@ sb.auth.onAuthStateChange(async (_n, ses) => {
   $('menyja').innerHTML = MENYTE[profili.roli].map(([k, t]) => `<button data-faqe="${k}">${t}</button>`).join('');
   document.querySelectorAll('#menyja button').forEach((b) => b.onclick = () => hapFaqen(b.dataset.faqe));
   await ngarkoListat();
+  if (eAdmin) await depNis();
   ngarkoQytetetTP();
   statusi(); setInterval(statusi, 15000);
   const ngaLinku = location.hash.slice(1);   // p.sh. ura.html#depo (nga linku i vjetër depo.html)
@@ -1173,7 +1186,8 @@ async function arkaHap(nr) {
   };
 }
 async function arkaListo() {
-  const { data } = await sb.from('app_faturat').select('nr, krijuar, shitesja_emri, klienti_emri, totali, magazina, rreshtat').eq('statusi', 'ne_arke').neq('kanali', 'online').order('krijuar');
+  const { data: teGjitha } = await sb.from('app_faturat').select('nr, krijuar, shitesja_emri, klienti_emri, totali, magazina, rreshtat').eq('statusi', 'ne_arke').neq('kanali', 'online').order('krijuar');
+  const data = (teGjitha || []).filter((f) => depLejon(f.magazina, DB1));
   $('ar-nr').textContent = data && data.length ? `(${data.length})` : '';
   $('ar-pritje').innerHTML = (data || []).map((f) => `<button class="ar-karte" data-nr="${f.nr}"><div class="rresht" style="justify-content:space-between;margin:0"><span class="nr">#${f.nr}</span><span class="zbehte">${oraKS(f.krijuar)}</span></div>
       <div class="tot">${eur(f.totali)} €</div><div class="zbehte">${esc(f.shitesja_emri || '')} · ${(f.rreshtat || []).length} produkte · pika ${esc(f.magazina || '')}${f.klienti_emri ? ' · ' + esc(f.klienti_emri) : ''}</div></button>`).join('')
@@ -2717,7 +2731,47 @@ async function ngarkoPikat() {
   if (pikat.length) return;
   const { data } = await sb.from('prodata_pikat').select('*').order('renditja');
   pikat = data || [];
-  $('p-pika').innerHTML = '<option value="">Të gjitha pikat</option>' + pikat.map((p) => `<option value="${esc(p.kodi)}">${esc(p.emri)}</option>`).join('');
+}
+// Zgjedhja e departamentit lart (vetëm Super Admin): null = të gjitha, përndryshe kodet e pikave të shënuara.
+// Lidhet vetëm me faqet që tregojnë të dhëna; format që shkruajnë në Pro-Data kanë magazinën e vet, që zgjedhja lart të mos e çojë mallin ose shitjen gabim.
+const DEP_FAQET = ['paneli', 'arka', 'shitjet', 'blerjet', 'pagesat', 'klientet', 'produktet'];
+let depZgjedhur = null;
+const depPikat = () => (depZgjedhur ? pikat.filter((p) => depZgjedhur.includes(p.kodi)) : null);
+const depMagazinat = () => { const s = depPikat(); return s ? [...new Set(s.flatMap((p) => (p.magazinat || []).map((m) => m.mag)))] : null; };
+const depLejon = (mag, db) => { const s = depPikat(); return !s || s.some((p) => iPerket(p, db, mag)); };
+function depVizato() {
+  const s = depPikat();
+  $('dep-tek').textContent = !s ? 'Të gjitha departamentet' : s.length === 1 ? s[0].emri : `${s.length} departamente`;
+  $('dep-panel').innerHTML = `<label class="te-gjitha"><input type="checkbox" data-dep="" ${s ? '' : 'checked'}>Të gjitha departamentet</label>`
+    + pikat.map((p) => `<label><input type="checkbox" data-dep="${esc(p.kodi)}" ${depZgjedhur && depZgjedhur.includes(p.kodi) ? 'checked' : ''}>${esc(p.emri)}</label>`).join('');
+  $('dep-panel').querySelectorAll('input').forEach((i) => i.onchange = () => {
+    const k = i.dataset.dep;
+    if (!k) depZgjedhur = null;
+    else { const set = new Set(depZgjedhur || []); if (i.checked) set.add(k); else set.delete(k);
+      depZgjedhur = set.size && set.size < pikat.length ? [...set] : null; }   // asnjë ose të gjitha = "Të gjitha"
+    try { localStorage.setItem('dep-zgjedhur', JSON.stringify(depZgjedhur)); } catch {}
+    depVizato();
+    const a = document.querySelector('section.faqe.aktive');
+    if (a) { depShenim(a.id.slice(2)); if (DEP_FAQET.includes(a.id.slice(2))) NGARKUESIT[a.id.slice(2)](); }
+  });
+}
+function depShenim(emri) {   // faqet që s'ndahen sipas departamentit e thonë këtë, që të mos duket sikur janë filtruar
+  const el = $('dep-shenim'); if (!el) return;
+  const s = profili && profili.roli === 'admin' ? depPikat() : null;
+  const qendrore = ['paneli', 'pagesat', 'blerjet'].includes(emri);   // Pro-Data i regjistron këto kryesisht te Depoja Kryesore (001) dhe Showroom (003)
+  el.hidden = !s || (DEP_FAQET.includes(emri) && !qendrore);
+  if (!el.hidden) el.textContent = qendrore
+    ? 'Pagesat dhe blerjet në Pro-Data regjistrohen kryesisht te Depoja Kryesore dhe Showroom-i, prandaj për departamentet e tjera mund të dalin bosh ose shumë të vogla.'
+    : 'Kjo faqe nuk ndahet sipas departamentit: tregon gjithçka, pavarësisht zgjedhjes lart.';
+}
+async function depNis() {
+  await ngarkoPikat();
+  try { const z = JSON.parse(localStorage.getItem('dep-zgjedhur')); if (Array.isArray(z)) { const f = z.filter((k) => pikat.some((p) => p.kodi === k)); depZgjedhur = f.length && f.length < pikat.length ? f : null; } } catch {}
+  $('dep').hidden = false; depVizato();
+  $('dep-btn').onclick = (e) => { e.stopPropagation(); const h = !$('dep-panel').hidden; $('dep-panel').hidden = h; $('dep-btn').setAttribute('aria-expanded', String(!h)); };
+  $('dep-panel').onclick = (e) => e.stopPropagation();
+  document.addEventListener('click', () => { $('dep-panel').hidden = true; $('dep-btn').setAttribute('aria-expanded', 'false'); });
+  const pr = $('pr-pika').closest('label'); if (pr) pr.hidden = true;   // te Produktet e zëvendëson zgjedhja lart
 }
 // Periudha e panelit: edhe muaji i kaluar dhe çfarëdo datash të zgjedhura (një ditë: e njëjta datë te "Prej" dhe "Deri")
 function panelPeriudha() {
@@ -2745,7 +2799,7 @@ async function paneli() {
   const nr = ++panelNr;   // ndryshim i shpejtë datash: vetëm përgjigjja e fundit vizatohet
   await ngarkoPikat();
   const [prej, deri] = panelPeriudha();
-  const pika = pikat.find((p) => p.kodi === $('p-pika').value) || null;
+  const zgjedhur = depPikat();
   const fillim = new Date(new Date(prej + 'T00:00:00Z').getTime() - 3 * 3600e3).toISOString();
   const fund = new Date(new Date(deri + 'T00:00:00Z').getTime() + 27 * 3600e3).toISOString();
   panelKufiri(prej).catch(() => {});
@@ -2758,19 +2812,19 @@ async function paneli() {
   const sum = (a, f = (x) => +x.totali) => a.reduce((t, x) => t + (f(x) || 0), 0);
   const karte = (tit, vl, det = '') => `<div class="karte"><div class="tit">${tit}</div><div class="vl">${vl}</div><div class="det">${det}</div></div>`;
   const appGj = (app || []).filter((f) => { const x = ditaKS(f.krijuar); return x >= prej && x <= deri; });
-  // Përmbledhja sipas pikave (vetëm kur janë zgjedhur të gjitha)
-  $('p-pikat-blloku').hidden = !!pika;
-  if (!pika) {
+  // Përmbledhja sipas pikave: të gjitha, ose ato të zgjedhurat kur janë disa (me një të vetme s'ka çfarë të krahasohet)
+  $('p-pikat-blloku').hidden = !!zgjedhur && zgjedhur.length === 1;
+  if (!$('p-pikat-blloku').hidden) {
     const brenda = (x) => pikat.some((p) => iPerket(p, x.databaza, x.magazina));
     const kartePike = (emri, sh, pg) => { const cash = sum(pg.filter((p) => p.lloji === 'PGH01' && p.grupi === 'Cash'), (x) => +x.shuma), tjera = sum(pg.filter((p) => p.lloji === 'PGH01' && p.grupi !== 'Cash'), (x) => +x.shuma);
       return karte(esc(emri), eur(sum(sh)) + ' €', `${sh.length} shitje · arkëtuar: cash ${eur(cash)} €, kartë/bankë/online ${eur(tjera)} €`); };
-    $('p-pikat').innerHTML = pikat.map((p) => kartePike(p.emri, (shPD || []).filter((x) => iPerket(p, x.databaza, x.magazina)), (pag || []).filter((x) => iPerket(p, x.databaza, x.magazina)))).join('')
-      + kartePike('Të tjera (depo, online, wholesale…)', (shPD || []).filter((x) => !brenda(x)), (pag || []).filter((x) => !brenda(x)));
+    $('p-pikat').innerHTML = (zgjedhur || pikat).map((p) => kartePike(p.emri, (shPD || []).filter((x) => iPerket(p, x.databaza, x.magazina)), (pag || []).filter((x) => iPerket(p, x.databaza, x.magazina)))).join('')
+      + (zgjedhur ? '' : kartePike('Të tjera (depo, online, wholesale…)', (shPD || []).filter((x) => !brenda(x)), (pag || []).filter((x) => !brenda(x))));
   }
-  // Filtri sipas pikës së zgjedhur
-  const fP = (x) => !pika || iPerket(pika, x.databaza, x.magazina);
+  // Filtri sipas departamenteve të zgjedhura lart
+  const fP = (x) => depLejon(x.magazina, x.databaza);
   const s = (shPD || []).filter(fP), pagF = (pag || []).filter(fP), blF = (bl || []).filter(fP);
-  const appP = appGj.filter((f) => !pika || iPerket(pika, DB1, f.magazina));
+  const appP = appGj.filter((f) => depLejon(f.magazina, DB1));
   pag = pagF; bl = blF;
   const online = s.filter((x) => x.txn === 'SHE01' || x.magazina === '005'), vendore = s.filter((x) => !(x.txn === 'SHE01' || x.magazina === '005'));
   $('p-shitjet').innerHTML = karte('Shitje vendore (Pro-Data)', eur(sum(vendore)) + ' €', vendore.length + ' fatura')
@@ -2801,7 +2855,6 @@ async function paneli() {
   $('p-rifreskuar').textContent = `Raporti: ${prej === deri ? dataShqip(prej) : dataShqip(prej) + ' – ' + dataShqip(deri)} · Rifreskuar: ${new Date().toLocaleTimeString('sq-AL', { timeZone: 'Europe/Belgrade' })} · të dhënat e Pro-Data-s vijnë çdo 1 minutë, faturat e aplikacionit menjëherë.`;
 }
 $('p-periudha').onchange = () => { const z = $('p-periudha').value === 'zgjidh'; $('p-prej-l').hidden = !z; $('p-deri-l').hidden = !z; paneli(); };
-$('p-pika').onchange = paneli;
 $('p-prej').onchange = $('p-deri').onchange = paneli;
 NGARKUESIT.paneli = paneli;
 setInterval(() => { const a = document.querySelector('section.faqe.aktive'); if (a && a.id === 'f-paneli') paneli(); }, 30000);
@@ -2810,11 +2863,13 @@ setInterval(() => { const a = document.querySelector('section.faqe.aktive'); if 
 NGARKUESIT.shitjet = async () => {
   const [prej, deri] = periudha($('sl-periudha').value);
   const fillim = new Date(new Date(prej + 'T00:00:00Z').getTime() - 3 * 3600e3).toISOString();
-  const [{ data: app }, { data: pd }] = await Promise.all([
-    sb.from('app_faturat').select('nr, krijuar, shitesja_emri, klienti_emri, totali, statusi, porosia_nr').gte('krijuar', fillim).order('krijuar', { ascending: false }).limit(300),
-    sb.from('prodata_shitjet').select('*').gte('data', prej + 'T00:00:00+02:00').lte('data', deri + 'T23:59:59+02:00').order('data', { ascending: false }).limit(500)]);
-  $('sl-app').innerHTML = (app || []).filter((f) => ditaKS(f.krijuar) <= deri).map((f) => `<tr><td>${f.nr}</td><td>${oraKS(f.krijuar)}</td><td>${esc(f.shitesja_emri || '')}</td><td>${esc(f.klienti_emri || 'Qytetar')}</td><td class="num">${eur(f.totali)}</td><td>${shenje(f.statusi)}</td><td>${esc(f.porosia_nr || '')}</td></tr>`).join('') || '<tr><td colspan="7" class="zbehte">Asnjë</td></tr>';
   await ngarkoPikat();
+  const mags = depMagazinat();
+  let qApp = sb.from('app_faturat').select('nr, krijuar, shitesja_emri, klienti_emri, totali, statusi, porosia_nr').gte('krijuar', fillim);
+  let qPd = sb.from('prodata_shitjet').select('*').gte('data', prej + 'T00:00:00+02:00').lte('data', deri + 'T23:59:59+02:00');
+  if (mags) { qApp = qApp.in('magazina', mags); qPd = qPd.in('magazina', mags); }
+  const [{ data: app }, { data: pd }] = await Promise.all([qApp.order('krijuar', { ascending: false }).limit(300), qPd.order('data', { ascending: false }).limit(500)]);
+  $('sl-app').innerHTML = (app || []).filter((f) => ditaKS(f.krijuar) <= deri).map((f) => `<tr><td>${f.nr}</td><td>${oraKS(f.krijuar)}</td><td>${esc(f.shitesja_emri || '')}</td><td>${esc(f.klienti_emri || 'Qytetar')}</td><td class="num">${eur(f.totali)}</td><td>${shenje(f.statusi)}</td><td>${esc(f.porosia_nr || '')}</td></tr>`).join('') || '<tr><td colspan="7" class="zbehte">Asnjë</td></tr>';
   const emriPikes = (x) => { const p = pikat.find((p) => iPerket(p, x.databaza, x.magazina)); return p ? p.emri : `${x.magazina}${x.databaza && x.databaza !== DB1 ? ' (' + x.databaza + ')' : ''}`; };
   $('sl-pd').innerHTML = (pd || []).map((x) => `<tr><td>${dataKS(new Date(x.data))}</td><td>${esc(x.nr)}</td><td>${esc(x.txn || '')}</td><td>${esc(emriPikes(x))}</td><td>${esc(x.agjenti || '')}</td><td>${esc(x.menyra_pagese || '')}</td><td class="num">${eur(x.totali)}</td></tr>`).join('') || '<tr><td colspan="7" class="zbehte">Asnjë</td></tr>';
 };
@@ -2822,12 +2877,16 @@ $('sl-periudha').onchange = NGARKUESIT.shitjet;
 
 // ---------- BLERJET / PAGESAT / DEPO / STAFI / ADMIN ----------
 NGARKUESIT.blerjet = async () => {
-  const { data } = await sb.from('prodata_blerjet_ditore').select('*').order('data', { ascending: false }).limit(200);
+  await ngarkoPikat();
+  let q = sb.from('prodata_blerjet_ditore').select('*'); const mags = depMagazinat(); if (mags) q = q.in('magazina', mags);
+  const { data } = await q.order('data', { ascending: false }).limit(200);
   const n = { BLS01: 'Shpenzime / shërbime', BLV01: 'Blerje vendore', BLI01: 'Blerje import' };
   $('bl-tabela').innerHTML = (data || []).map((x) => `<tr><td>${x.data}</td><td>${n[x.txn] || x.txn}</td><td class="num">${x.nr}</td><td class="num">${eur(x.shuma)} €</td></tr>`).join('') || '<tr><td colspan="4" class="zbehte">Asnjë</td></tr>';
 };
 NGARKUESIT.pagesat = async () => {
-  const { data } = await sb.from('prodata_pagesat_ditore').select('*').order('data', { ascending: false }).limit(300);
+  await ngarkoPikat();
+  let q = sb.from('prodata_pagesat_ditore').select('*'); const mags = depMagazinat(); if (mags) q = q.in('magazina', mags);
+  const { data } = await q.order('data', { ascending: false }).limit(300);
   $('pg-tabela').innerHTML = (data || []).map((x) => `<tr><td>${x.data}</td><td>${x.lloji === 'PGH01' ? 'Hyrëse' : x.lloji === 'PGD01' ? 'Dalëse' : x.lloji}</td><td>${esc(x.grupi || '')}</td><td>${esc(x.menyra)}</td><td class="num">${x.nr}</td><td class="num">${eur(x.shuma)} €</td></tr>`).join('') || '<tr><td colspan="6" class="zbehte">Asnjë</td></tr>';
 };
 // ================= DEPO (brenda faqes kryesore) =================
@@ -3187,7 +3246,9 @@ NGARKUESIT.klientet = async (ngaRealtime) => {
   const p = stPeriudha($('kl-periudha').value);
   $('kl-shenim').textContent = '⏳ Po llogariten statistikat…';
   try {
-    const [kl, pr] = await Promise.all([rpcTeGjitha('stat_klientet', { p_prej: p.prej, p_deri: p.deri }, 'vlera'), rpcTeGjitha('stat_produktet', { p_prej: p.prej, p_deri: p.deri }, 'vlera')]);
+    await ngarkoPikat();
+    const mags = depMagazinat();
+    const [kl, pr] = await Promise.all([rpcTeGjitha('stat_klientet', { p_prej: p.prej, p_deri: p.deri, p_magazinat: mags }, 'vlera'), rpcTeGjitha('stat_produktet', { p_prej: p.prej, p_deri: p.deri, p_magazinat: mags }, 'vlera')]);
     klLista = kl.map((k) => ({ ...k, vlera: +k.vlera || 0, fatura: +k.fatura || 0 }));
     const totali = pr.reduce((s, r) => s + (+r.vlera || 0), 0);
     klPaEmer = Math.max(0, totali - klLista.filter((k) => k.burimi === 'Pro-Data').reduce((s, k) => s + k.vlera, 0));
@@ -3237,14 +3298,14 @@ async function klKartela(k) {
   el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   let muajt = [], produktet = [];
   if (k.klienti.startsWith('pd:')) {
-    const { data, error } = await sb.rpc('stat_klienti', { p_klienti: k.klienti, p_prej: p.prej, p_deri: p.deri });
+    const { data, error } = await sb.rpc('stat_klienti', { p_klienti: k.klienti, p_prej: p.prej, p_deri: p.deri, p_magazinat: depMagazinat() });
     if (error) { el.innerHTML = '❌ ' + esc(error.message); return; }
     muajt = data.filter((x) => x.lloji === 'muaji').sort((a, b) => a.celesi.localeCompare(b.celesi));
     produktet = data.filter((x) => x.lloji === 'produkti').sort((a, b) => b.vlera - a.vlera);
   } else {   // klient online: nga porositë tona sipas telefonit
-    const { data } = await sb.from('app_faturat').select('krijuar, totali, rreshtat, klienti_telefoni').eq('kanali', 'online').neq('statusi', 'anuluar').gte('krijuar', p.prej).limit(1000);
+    const { data } = await sb.from('app_faturat').select('krijuar, totali, rreshtat, klienti_telefoni, magazina').eq('kanali', 'online').neq('statusi', 'anuluar').gte('krijuar', p.prej).limit(1000);
     const tel = k.klienti.slice(4), mua = {}, pro = {};
-    for (const f of (data || []).filter((x) => String(x.klienti_telefoni || '').replace(/\D/g, '') === tel)) {
+    for (const f of (data || []).filter((x) => String(x.klienti_telefoni || '').replace(/\D/g, '') === tel && depLejon(x.magazina, DB1))) {
       const m = String(f.krijuar).slice(0, 7); mua[m] = mua[m] || { celesi: m, vlera: 0, fatura: 0 }; mua[m].vlera += +f.totali; mua[m].fatura++;
       for (const r of f.rreshtat || []) { pro[r.kodi] = pro[r.kodi] || { emri: r.emri, kategoria: '', sasia: 0, vlera: 0 }; pro[r.kodi].sasia += +r.sasia; pro[r.kodi].vlera += vleraRr(r); }
     }
@@ -3267,13 +3328,15 @@ $('pr-rendit').onchange = () => prVizato();
 NGARKUESIT.produktet = async (ngaRealtime) => {
   if (ngaRealtime) return;
   if ($('pr-pika').options.length <= 1) $('pr-pika').innerHTML = (teGjithaMag() ? '<option value="">Të gjitha pikat</option>' : '') + magazinatE().map((m) => `<option value="${esc(m.kodi)}">${esc(m.kodi)} – ${esc(m.emri)}</option>`).join('');
-  const p = stPeriudha($('pr-periudha').value), mag = $('pr-pika').value || null;
+  const eAdmin = profili.roli === 'admin', p = stPeriudha($('pr-periudha').value), mag = eAdmin ? null : ($('pr-pika').value || null);
   $('pr-shenim').textContent = '⏳ Po llogariten statistikat…';
   try {
+    if (eAdmin) await ngarkoPikat();
+    const mags = eAdmin ? depMagazinat() : null;
     const [tani, para, mujore] = await Promise.all([
-      rpcTeGjitha('stat_produktet', { p_prej: p.prej, p_deri: p.deri, p_magazina: mag }, 'vlera'),
-      rpcTeGjitha('stat_produktet', { p_prej: p.para.prej, p_deri: p.para.deri, p_magazina: mag }, 'vlera'),
-      rpcTeGjitha('stat_kategorite_mujore', { p_prej: p.prej, p_deri: p.deri, p_magazina: mag }, 'vlera')]);
+      rpcTeGjitha('stat_produktet', { p_prej: p.prej, p_deri: p.deri, p_magazina: mag, p_magazinat: mags }, 'vlera'),
+      rpcTeGjitha('stat_produktet', { p_prej: p.para.prej, p_deri: p.para.deri, p_magazina: mag, p_magazinat: mags }, 'vlera'),
+      rpcTeGjitha('stat_kategorite_mujore', { p_prej: p.prej, p_deri: p.deri, p_magazina: mag, p_magazinat: mags }, 'vlera')]);
     prLista = tani.map((r) => ({ ...r, vlera: +r.vlera || 0, sasia: +r.sasia || 0, fatura: +r.fatura || 0, kliente: +r.kliente || 0 }));
     prPara = new Map(para.map((r) => [r.artikulli_id, { ...r, vlera: +r.vlera || 0 }]));
     // tabela muaj × kategori
