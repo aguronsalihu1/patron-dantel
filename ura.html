@@ -226,18 +226,18 @@
   .mg-foto-bosh small { font-size:10px; }
   .mg-forma { background:#fff; border:2px solid var(--kryesor); border-radius:18px; padding:16px; margin:12px 0; }
   .onl-b-gjej { background:linear-gradient(135deg, #0f766e, #14b8a6); }
-  .gj-karte { display:grid; grid-template-columns:96px minmax(0, 1fr); gap:12px; padding:12px; margin-top:10px; background:#fff; border:1px solid var(--vije); border-radius:14px; }
+  .gj-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(135px, 1fr)); gap:10px; margin-top:10px; }
+  .gj-karte { display:flex; flex-direction:column; background:#fff; border:1px solid var(--vije); border-radius:14px; overflow:hidden; }
   .gj-karte.ekzakt { border:2px solid var(--kryesor); }
-  .gj-foto { width:96px; height:120px; padding:0; border:0; border-radius:10px; overflow:hidden; background:#f4f2f5; cursor:zoom-in; }
+  .gj-foto { display:block; width:100%; aspect-ratio:4/5; padding:0; border:0; border-radius:0; background:#f4f2f5; cursor:zoom-in; box-shadow:none; }
   .gj-foto img { width:100%; height:100%; object-fit:cover; display:block; }
-  .gj-pafoto { width:96px; height:120px; border-radius:10px; background:#f4f2f5; color:var(--zbehte); display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:12px; gap:4px; text-align:center; }
-  .gj-pafoto span { font-size:24px; }
+  .gj-pafoto { width:100%; aspect-ratio:4/5; background:#f4f2f5; color:var(--zbehte); display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:12px; gap:4px; }
+  .gj-pafoto span { font-size:26px; }
+  .gj-info { padding:8px 10px 10px; font-size:13px; line-height:1.35; }
   .gj-emri { font-weight:700; overflow-wrap:anywhere; }
-  .gj-kodi { font-size:13px; color:var(--zbehte); overflow-wrap:anywhere; margin:2px 0 8px; }
-  .gj-fakte { display:grid; grid-template-columns:repeat(auto-fit, minmax(110px, 1fr)); gap:6px; }
-  .gj-fakt { background:#f6f4f8; border-radius:8px; padding:6px 9px; font-size:13px; overflow-wrap:anywhere; }
-  .gj-fakt small { display:block; color:var(--zbehte); font-size:12px; }
-  .gj-fakt b { font-size:15px; }
+  .gj-kodi { color:var(--zbehte); overflow-wrap:anywhere; margin:2px 0 6px; }
+  .gj-fakt { overflow-wrap:anywhere; }
+  .gj-fakt b { font-size:14px; }
   .tl-porosi { display:grid; grid-template-columns:minmax(0, 1fr) auto; gap:10px; padding:11px 2px; border-top:1px solid var(--vije); }
   .tl-porosi b { overflow-wrap:anywhere; }
   .tl-porosi .tl-det { font-size:13px; color:var(--zbehte); line-height:1.4; overflow-wrap:anywhere; }
@@ -609,9 +609,13 @@
   <section class="faqe" id="f-gjej">
     <h2>🔎 Gjej artikullin</h2>
     <div class="ar-skano-kuti"><span class="ikona">▥</span>
-      <input id="gj-kerko" placeholder="barkodi, kodi ose emri i artikullit…" autocomplete="off" aria-label="Kërko artikull">
+      <input id="gj-kerko" placeholder="kodi ose emri…" autocomplete="off" aria-label="Kërko artikull sipas barkodit, kodit ose emrit">
       <button class="kryesor" type="button" id="gj-skano">📷 Skano</button></div>
-    <div id="gj-lista"></div>
+    <div class="chips" id="gj-kategorite" style="margin:10px 0 8px"></div>
+    <label style="flex-direction:row;align-items:center;gap:8px;margin-bottom:6px"><input type="checkbox" id="gj-vetem-foto" style="min-width:0;width:18px;height:18px;margin:0;padding:0"> Vetëm me foto</label>
+    <div class="zbehte" id="gj-nr"></div>
+    <div class="gj-grid" id="gj-lista"></div>
+    <div class="butona" style="justify-content:center"><button class="dyte" type="button" id="gj-me-shume" hidden>Shfaq më shumë</button></div>
   </section>
 
   <!-- ===== TEL-POST: lista e thjeshtë për shitëset online dhe arkën ===== -->
@@ -1359,6 +1363,8 @@ async function mgNgarkoFotot() {   // → rrugët në produktet-fotot
     const { error } = await sb.storage.from('produktet-fotot').upload(rruga, f.blob, { contentType: 'image/jpeg' });
     if (error) throw new Error('Fotot nuk u ngarkuan: ' + error.message);
     rruget.push(rruga);
+    // kopja e vogël për galerinë "Gjej artikullin"; po të dështojë, galeria përdor origjinalin
+    try { await sb.storage.from('produktet-fotot').upload('thumb/' + rruga, await zvogelo(f.blob, 480), { contentType: 'image/jpeg' }); } catch {}
   }
   return rruget;
 }
@@ -1766,36 +1772,55 @@ NGARKUESIT.mall = async (ngaRealtime) => {
 };
 
 // ---------- GJEJ ARTIKULLIN (shitëset fizike): vetëm shikim ----------
-let gjNr = 0;
+// Galeri e artikujve të Patron Dantelit: shitësja e njeh produktin nga fotoja, pa e ditur kodin. Fotot e vogla (thumb/...) e mbajnë të shpejtë.
+const GJ_FAQJA = 40;
+let gjNr = 0, gjKategoria = null, gjNgarkuar = 0, gjKategorite = null;
 const gjSasi = (x, nj) => `${(+x || 0).toLocaleString('de-DE', { maximumFractionDigits: 2 })}${nj ? ' ' + esc(nj) : ''}`;
-async function gjKerko() {
-  const q = $('gj-kerko').value.trim(), el = $('gj-lista'), nr = ++gjNr;
-  if (q.length < 2) { el.innerHTML = '<p class="zbehte">Skano barkodin ose shkruaj të paktën 2 shkronja.</p>'; return; }
-  el.innerHTML = '<p class="zbehte">⏳ Po kërkohet…</p>';
-  try {
-    const art = await kerkoArtikuj(q);
-    if (nr !== gjNr) return;
-    if (!art.length) { el.innerHTML = '<p class="zbehte">Asnjë artikull me këtë kod ose emër.</p>'; return; }
-    const idt = art.map((a) => a.prodata_id);
-    const [fotot, sh] = await Promise.all([fotoArtikujsh(idt), sb.rpc('artikull_shitur', { p_artikujt: idt })]);
-    if (nr !== gjNr) return;
-    if (sh.error) throw new Error(sh.error.message);
-    const shitur = new Map((sh.data || []).map((x) => [x.artikulli_id, x]));
-    el.innerHTML = art.map((a) => {
-      const f = fotot.get(a.prodata_id), ekz = a.barkodi === q || a.kodi === q, s = shitur.get(a.prodata_id), total = a.stoku.reduce((t, x) => t + x.sasia, 0);
-      const ku = a.stoku.map((x) => `${esc(emriMag(x.magazina))}: <b>${gjSasi(x.sasia, a.njesia)}</b>`).join('<br>') || 'Nuk gjendet në stok';
-      return `<div class="gj-karte ${ekz ? 'ekzakt' : ''}">${f ? `<button class="gj-foto" type="button" data-foto="${esc(a.prodata_id)}" title="Hape të madhe"><img src="${esc(f)}" alt="foto e artikullit" loading="lazy"></button>` : '<div class="gj-pafoto"><span>📷</span>Pa foto</div>'}
-        <div><div class="gj-emri">${esc(a.emri)}</div><div class="gj-kodi">Kodi <b>${esc(a.kodi)}</b>${a.barkodi && a.barkodi !== a.kodi ? ' · Barkodi ' + esc(a.barkodi) : ''} · ${eur(a.cmimi)} €</div>
-          <div class="gj-fakte"><div class="gj-fakt"><small>📍 Ku gjendet</small>${ku}</div><div class="gj-fakt"><small>📦 Sasia</small><b>${gjSasi(total, a.njesia)}</b></div>
-            <div class="gj-fakt"><small>🛒 Të shitura (nga 1.1.2026)</small><b>${gjSasi(s ? s.sasia : 0, a.njesia)}</b>${s && s.e_fundit ? `<small>e fundit ${esc(dataShqip(String(s.e_fundit).slice(0, 10)))}</small>` : ''}</div></div></div></div>`;
-    }).join('');
-    el.querySelectorAll('[data-foto]').forEach((b) => b.onclick = () => shikoFototArtikullit(b.dataset.foto));
-  } catch (e) { if (nr === gjNr) el.innerHTML = `<p class="mesazh gabim" style="display:block">❌ ${esc(e.message)}</p>`; }
+async function gjUrlVogla(rruget) {   // → Map(rruga → url): foto e vogël; nëse s'ka, origjinali
+  const m = new Map(); if (!rruget.length) return m;
+  const { data } = await sb.storage.from('produktet-fotot').createSignedUrls(rruget.map((r) => 'thumb/' + r), 3600);
+  const mungojne = [];
+  rruget.forEach((r, i) => { const u = data && data[i] && data[i].signedUrl; if (u) m.set(r, u); else mungojne.push(r); });
+  if (mungojne.length) { const { data: o } = await sb.storage.from('produktet-fotot').createSignedUrls(mungojne, 3600); mungojne.forEach((r, i) => { if (o && o[i] && o[i].signedUrl) m.set(r, o[i].signedUrl); }); }
+  return m;
 }
-(() => { let t; $('gj-kerko').oninput = () => { clearTimeout(t); t = setTimeout(gjKerko, 300); }; })();
+async function gjKategoriteVizato() {
+  if (!gjKategorite) { const { data, error } = await sb.rpc('patron_kategorite'); if (error) throw new Error(error.message); gjKategorite = data || []; }
+  const tot = gjKategorite.reduce((s, k) => s + +k.nr, 0);
+  $('gj-kategorite').innerHTML = [[null, 'Të gjitha', tot], ...gjKategorite.map((k) => [k.kategoria, k.kategoria, k.nr])].map(([k, t, n]) => `<button type="button" data-k="${esc(k || '')}" class="${k === gjKategoria ? 'on' : ''}">${esc(t)} ${n}</button>`).join('');
+  $('gj-kategorite').querySelectorAll('button').forEach((b) => b.onclick = () => { gjKategoria = b.dataset.k || null; gjKategoriteVizato(); gjKerko(); });
+}
+async function gjKerko(meShume = false) {
+  const q = $('gj-kerko').value.trim(), el = $('gj-lista'), nr = ++gjNr;
+  if (!meShume) { gjNgarkuar = 0; el.innerHTML = '<p class="zbehte" style="grid-column:1/-1">⏳ Po ngarkohen artikujt…</p>'; $('gj-me-shume').hidden = true; }
+  try {
+    const { data, error } = await sb.rpc('patron_artikujt', { p_kerko: q || null, p_kategoria: gjKategoria, p_vetem_foto: $('gj-vetem-foto').checked }).order('rendi').range(gjNgarkuar, gjNgarkuar + GJ_FAQJA - 1);
+    if (error) throw new Error(error.message);
+    const url = await gjUrlVogla(data.map((a) => a.foto).filter(Boolean));
+    if (nr !== gjNr) return;
+    const gjithsej = data.length ? +data[0].gjithsej : gjNgarkuar;
+    const html = data.map((a) => { const u = a.foto && url.get(a.foto), ekz = !!q && (a.barkodi === q || a.kodi === q);
+      return `<div class="gj-karte ${ekz ? 'ekzakt' : ''}">${u ? `<button class="gj-foto" type="button" data-foto="${esc(a.prodata_id)}" title="Hape të madhe"><img src="${esc(u)}" alt="${esc(a.emri || '')}" loading="lazy"></button>` : '<div class="gj-pafoto"><span>📷</span>Pa foto</div>'}
+        <div class="gj-info"><div class="gj-emri">${esc(a.emri || '')}</div><div class="gj-kodi">Kodi <b>${esc(a.kodi || '')}</b>${a.barkodi && a.barkodi !== a.kodi ? '<br>Barkodi ' + esc(a.barkodi) : ''}<br>${eur(a.cmimi)} €</div>
+          <div class="gj-fakt">📍 Patron Dantel</div><div class="gj-fakt">📦 Sasia: <b>${gjSasi(a.sasia, a.njesia)}</b></div>
+          <div class="gj-fakt" title="Nga 1.1.2026">🛒 Të shitura: <b>${gjSasi(a.shitur, a.njesia)}</b></div></div></div>`; }).join('');
+    if (meShume) el.insertAdjacentHTML('beforeend', html); else el.innerHTML = html || `<p class="zbehte" style="grid-column:1/-1">${q ? 'Asnjë artikull i Patron Dantelit me këtë kod ose emër.' : 'Asnjë artikull për këtë zgjedhje.'}</p>`;
+    gjNgarkuar += data.length;
+    $('gj-nr').textContent = gjithsej ? `${gjNgarkuar} nga ${gjithsej} artikuj · me foto dalin të parët · kliko foton për ta hapur të madhe` : '';
+    $('gj-me-shume').hidden = gjNgarkuar >= gjithsej;
+    el.querySelectorAll('[data-foto]').forEach((b) => b.onclick = () => shikoFototArtikullit(b.dataset.foto));
+  } catch (e) { if (nr === gjNr) el.innerHTML = `<p class="mesazh gabim" style="display:block;grid-column:1/-1">❌ ${esc(e.message)}</p>`; }
+}
+(() => { let t; $('gj-kerko').oninput = () => { clearTimeout(t); t = setTimeout(() => gjKerko(), 350); }; })();
 $('gj-kerko').onkeydown = (e) => { if (e.key === 'Enter') gjKerko(); };
+$('gj-vetem-foto').onchange = () => gjKerko();
+$('gj-me-shume').onclick = () => gjKerko(true);
 $('gj-skano').onclick = () => dkSkaneri((kodi) => { $('gj-kerko').value = kodi; gjKerko(); });
-NGARKUESIT.gjej = (ngaRealtime) => { if (!ngaRealtime) setTimeout(() => $('gj-kerko').focus(), 50); };
+NGARKUESIT.gjej = async (ngaRealtime) => {
+  if (ngaRealtime) return;
+  try { await gjKategoriteVizato(); } catch (e) { $('gj-nr').textContent = '❌ ' + e.message; }
+  gjKerko();
+};
 
 // ---------- LLOGARIA IME ----------
 NGARKUESIT.llogaria = async () => {
