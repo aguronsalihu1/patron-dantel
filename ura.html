@@ -227,6 +227,16 @@
   .mg-foto-bosh { border:2px dashed var(--kryesor) !important; color:var(--kryesor); cursor:pointer; flex-direction:column; font-size:22px !important; font-weight:700; padding:0; }
   .mg-foto-bosh small { font-size:10px; }
   .mg-forma { background:#fff; border:2px solid var(--kryesor); border-radius:18px; padding:16px; margin:12px 0; }
+  .mx-kolonat { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:8px; }
+  .mx-kolonat label { display:block; font-size:13px; }
+  .mx-kolonat select { width:100%; box-sizing:border-box; }
+  .mx-tabela td { vertical-align:middle; }
+  .mx-tabela input { box-sizing:border-box; min-width:0; }
+  .mx-tabela tr.mx-gabim td { background:#fdecea; }
+  .mx-tabela tr.mx-kalo td { opacity:.55; }
+  .mx-shenim { font-size:12px; line-height:1.3; min-width:150px; }
+  .mx-shenim.gab { color:var(--gabim); font-weight:600; }
+  .mx-permbledhja { margin:12px 0 8px; font-weight:600; }
   .mg-lloji { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:6px 0 10px; }
   .mg-lloji button { padding:12px 8px; border:1px solid var(--vije); border-radius:12px; background:#fff; font:inherit; font-weight:600; cursor:pointer; }
   .mg-lloji button.on { background:var(--kryesor); color:#fff; border-color:var(--kryesor); }
@@ -488,7 +498,9 @@
       <div class="ar-skano-kuti"><span class="ikona">▥</span>
         <input id="mg-kerko" placeholder="barkodi, kodi ose emri i produktit…" autocomplete="off">
         <button class="kryesor" type="button" id="mg-skano">📷 Skano</button></div>
-      <div class="butona" style="margin-top:0"><button class="kryesor" id="mg-kontrollo">🔎 Kontrollo</button><button class="dyte" id="mg-ri-direkt">🆕 Artikull i ri</button></div>
+      <div class="butona" style="margin-top:0"><button class="kryesor" id="mg-kontrollo">🔎 Kontrollo</button><button class="dyte" id="mg-ri-direkt">🆕 Artikull i ri</button><button class="dyte" id="mg-excel" type="button" hidden>📄 Ngarko Excel</button></div>
+      <input type="file" id="mg-excel-inp" accept=".xlsx,.xls,.csv" class="fsheh">
+      <div id="mg-excel-zona"></div>
       <div id="mg-rezultati"></div>
     </div>
     <div id="mg-forma"></div>
@@ -1394,8 +1406,257 @@ $('mg-kontrollo').onclick = mgKontrollo;
 $('mg-kerko').onkeydown = (e) => { if (e.key === 'Enter') mgKontrollo(); };
 $('mg-skano').onclick = () => dkSkaneri((kodi) => { $('mg-kerko').value = kodi; mgKontrollo(); });
 $('mg-ri-direkt').onclick = () => mgFormaRi($('mg-kerko').value.trim());
+// ---------- MALL NGA EXCEL ----------
+// Lexon skedarin në shfletues, gjen kolonat, kontrollon çdo rresht me listën e artikujve dhe tregon një parapamje.
+// Asgjë nuk ruhet pa shtypur "Fut". Rreshtat futen në një hap te regjistrimet_mallit (të gjithë ose asnjë) dhe ura i kalon në Pro-Data një nga një.
+const MX_MAX = 500;
+const MX_FUSHAT = [['barkodi', 'Barkodi'], ['kodi', 'Kodi'], ['emri', 'Emri'], ['ngjyra', 'Ngjyra'], ['sasia', 'Sasia *'], ['njesia', 'Njësia'], ['cmimi', 'Çmimi i shitjes me TVSH']];
+let mx = null;
+const mxNormal = (s) => String(s ?? '').toLowerCase().replace(/ë/g, 'e').replace(/ç/g, 'c').replace(/[^a-z0-9]+/g, ' ').trim();
+function mxFusha(t) {   // emri i kolonës → fusha jonë. Çmimi merret vetë vetëm kur duket si çmim shitjeje: "Price" i furnitorit s'është çmimi ynë.
+  const x = mxNormal(t); if (!x) return null;
+  if (/barcode|barkod|\bean\b|gtin/.test(x)) return 'barkodi';
+  if (/cmim|price|pvp|retail/.test(x)) return /blerj|purchase|cost|kost|fob/.test(x) ? null : (/shitj|pakic|retail|sale|pvp/.test(x) || x === 'cmimi' ? 'cmimi' : null);
+  if (/^(kodi?|code|shifra|sku|item ?id|item code|article code|kodi i artikullit)$/.test(x)) return 'kodi';
+  if (/^(emri?|emertimi?|artikulli?|pershkrimi?|name|description|produkti?|product|item|item name|emri i produktit|emri i artikullit)$/.test(x)) return 'emri';
+  if (/^(ngjyr[ae]?|colou?r)$/.test(x)) return 'ngjyra';
+  if (/^(njesi[ae]?|nj m|unit|uom|um)$/.test(x)) return 'njesia';
+  if (/^(sasi[ae]?|quantity|qty|metra|meters?)$/.test(x)) return 'sasia';
+  return null;
+}
+const mxQelize = (v) => (typeof v === 'number' && Number.isInteger(v) && Math.abs(v) >= 1e15 ? BigInt(v).toString() : String(v ?? '').replace(/\s+/g, ' ').trim());
+function mxNjesi(s) {
+  const x = mxNormal(s); if (!x) return '';
+  if (/^(m|mt|mtr|meter|meters|metra|metri|metro)$/.test(x)) return 'M';
+  if (/^(cope|cop|pcs|pc|piece|pieces)$/.test(x)) return 'Copë';
+  return String(s).trim();
+}
+function mxNumri(v) {   // → { n, njesi } ose { gabim }. "150 M" → 150 + M; "1,000" është i paqartë (një apo një mijë?), prandaj s'merret me hamendje
+  if (typeof v === 'number') return Number.isFinite(v) ? { n: v, njesi: '' } : { gabim: 'Numër i pavlefshëm' };
+  const t = String(v ?? '').trim(); if (!t) return {};
+  const m = t.match(/^(?:€\s*)?(\d[\d.,\s]*?)\s*([^\d.,]*)$/);
+  if (!m) return { gabim: `"${t}" nuk është numër` };
+  const s = m[1].replace(/\s/g, '');
+  if (/^\d{1,3}[.,]\d{3}$/.test(s)) return { gabim: `"${t}" është i paqartë: shkruaje pa pikë e presje` };
+  const iPika = s.lastIndexOf('.'), iPresja = s.lastIndexOf(','), iDec = Math.max(iPika, iPresja);
+  const nrNdares = (s.match(/[.,]/g) || []).length;
+  const n = nrNdares > 1 && (iPika < 0 || iPresja < 0) ? +s.replace(/[.,]/g, '')   // 1,234,567
+    : iDec < 0 ? +s : +(s.slice(0, iDec).replace(/[.,]/g, '') + '.' + s.slice(iDec + 1));
+  return Number.isFinite(n) ? { n, njesi: m[2].replace(/€|eur/i, '').trim() } : { gabim: `"${t}" nuk është numër` };
+}
+function mxGjejKoken(rows) {   // → rreshti i titujve: ai me më shumë kolona të njohura, që ka edhe sasinë
+  let mir = { i: -1, pike: 0 };
+  rows.slice(0, 30).forEach((r, i) => {
+    const f = new Set(r.map(mxFusha).filter(Boolean));
+    if (f.has('sasia') && f.size > mir.pike) mir = { i, pike: f.size };
+  });
+  return mir;
+}
+const mxFleta = (emri) => XLSX.utils.sheet_to_json(mx.wb.Sheets[emri], { header: 1, raw: true, defval: '', blankrows: true });
+function mxZgjidhFleten(emri) {
+  mx.fleta = emri; mx.rows = mxFleta(emri);
+  const k = mxGjejKoken(mx.rows);
+  mx.kokaI = k.i >= 0 ? k.i : Math.max(0, mx.rows.findIndex((r) => r.some((c) => mxQelize(c))));
+  mx.harta = {}; (mx.rows[mx.kokaI] || []).forEach((t, i) => { const f = mxFusha(t); if (f && mx.harta[f] == null) mx.harta[f] = i; });
+}
+async function mxHapSkedarin(file) {
+  const z = $('mg-excel-zona');
+  if (file.size > 30 * 1048576) { z.innerHTML = '<p class="mesazh gabim" style="display:block">❌ Skedari është më i madh se 30 MB.</p>'; return; }
+  z.innerHTML = '<p class="zbehte">⏳ Po lexohet skedari…</p>';
+  try {
+    await ngarkoXLSX();
+    mx = { skedari: file.name, wb: XLSX.read(await file.arrayBuffer(), { type: 'array' }), magazina: PD_MAG, njesiaBaze: 'M', ngarkimi: null };
+    // fleta e parë që ka tituj të njohur (skedarët shpesh kanë fletë të tjera pa lidhje)
+    const fletet = mx.wb.SheetNames.filter((n) => mxFleta(n).some((r) => r.some((c) => mxQelize(c))));
+    if (!fletet.length) throw new Error('Skedari është i zbrazët.');
+    mx.fletet = fletet;
+    let mira = fletet[0], pike = -1;
+    for (const n of fletet) { const k = mxGjejKoken(mxFleta(n)); if (k.pike > pike) { pike = k.pike; mira = n; } }
+    mxZgjidhFleten(mira);
+    await mxPerpuno();
+  } catch (e) { mx = null; z.innerHTML = `<p class="mesazh gabim" style="display:block">❌ Skedari nuk u lexua: ${esc(e.message)}</p>`; }
+}
+async function mxPerpuno() {
+  const h = mx.harta, koka = mx.kokaI, kaF = (r, f) => (h[f] != null ? r[h[f]] : '');
+  const bashke = new Map(), lista = []; mx.nrTotale = 0;
+  for (let i = koka + 1; i < mx.rows.length; i++) {
+    const c = mx.rows[i], barkodi = mxQelize(kaF(c, 'barkodi')), kodi = mxQelize(kaF(c, 'kodi')), emri = mxQelize(kaF(c, 'emri')), ngjyra = mxQelize(kaF(c, 'ngjyra')), sRaw = kaF(c, 'sasia');
+    const pareTekst = mxNormal(c.find((x) => mxQelize(x)) || '');
+    if (/^(total|totali|gjithsej|shuma|sum|grand total)\b/.test(pareTekst)) { mx.nrTotale++; continue; }
+    if (!barkodi && !kodi && !emri && !ngjyra) { if (mxQelize(sRaw)) mx.nrTotale++; continue; }   // rresht bosh, ose shuma pa emër
+    const s = mxNumri(sRaw), ç = mxNumri(kaF(c, 'cmimi'));
+    const r = { rreshti: i + 1, rreshtat: [i + 1], barkodi, kodi, emri, ngjyra, sasia: s.n ?? null, sasiaGabim: s.gabim || null, njesi: mxNjesi(mxQelize(kaF(c, 'njesia')) || s.njesi || ''),
+      cmimi: ç.gabim ? null : (ç.n ?? null), gabimBaze: /e\+/i.test(barkodi) ? `Barkodi "${barkodi}" u prish nga Excel-i: formatoje kolonën si tekst` : null };
+    const celes = [barkodi || kodi, ngjyra, emri].map(mxNormal).join('|');
+    const e = bashke.get(celes);
+    if (e && e.njesi === r.njesi && e.sasia != null && r.sasia != null) { e.sasia += r.sasia; e.rreshtat.push(r.rreshti); continue; }   // i njëjti artikull dy herë: bashkohen
+    bashke.set(celes, r); lista.push(r);
+  }
+  // kodi që përsëritet me ngjyra të ndryshme është kod dizajni, jo kod artikulli (s'mund të jetë unik në Pro-Data)
+  const nrKodi = new Map(); lista.forEach((r) => { if (r.kodi) nrKodi.set(r.kodi, (nrKodi.get(r.kodi) || 0) + 1); });
+  for (const r of lista) {
+    r.kodiDizajn = !!r.kodi && nrKodi.get(r.kodi) > 1;
+    r.kodiArt = r.kodiDizajn ? '' : r.kodi;
+    r.emriF = [r.emri || (r.ngjyra ? r.kodi : ''), r.ngjyra].filter(Boolean).join(' ').slice(0, 200);
+    r.njesiaF = r.njesi || mx.njesiaBaze;
+  }
+  mx.rreshtat = lista;
+  $('mg-excel-zona').innerHTML = '<p class="zbehte">⏳ Po kontrollohen artikujt në listë…</p>';
+  // kërkimi te artikujt e Pro-Data: barkod/kod i saktë, pastaj emër i saktë
+  const idt = [...new Set(lista.flatMap((r) => [r.barkodi, r.kodiArt]).filter(Boolean))], emrat = [...new Set(lista.map((r) => r.emriF).filter(Boolean))], art = new Map();
+  const merr = async (kol, vlerat) => { for (let i = 0; i < vlerat.length; i += 100) {
+    const { data, error } = await sb.from('prodata_artikujt').select('prodata_id, kodi, barkodi, emri, njesia, cmimi, aktiv').in(kol, vlerat.slice(i, i + 100)); if (error) throw error;
+    (data || []).forEach((a) => art.set(a.prodata_id, a)); } };
+  await merr('barkodi', idt); await merr('kodi', idt); await merr('emri', emrat);
+  // kundër futjes dy herë: çfarë hyri këto 30 ditët e fundit
+  const { data: teFundit, error: eF } = await sb.from('regjistrimet_mallit').select('artikulli_id, emri, sasia, krijuar, krijuar_emri')
+    .in('statusi', ['ne_pritje', 'ne_proces', 'kryer']).in('lloji', ['artikull_i_ri', 'hyrje', 'korrigjim']).gte('krijuar', new Date(Date.now() - 30 * 864e5).toISOString()).order('krijuar', { ascending: false }).limit(1000);
+  if (eF) throw eF;
+  const artikujt = [...art.values()];
+  for (const r of lista) {
+    const meKod = artikujt.filter((a) => (r.barkodi && (a.barkodi === r.barkodi || a.kodi === r.barkodi)) || (r.kodiArt && (a.kodi === r.kodiArt || a.barkodi === r.kodiArt)));
+    r.art = null; r.meKod = meKod.length > 0; r.paralajm = null;
+    if (meKod.length > 1) r.gabimBaze = r.gabimBaze || `Ky kod gjendet te ${meKod.length} artikuj (${meKod.slice(0, 2).map((a) => a.emri).join(', ')})`;
+    else if (meKod.length === 1) {
+      r.art = meKod[0]; r.veprim = 'shto';
+      if (r.art.aktiv === false) r.gabimBaze = r.gabimBaze || `Artikulli "${r.art.emri}" është i çaktivizuar`;
+      else if (r.cmimi != null && Math.abs(+r.cmimi - +r.art.cmimi) > 0.005) r.paralajm = `Çmimi mbetet ${eur(r.art.cmimi)} € (në skedar ${eur(r.cmimi)} €)`;
+    } else {
+      r.veprim = 'ri';
+      const sipasEmrit = !r.barkodi && artikujt.filter((a) => a.emri === r.emriF && a.aktiv !== false);
+      if (sipasEmrit && sipasEmrit.length === 1) { r.art = sipasEmrit[0]; r.veprim = 'kalo'; r.paralajm = `Ekziston artikull me këtë emër (kodi ${r.art.kodi}). Zgjidh çfarë të bëhet.`; }
+    }
+    if (r.veprim === undefined) r.veprim = 'kalo';
+    const hyriMeHere = (teFundit || []).find((x) => +x.sasia === +r.sasia && (r.art ? String(x.artikulli_id) === String(r.art.prodata_id) : x.emri === r.emriF));
+    if (hyriMeHere && r.sasia != null) { r.veprim = 'kalo'; r.paralajm = `⚠️ E njëjta sasi hyri më ${oraKS(hyriMeHere.krijuar)}${hyriMeHere.krijuar_emri ? ' nga ' + hyriMeHere.krijuar_emri : ''}. U la jashtë, që të mos futet dy herë.`; }
+  }
+  mxVizato();
+}
+function mxGabimi(r) {
+  if (r.gabimBaze) return r.gabimBaze;
+  if (r.veprim === 'kalo') return null;
+  if (r.sasiaGabim) return r.sasiaGabim;
+  if (!(r.sasia > 0)) return 'Mungon sasia';
+  if (r.veprim === 'shto') {
+    if (r.njesi && mxNjesi(r.njesi).toLowerCase() !== mxNjesi(r.art.njesia).toLowerCase()) return `Në skedar është në "${r.njesi}", por artikulli është në "${r.art.njesia}"`;
+    return null;
+  }
+  if (!r.emriF.trim()) return 'Mungon emri';
+  if (!['M', 'Copë'].includes(r.njesiaF)) return `Njësia "${r.njesiaF}" nuk pranohet: zgjidh M ose Copë`;
+  if (!(r.cmimi > 0)) return 'Shkruaj çmimin e shitjes';
+  return null;
+}
+const mxTeFutshme = () => mx.rreshtat.filter((r) => r.veprim !== 'kalo' && !mxGabimi(r));
+function mxShenimi(r) {
+  const g = mxGabimi(r); if (g) return `<div class="mx-shenim gab">❌ ${esc(g)}</div>`;
+  const pj = [];
+  if (r.veprim === 'shto' && r.art) pj.push(`${esc(r.art.emri)} · ${esc(r.art.kodi)} · ${eur(r.art.cmimi)} €`);
+  if (r.paralajm) pj.push(esc(r.paralajm));
+  if (r.rreshtat.length > 1) pj.push(`Bashkuar nga rreshtat ${r.rreshtat.join(', ')}`);
+  if (r.kodiDizajn && r.veprim === 'ri') pj.push(`Kodi ${esc(r.kodi)} përsëritet: Pro-Data do t'i japë kod të ri`);
+  return `<div class="mx-shenim zbehte">${pj.join('<br>')}</div>`;
+}
+function mxRifresko() {   // pa rivizatuar tabelën, që të mos humbet kursori te fusha
+  const n = { ri: 0, shto: 0, kalo: 0, gabim: 0 };
+  mx.rreshtat.forEach((r, i) => {
+    const g = mxGabimi(r); if (g) n.gabim++; else n[r.veprim]++;
+    const tr = document.querySelector(`#mx-rr tr[data-i="${i}"]`);
+    if (tr) { tr.className = g ? 'mx-gabim' : r.veprim === 'kalo' ? 'mx-kalo' : ''; tr.querySelector('.mx-sh').innerHTML = mxShenimi(r); }
+  });
+  const fut = n.ri + n.shto;
+  $('mx-permbledhja').innerHTML = `🆕 ${n.ri} artikuj të rinj · ➕ ${n.shto} shto sasi · ⏭ ${n.kalo} lihen jashtë${n.gabim ? ` · <span style="color:var(--gabim)">❌ ${n.gabim} me gabim (nuk futen)</span>` : ''}${mx.nrTotale ? ` · ${mx.nrTotale} rreshta totali u injoruan` : ''}`;
+  const b = $('mx-fut'); b.disabled = !fut || fut > MX_MAX; b.textContent = fut > MX_MAX ? `Lejohen deri ${MX_MAX} rreshta në një ngarkim` : `✅ Fut ${fut} rreshta në sistem`;
+}
+function mxVizato() {
+  const k = mx.rows[mx.kokaI] || [], kolonat = k.map((t, i) => ({ i, t: mxQelize(t) })).filter((x) => x.t);
+  const mags = magazinatE().map((m) => `<option value="${esc(m.kodi)}" ${m.kodi === mx.magazina ? 'selected' : ''}>${esc(m.kodi)} – ${esc(m.emri)}</option>`).join('');
+  const paCmim = mx.rreshtat.some((r) => r.veprim === 'ri' && !(r.cmimi > 0));
+  $('mg-excel-zona').innerHTML = `<div class="mg-forma"><div class="rresht" style="justify-content:space-between;margin:0"><h3 style="margin:0;overflow-wrap:anywhere">📄 ${esc(mx.skedari)}</h3><button class="dyte" type="button" id="mx-mbyll">✕ Mbyll</button></div>
+    <p class="zbehte">Kontrollo tabelën. Asgjë nuk futet në sistem pa shtypur butonin në fund.</p>
+    <div class="mx-kolonat">${mx.fletet.length > 1 ? `<label>Fleta <select id="mx-fleta">${mx.fletet.map((n) => `<option ${n === mx.fleta ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label>` : ''}
+      <label>Malli hyn në magazinën <select id="mx-mag">${mags}</select></label>
+      <label>Njësia kur s'e shkruan skedari <select id="mx-njesia"><option value="M" ${mx.njesiaBaze === 'M' ? 'selected' : ''}>M (metër)</option><option value="Copë" ${mx.njesiaBaze === 'Copë' ? 'selected' : ''}>Copë</option></select></label></div>
+    <h3 style="margin-bottom:6px">Cila kolonë është cila?</h3>
+    <div class="mx-kolonat">${MX_FUSHAT.map(([f, t]) => `<label>${t} <select data-fusha="${f}"><option value="">—</option>${kolonat.map((c) => `<option value="${c.i}" ${mx.harta[f] === c.i ? 'selected' : ''}>${esc(c.t)}</option>`).join('')}</select></label>`).join('')}</div>
+    ${mx.harta.sasia == null ? '<p class="mesazh gabim" style="display:block">Zgjidh kolonën e sasisë.</p>' : ''}
+    <div class="mx-permbledhja" id="mx-permbledhja"></div>
+    ${paCmim ? `<div class="rresht" style="align-items:flex-end;margin:0 0 8px"><label>Çmim për të gjithë artikujt e rinj pa çmim <input id="mx-cmim-te-gjithe" type="number" min="0" step="0.01" inputmode="decimal" style="width:130px"></label><button class="dyte" type="button" id="mx-cmim-vendos">Vendose</button></div>` : ''}
+    <div class="tabela"><table class="mx-tabela"><thead><tr><th>Rr.</th><th>Çka bëhet</th><th>Barkodi / kodi</th><th>Emri</th><th class="num">Sasia</th><th>Nj.</th><th class="num">Çmimi €</th><th>Shënim</th></tr></thead><tbody id="mx-rr">${mx.rreshtat.map((r, i) => {
+      const op = [r.art && r.meKod ? ['shto', '➕ Shto sasi'] : null, r.art && !r.meKod ? ['shto', `➕ Shto te ${r.art.kodi}`] : null, !r.meKod ? ['ri', '🆕 Artikull i ri'] : null, ['kalo', '⏭ Mos e fut']].filter(Boolean);
+      const eRi = r.veprim === 'ri';
+      return `<tr data-i="${i}"><td>${r.rreshti}</td><td><select data-v="${i}" aria-label="Çka bëhet">${op.map(([v, t]) => `<option value="${v}" ${v === r.veprim ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></td>
+        <td>${esc(r.barkodi || r.kodi || '—')}${r.barkodi && r.kodi ? `<br><small class="zbehte">${esc(r.kodi)}</small>` : ''}</td>
+        <td>${eRi ? `<input data-emri="${i}" value="${esc(r.emriF)}" maxlength="200" style="width:190px" aria-label="Emri">` : esc(r.art ? r.art.emri : r.emriF)}</td>
+        <td class="num">${r.sasia != null ? esc(String(r.sasia)) : '—'}</td>
+        <td>${eRi ? `<select data-nj="${i}" aria-label="Njësia"><option ${r.njesiaF === 'M' ? 'selected' : ''}>M</option><option ${r.njesiaF === 'Copë' ? 'selected' : ''}>Copë</option>${['M', 'Copë'].includes(r.njesiaF) ? '' : `<option selected>${esc(r.njesiaF)}</option>`}</select>` : esc(r.art ? r.art.njesia || '' : r.njesiaF)}</td>
+        <td class="num">${eRi ? `<input data-c="${i}" type="number" min="0" step="0.01" inputmode="decimal" value="${r.cmimi ?? ''}" style="width:80px" aria-label="Çmimi">` : (r.art ? eur(r.art.cmimi) : '—')}</td>
+        <td class="mx-sh"></td></tr>`; }).join('') || '<tr><td colspan="8" class="zbehte">Asnjë rresht me të dhëna.</td></tr>'}</tbody></table></div>
+    <div class="butona"><button class="kryesor" type="button" id="mx-fut">✅ Fut</button></div><div class="mesazh" id="mx-mesazh"></div></div>`;
+  const z = $('mg-excel-zona');
+  $('mx-mbyll').onclick = () => { mx = null; z.innerHTML = ''; };
+  $('mx-mag').onchange = (e) => { mx.magazina = e.target.value; };
+  $('mx-njesia').onchange = (e) => { mx.njesiaBaze = e.target.value; mx.rreshtat.forEach((r) => { if (!r.njesi) r.njesiaF = mx.njesiaBaze; }); mxVizato(); };
+  if ($('mx-fleta')) $('mx-fleta').onchange = (e) => { mxZgjidhFleten(e.target.value); mxPerpuno().catch(mxGabimLexim); };
+  z.querySelectorAll('[data-fusha]').forEach((s) => s.onchange = () => { if (s.value === '') delete mx.harta[s.dataset.fusha]; else mx.harta[s.dataset.fusha] = +s.value; mxPerpuno().catch(mxGabimLexim); });
+  z.querySelectorAll('[data-v]').forEach((s) => s.onchange = () => { mx.rreshtat[+s.dataset.v].veprim = s.value; mxVizato(); });
+  z.querySelectorAll('[data-emri]').forEach((i) => i.oninput = () => { mx.rreshtat[+i.dataset.emri].emriF = i.value; mxRifresko(); });
+  z.querySelectorAll('[data-nj]').forEach((s) => s.onchange = () => { mx.rreshtat[+s.dataset.nj].njesiaF = s.value; mxRifresko(); });
+  z.querySelectorAll('[data-c]').forEach((i) => i.oninput = () => { mx.rreshtat[+i.dataset.c].cmimi = i.value === '' ? null : +i.value; mxRifresko(); });
+  if ($('mx-cmim-vendos')) $('mx-cmim-vendos').onclick = () => { const c = +$('mx-cmim-te-gjithe').value; if (!(c > 0)) return; mx.rreshtat.forEach((r) => { if (r.veprim === 'ri' && !(r.cmimi > 0)) r.cmimi = c; }); mxVizato(); };
+  $('mx-fut').onclick = mxFut;
+  mxRifresko();
+}
+function mxGabimLexim(e) { $('mg-excel-zona').innerHTML = `<p class="mesazh gabim" style="display:block">❌ ${esc(e.message)}</p>`; mx = null; }
+async function mxFut() {
+  const lista = mxTeFutshme(), m = $('mx-mesazh'), btn = $('mx-fut'); if (!lista.length) return;
+  const nRi = lista.filter((r) => r.veprim === 'ri').length, mag = magazinatE().find((x) => x.kodi === mx.magazina);
+  if (!confirm(`Do të futen në Pro-Data, magazina ${mx.magazina}${mag ? ' – ' + mag.emri : ''}:\n\n🆕 ${nRi} artikuj të rinj\n➕ ${lista.length - nRi} shto sasi\n\nA je i sigurt?`)) return;
+  btn.disabled = true; m.className = 'mesazh pritje'; m.textContent = '⏳ Po ruhet…';
+  const ngarkimi = crypto.randomUUID();
+  const rr = lista.map((r) => { const shtet = r.veprim === 'shto', bazë = { krijuar_emri: profili.emri || null, magazina: mx.magazina, sasia: r.sasia, shenim: `Excel: ${mx.skedari} (rreshti ${r.rreshtat.join(', ')})`.slice(0, 180), ngarkimi_id: ngarkimi, rreshti_excel: r.rreshti };
+    return shtet ? { ...bazë, lloji: 'hyrje', artikulli_id: r.art.prodata_id, kodi: r.art.kodi, barkodi: r.art.barkodi, emri: r.art.emri, njesia: r.art.njesia, cmimi_shitjes: null }
+      : { ...bazë, lloji: 'artikull_i_ri', artikulli_id: null, kodi: r.kodiArt || r.barkodi || null, barkodi: r.barkodi || null, emri: r.emriF.trim(), njesia: r.njesiaF, cmimi_shitjes: r.cmimi }; });
+  const { error } = await sb.from('regjistrimet_mallit').insert(rr);   // një hap i vetëm: të gjithë ose asnjë
+  if (error) { m.className = 'mesazh gabim'; m.textContent = '❌ Nuk u ruajt asgjë: ' + error.message; btn.disabled = false; return; }
+  const skedari = mx.skedari; mx = null;
+  mxNdiq(ngarkimi, rr.length, skedari);
+}
+async function mxNdiq(ngarkimi, gjithsej, skedari) {   // ura i kryen një nga një: trego ecurinë
+  const z = $('mg-excel-zona');
+  z.innerHTML = `<div class="mg-forma"><h3 style="margin-top:0">📄 ${esc(skedari)}</h3><div class="mesazh pritje" id="mx-ecuria" style="display:block">⏳ Po hyjnë në Pro-Data…</div><div id="mx-gabimet"></div><div class="butona"><button class="dyte" type="button" id="mx-mbyll2">✕ Mbyll</button></div></div>`;
+  let ndal = false, eFundit = -1, pa = 0; $('mx-mbyll2').onclick = () => { ndal = true; z.innerHTML = ''; };
+  while (!ndal) {
+    const { data } = await sb.from('regjistrimet_mallit').select('statusi, emri, gabimi, rreshti_excel').eq('ngarkimi_id', ngarkimi).order('rreshti_excel').limit(MX_MAX + 10);
+    if (data && $('mx-ecuria')) {
+      const kryer = data.filter((x) => x.statusi === 'kryer').length, gab = data.filter((x) => x.statusi === 'gabim'), mbarim = kryer + gab.length;
+      const e = $('mx-ecuria'); e.className = 'mesazh ' + (mbarim < gjithsej ? 'pritje' : gab.length ? 'gabim' : 'ok');
+      e.textContent = mbarim < gjithsej ? `⏳ Po hyjnë në Pro-Data: ${mbarim} / ${gjithsej}${gab.length ? ` (${gab.length} gabime)` : ''}` : `${gab.length ? '⚠️' : '✅'} Mbaroi: ${kryer} në Pro-Data${gab.length ? `, ${gab.length} me gabim` : ''}.`;
+      $('mx-gabimet').innerHTML = gab.map((x) => `<p class="mx-shenim gab">Rreshti ${x.rreshti_excel} · ${esc(x.emri || '')}: ${esc(x.gabimi || '')}</p>`).join('');
+      if (mbarim >= gjithsej) { NGARKUESIT.mall(); return; }
+      if (mbarim === eFundit) { if (++pa >= 24) { e.textContent = `⏳ U ruajtën të gjitha. Ura nuk po përgjigjet (${mbarim} / ${gjithsej}): hyjnë sapo ura të jetë e lidhur. Asgjë s'humbet.`; NGARKUESIT.mall(); return; } } else { eFundit = mbarim; pa = 0; }
+    }
+    await new Promise((r) => setTimeout(r, 2500));
+  }
+}
+function mxModeli() {   // skedar shembull me kolonat e duhura
+  ngarkoXLSX().then(() => {
+    const ws = XLSX.utils.aoa_to_sheet([['Barkodi', 'Kodi', 'Emri', 'Ngjyra', 'Njësia', 'Sasia', 'Çmimi i shitjes me TVSH']]);
+    ws['!cols'] = [18, 14, 40, 14, 8, 8, 22].map((wch) => ({ wch }));
+    const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Malli'); XLSX.writeFile(wb, 'Model_mall_i_ri.xlsx');
+  }).catch((e) => alert(e.message));
+}
+$('mg-excel').onclick = () => {
+  const z = $('mg-excel-zona');
+  z.innerHTML = `<div class="mg-forma"><h3 style="margin-top:0">📄 Mall i ri nga Excel</h3><p class="zbehte" style="margin-top:0">Zgjidh skedarin. Duhet të ketë kolonën e sasisë dhe barkodin, kodin ose emrin e artikullit. Për artikujt e rinj duhet edhe çmimi i shitjes, që mund ta shkruash edhe këtu.</p>
+    <div class="butona"><button class="kryesor" type="button" id="mx-zgjidh">📂 Zgjidh Excel-in</button><button class="dyte" type="button" id="mx-modeli">⬇ Shkarko modelin</button><button class="dyte" type="button" id="mx-mbyll0">Anulo</button></div></div>`;
+  $('mx-zgjidh').onclick = () => $('mg-excel-inp').click();
+  $('mx-modeli').onclick = mxModeli;
+  $('mx-mbyll0').onclick = () => { z.innerHTML = ''; };
+};
+$('mg-excel-inp').onchange = (e) => { const f = e.target.files[0]; e.target.value = ''; if (f) mxHapSkedarin(f); };
 NGARKUESIT.mall = async (ngaRealtime) => {
   const lejuar = mgLejuar();
+  $('mg-excel').hidden = profili.roli !== 'admin';
   $('mg-ndalur').hidden = lejuar; $('mg-hapi1').hidden = !lejuar; if (!lejuar) $('mg-forma').innerHTML = '';
   const { data } = await sb.from('regjistrimet_mallit').select('*').order('krijuar', { ascending: false }).limit(40);
   const url = new Map(); const rr = data || [];
@@ -2324,7 +2585,7 @@ const TP_KOKA = ['Kodi', 'Emri i blerësit', 'Shteti', 'Qyteti', 'Adresa', 'Nr. 
   'Ref.Id', 'Thyhet', 'Hapet', 'Ndrrim', 'Madhësia e pakos', 'Vlera e pakos', '', 'Koment'];
 let ngarkimiXLSX;
 const ngarkoXLSX = () => ngarkimiXLSX ||= new Promise((ok, gab) => {
-  const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+  const s = document.createElement('script'); s.src = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js';   // jo 0.18.5 e cdnjs: ka dobësi kur lexon skedarë të huaj
   s.onload = ok; s.onerror = () => { ngarkimiXLSX = null; gab(new Error('Nuk u ngarkua biblioteka e Excel-it (interneti?)')); }; document.head.appendChild(s);
 });
 const tpPorosia = (f) => (TP_SHTETI[f.shteti] ? tpQyteti(f.qyteti, TP_SHTETI[f.shteti]) : null);
