@@ -750,6 +750,23 @@
 </div>
 <div id="printimi"></div>
 
+<script>
+// Ora e pajisjes mund të jetë gabim (PC-ja e zyrës: ~9 orë përpara). Atëherë Supabase e quan çdo hyrje të skaduar, e rifreskon në çdo kërkesë,
+// arrin kufirin (429) dhe e nxjerr përdoruesin jashtë. Prandaj ora merret nga serveri ynë dhe, vetëm kur ndryshon mbi 2 minuta, korrigjohet para se të nisë Supabase.
+(() => {
+  try {
+    const x = new XMLHttpRequest(); x.open('HEAD', location.pathname + '?ora=' + Math.random(), false); x.send();
+    const server = Date.parse(x.getResponseHeader('date')); if (!server) return;
+    const dif = server - Date.now(); if (Math.abs(dif) < 120000) return;
+    const D = Date, reale = D.now.bind(D), tani = () => reale() + dif;
+    window.Date = new Proxy(D, {
+      construct: (t, a, nt) => Reflect.construct(t, a.length ? a : [tani()], nt),
+      get: (t, k, r) => (k === 'now' ? tani : Reflect.get(t, k, r)),
+    });
+    console.info(`Ora e pajisjes u korrigjua me ${Math.round(dif / 60000)} min`);
+  } catch {}
+})();
+</script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
