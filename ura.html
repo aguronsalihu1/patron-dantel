@@ -405,7 +405,7 @@
     </div>
     <div class="tabela"><table class="sh-tab"><thead><tr><th>Produkti</th><th class="num">Çmimi €</th><th class="num">Sasia</th><th class="num">Pas zbritjes €</th><th class="num">Vlera €</th><th></th></tr></thead><tbody id="sh-rreshtat"></tbody></table></div>
     <div class="rresht"><label style="flex:1">Shënim <input id="sh-shenim" style="width:100%"></label></div>
-    <div class="zbr-tot"><span>🏷️ Totali pas zbritjes €</span><input id="sh-zbrt" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></div>
+    <div class="zbr-tot"><span>🏷️ Totali pas zbritjes €</span><input id="sh-zbrt" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00"></div>
     <div class="sh-totali-kuti"><span>Totali<small id="sh-zbr-permb"></small></span><b><span id="sh-totali">0.00</span> €</b></div>
     <button class="kryesor sh-arka-btn" id="sh-arka">🧾 Dërgo te arka</button>
     <div class="butona">
@@ -478,7 +478,7 @@
       <div class="lista" id="onl-lista" hidden></div>
     </div>
     <div class="tabela"><table><thead><tr><th>Kodi</th><th>Materiali</th><th class="num" id="onl-cmimi-th">Çmimi për metër €</th><th class="num">Sasia</th><th class="num">Pas zbritjes €</th><th>Ngjyra / përshkrimi</th><th class="num">Vlera €</th><th></th></tr></thead><tbody id="onl-rreshtat"></tbody></table></div>
-    <div class="zbr-tot"><span>🏷️ Totali i materialeve pas zbritjes € <small class="zbehte" style="font-weight:normal">(pa transport)</small></span><input id="onl-zbrt" type="number" min="0" step="0.01" inputmode="decimal" placeholder="0.00"></div>
+    <div class="zbr-tot"><span>🏷️ Totali i materialeve pas zbritjes € <small class="zbehte" style="font-weight:normal">(pa transport)</small></span><input id="onl-zbrt" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00"></div>
     <h3>Fotot e bisedës me klientin *</h3>
     <label class="foto-zona" for="onl-foto"><span class="ikona">📷</span><b>Shto fotot e bisedës</b><small>2 deri 5 screenshot ku klienti i porosit materialet · <span id="onl-foto-nr">0 / 5</span></small></label>
     <input type="file" id="onl-foto" accept="image/*" multiple class="fsheh">
@@ -527,7 +527,7 @@
     </div>
     <div id="rg-shpenzim" class="rresht" hidden>
       <label style="flex:1">Përshkrimi <input id="rg-pershkrimi" style="width:100%" placeholder="p.sh. Rryma, karburant, material pastrimi"></label>
-      <label>Shuma me TVSH (€) <input id="rg-shuma" type="number" step="0.01" min="0" style="width:130px"></label>
+      <label>Shuma me TVSH (€) <input id="rg-shuma" type="text" inputmode="decimal" autocomplete="off" style="width:130px"></label>
       <label>TVSH <select id="rg-tvsh"><option value="18">18%</option><option value="8">8%</option><option value="0">0%</option></select></label>
     </div>
     <div class="rresht"><label style="flex:1">Shënim <input id="rg-shenim" style="width:100%"></label></div>
@@ -1038,6 +1038,17 @@ function kerkimArtikujsh(inputId, listaId, kurZgjidhet) {
   inp.onkeydown = (e) => { if (e.key === 'Escape') lista.hidden = true; };
 }
 document.addEventListener('click', (e) => { if (!e.target.closest('.kerkimi')) document.querySelectorAll('.lista').forEach((l) => l.hidden = true); });
+// Sasitë dhe çmimet janë fusha teksti me tastierë numrash: type="number" te disa telefona nuk e lejon pikën (1.5), te të tjerë presjen.
+// Këtu çdo gjë kthehet në numër me pikë, që pjesa tjetër e faqes ta lexojë si zakonisht. Kapet para oninput/onchange të vetë fushës.
+document.addEventListener('input', (e) => {
+  const f = e.target;
+  if (f.tagName !== 'INPUT' || f.inputMode !== 'decimal') return;
+  const pare = f.value.replace(/,/g, '.').replace(/[^\d.]/g, '');
+  const i = pare.indexOf('.');
+  const pastër = i < 0 ? pare : pare.slice(0, i + 1) + pare.slice(i + 1).replace(/\./g, '');
+  if (pastër !== f.value) { const k = f.selectionStart - (f.value.length - pastër.length); f.value = pastër; f.setSelectionRange(k, k); }
+}, true);
+document.addEventListener('change', (e) => { if (e.target.tagName === 'INPUT' && e.target.inputMode === 'decimal' && e.target.value === '.') e.target.value = ''; }, true);
 
 // ---------- Komandat drejt Pro-Data ----------
 async function dergoKomande(lloji, celesi, payload) {
@@ -1072,9 +1083,9 @@ function shVizato() {
     const tr = document.createElement('tr');
     const paCmim = !(r.cmimi > 0);
     tr.innerHTML = `<td><b>${esc(r.emri)}</b><br><span class="zbehte">${esc(r.kodi)}${r.barkodi && r.barkodi !== r.kodi ? ' · ' + esc(r.barkodi) : ''}</span>${paCmim ? PA_CMIM_SHENIM : ''}</td>
-      <td class="num"><input class="cmim" type="number" min="0" step="0.01" inputmode="decimal" value="${paCmim ? '' : eur(r.cmimi)}" placeholder="0.00" aria-label="Çmimi" style="${paCmim ? 'border:2px solid var(--gabim);background:#fff5f5;color:#1f1f1c' : ''}"></td>
-      <td class="num"><input class="sasi" type="number" min="0" step="any" inputmode="decimal" value="${r.sasia}"></td>
-      <td class="num"><input class="zbr" type="number" min="0" step="0.01" inputmode="decimal" value="${zbrP(r) ? eur(vleraRr(r)) : ''}" placeholder="${eur(r.sasia * r.cmimi)}"></td>
+      <td class="num"><input class="cmim" type="text" inputmode="decimal" autocomplete="off" value="${paCmim ? '' : eur(r.cmimi)}" placeholder="0.00" aria-label="Çmimi" style="${paCmim ? 'border:2px solid var(--gabim);background:#fff5f5;color:#1f1f1c' : ''}"></td>
+      <td class="num"><input class="sasi" type="text" inputmode="decimal" autocomplete="off" value="${r.sasia}"></td>
+      <td class="num"><input class="zbr" type="text" inputmode="decimal" autocomplete="off" value="${zbrP(r) ? eur(vleraRr(r)) : ''}" placeholder="${eur(r.sasia * r.cmimi)}"></td>
       <td class="num"><b>${eur(vleraRr(r))}</b>${zbrP(r) ? `<br><s class="zbehte">${eur(r.sasia * r.cmimi)}</s>` : ''}</td><td><button class="heq">✕</button></td>`;
     tr.querySelector('.sasi').onchange = (e) => { r.sasia = +e.target.value; shVizato(); };
     tr.querySelector('.cmim').onchange = (e) => { r.cmimi = +e.target.value; shVizato(); };
@@ -1279,7 +1290,7 @@ function rgVizato() {
   $('rg-rreshtat').innerHTML = '';
   rg.rreshtat.forEach((r, i) => {
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td><b>${esc(r.kodi)}</b> ${esc(r.emri)}</td><td class="num"><input class="sasi" type="number" min="0" step="any" value="${r.sasia}"></td><td><button class="heq">✕</button></td>`;
+    tr.innerHTML = `<td><b>${esc(r.kodi)}</b> ${esc(r.emri)}</td><td class="num"><input class="sasi" type="text" inputmode="decimal" autocomplete="off" value="${r.sasia}"></td><td><button class="heq">✕</button></td>`;
     tr.querySelector('.sasi').onchange = (e) => { r.sasia = +e.target.value; };
     tr.querySelector('.heq').onclick = () => { rg.rreshtat.splice(i, 1); rgVizato(); };
     $('rg-rreshtat').appendChild(tr);
@@ -1403,7 +1414,7 @@ function mgSasiaHTML(eDetyrueshme, meSasi = true) {   // te artikulli i ri sasia
   return `<div class="mg-lloji" id="mg-lloji"><button type="button" data-l="hyrje" class="on">📥 Hyrje nga furnitori</button><button type="button" data-l="korrigjim">➕ Korrigjim stoku</button></div>
     <div class="tp-forma" style="margin-bottom:6px">
       <label>Magazina * <select id="mg-mag">${mgMagazinatHTML()}</select></label>
-      ${meSasi ? `<label>Sasia${eDetyrueshme ? ' *' : ' (opsionale)'} <input id="mg-sasia" type="number" min="0" step="any" inputmode="decimal"></label>` : ''}
+      ${meSasi ? `<label>Sasia${eDetyrueshme ? ' *' : ' (opsionale)'} <input id="mg-sasia" type="text" inputmode="decimal" autocomplete="off"></label>` : ''}
       <label class="mg-k" hidden>Arsyeja * <select id="mg-arsyeja"><option>Mall i gjetur</option><option>Numërim / inventar</option><option>Kthim nga klienti</option><option>Tjetër</option></select></label>
     </div>`;
 }
@@ -1430,8 +1441,8 @@ function mgFormaRi(q) {
       <label>Barkodi <input id="mg-barkodi" value="${ekod ? esc(q) : ''}" placeholder="skano ose shkruaj"></label>
       <label>Kodi në Pro-Data <input id="mg-kodi" placeholder="bosh = si barkodi"></label>
       <label>Njësia <select id="mg-njesia"><option value="M">M (metër)</option><option value="Copë">Copë</option></select></label>
-      <label>Çmimi i shitjes me TVSH * <input id="mg-cmimi" type="number" min="0" step="0.01" inputmode="decimal"></label>
-      <label>Sasia * <input id="mg-sasia" type="number" min="0" step="any" inputmode="decimal"></label>
+      <label>Çmimi i shitjes me TVSH * <input id="mg-cmimi" type="text" inputmode="decimal" autocomplete="off"></label>
+      <label>Sasia * <input id="mg-sasia" type="text" inputmode="decimal" autocomplete="off"></label>
     </div>
     <h3>Si po hyn malli</h3>${mgSasiaHTML(true, false)}
     ${mgFotoHTML(true)}
@@ -1708,7 +1719,7 @@ function mxVizato() {
     <div class="mx-kolonat">${MX_FUSHAT.map(([f, t]) => `<label>${t} <select data-fusha="${f}"><option value="">—</option>${kolonat.map((c) => `<option value="${c.i}" ${mx.harta[f] === c.i ? 'selected' : ''}>${esc(c.t)}</option>`).join('')}</select></label>`).join('')}</div>
     ${mx.harta.sasia == null ? '<p class="mesazh gabim" style="display:block">Zgjidh kolonën e sasisë.</p>' : ''}
     <div class="mx-permbledhja" id="mx-permbledhja"></div>
-    ${paCmim ? `<div class="rresht" style="align-items:flex-end;margin:0 0 8px"><label>Çmim për të gjithë artikujt e rinj pa çmim <input id="mx-cmim-te-gjithe" type="number" min="0" step="0.01" inputmode="decimal" style="width:130px"></label><button class="dyte" type="button" id="mx-cmim-vendos">Vendose</button></div>` : ''}
+    ${paCmim ? `<div class="rresht" style="align-items:flex-end;margin:0 0 8px"><label>Çmim për të gjithë artikujt e rinj pa çmim <input id="mx-cmim-te-gjithe" type="text" inputmode="decimal" autocomplete="off" style="width:130px"></label><button class="dyte" type="button" id="mx-cmim-vendos">Vendose</button></div>` : ''}
     <div class="tabela"><table class="mx-tabela"><thead><tr><th>Rr.</th><th>Çka bëhet</th><th>Barkodi / kodi</th><th>Emri</th><th class="num">Sasia</th><th>Nj.</th><th class="num">Çmimi €</th><th>Shënim</th></tr></thead><tbody id="mx-rr">${mx.rreshtat.map((r, i) => {
       const op = [r.art && r.meKod ? ['shto', '➕ Shto sasi'] : null, r.art && !r.meKod ? ['shto', `➕ Shto te ${r.art.kodi}`] : null, !r.meKod ? ['ri', '🆕 Artikull i ri'] : null, ['kalo', '⏭ Mos e fut']].filter(Boolean);
       const eRi = r.veprim === 'ri';
@@ -1717,7 +1728,7 @@ function mxVizato() {
         <td>${eRi ? `<input data-emri="${i}" value="${esc(r.emriF)}" maxlength="200" style="width:190px" aria-label="Emri">` : esc(r.art ? r.art.emri : r.emriF)}</td>
         <td class="num">${r.sasia != null ? esc(String(r.sasia)) : '—'}</td>
         <td>${eRi ? `<select data-nj="${i}" aria-label="Njësia"><option ${r.njesiaF === 'M' ? 'selected' : ''}>M</option><option ${r.njesiaF === 'Copë' ? 'selected' : ''}>Copë</option>${['M', 'Copë'].includes(r.njesiaF) ? '' : `<option selected>${esc(r.njesiaF)}</option>`}</select>` : esc(r.art ? r.art.njesia || '' : r.njesiaF)}</td>
-        <td class="num">${eRi ? `<input data-c="${i}" type="number" min="0" step="0.01" inputmode="decimal" value="${r.cmimi ?? ''}" style="width:80px" aria-label="Çmimi">` : (r.art ? eur(r.art.cmimi) : '—')}</td>
+        <td class="num">${eRi ? `<input data-c="${i}" type="text" inputmode="decimal" autocomplete="off" value="${r.cmimi ?? ''}" style="width:80px" aria-label="Çmimi">` : (r.art ? eur(r.art.cmimi) : '—')}</td>
         <td class="mx-sh"></td></tr>`; }).join('') || '<tr><td colspan="8" class="zbehte">Asnjë rresht me të dhëna.</td></tr>'}</tbody></table></div>
     <div class="butona"><button class="kryesor" type="button" id="mx-fut">✅ Fut</button></div><div class="mesazh" id="mx-mesazh"></div></div>`;
   const z = $('mg-excel-zona');
@@ -2777,7 +2788,7 @@ function trVizato() {
   tr.rreshtat.forEach((r, i) => {
     const st = (r.stoku.find((s) => s.magazina === $('tr-nga').value) || {}).sasia ?? 0;
     const t = document.createElement('tr');
-    t.innerHTML = `<td><b>${esc(r.kodi)}</b> ${esc(r.emri)}</td><td>${st}</td><td class="num"><input class="sasi" type="number" min="0" step="any" value="${r.sasia}"></td><td><button class="heq">✕</button></td>`;
+    t.innerHTML = `<td><b>${esc(r.kodi)}</b> ${esc(r.emri)}</td><td>${st}</td><td class="num"><input class="sasi" type="text" inputmode="decimal" autocomplete="off" value="${r.sasia}"></td><td><button class="heq">✕</button></td>`;
     t.querySelector('.sasi').onchange = (e) => { r.sasia = +e.target.value; };
     t.querySelector('.heq').onclick = () => { tr.rreshtat.splice(i, 1); trVizato(); };
     $('tr-rreshtat').appendChild(t);
@@ -2908,10 +2919,10 @@ function onlVizato() {
     // Renditja: Kodi · Materiali · Çmimi për metër (i editueshëm) · Sasia · Ngjyra/përshkrimi · Vlera
     const paCmim = !(r.cmimi > 0);
     t.innerHTML = `<td><b>${esc(r.kodi)}</b><br><span class="zbehte">${esc(r.barkodi || '')}</span></td><td>${esc(r.emri)}${paCmim ? PA_CMIM_SHENIM : ''}</td>
-      <td class="num"><input class="cmim" type="number" min="0" step="0.01" inputmode="decimal" value="${paCmim ? '' : eur(r.cmimi)}" placeholder="0.00"
+      <td class="num"><input class="cmim" type="text" inputmode="decimal" autocomplete="off" value="${paCmim ? '' : eur(r.cmimi)}" placeholder="0.00"
         style="${paCmim ? 'border:2px solid var(--gabim);background:#fff5f5' : ''}"></td>
-      <td class="num"><input class="sasi" type="number" min="0" step="any" inputmode="decimal" value="${r.sasia}"> <span class="zbehte">${esc(r.njesia || '')}</span></td>
-      <td class="num"><input class="zbr" type="number" min="0" step="0.01" inputmode="decimal" value="${zbrP(r) ? eur(v) : ''}" placeholder="${eur(r.sasia * r.cmimi)}"></td>
+      <td class="num"><input class="sasi" type="text" inputmode="decimal" autocomplete="off" value="${r.sasia}"> <span class="zbehte">${esc(r.njesia || '')}</span></td>
+      <td class="num"><input class="zbr" type="text" inputmode="decimal" autocomplete="off" value="${zbrP(r) ? eur(v) : ''}" placeholder="${eur(r.sasia * r.cmimi)}"></td>
       <td><input class="ngj" value="${esc(r.ngjyra)}" placeholder="${r.kodi === KODI_DANTELLA ? 'përshkrimi, p.sh. e bardhë me rruaza' : 'ngjyra'}" style="width:${r.kodi === KODI_DANTELLA ? 190 : 110}px;min-width:0"></td>
       <td class="num">${eur(v)}${zbrP(r) ? `<br><s class="zbehte">${eur(r.sasia * r.cmimi)}</s>` : ''}</td><td><button class="heq">✕</button></td>`;
     t.querySelector('.ngj').onchange = (e) => { r.ngjyra = e.target.value.trim(); };
@@ -3522,7 +3533,7 @@ function dkVizato() {
     const mungon = dkLv.tipi === 'dalje' && r.sasia > r.neDepo;
     const t = document.createElement('tr');
     t.innerHTML = `<td><b>${esc(r.kodi)}</b> ${esc(r.emri)}</td><td>${fmtN(r.neDepo)} ${esc(r.njesia || '')}${mungon ? ' <span class="shenje s-gabim">më shumë se stoku</span>' : ''}</td>
-      <td class="num"><input class="sasi" type="number" min="0" step="any" value="${r.sasia}"></td><td><button class="heq">✕</button></td>`;
+      <td class="num"><input class="sasi" type="text" inputmode="decimal" autocomplete="off" value="${r.sasia}"></td><td><button class="heq">✕</button></td>`;
     t.querySelector('.sasi').onchange = (e) => { r.sasia = +e.target.value; dkVizato(); };
     t.querySelector('.heq').onclick = () => { dkLv.rreshtat.splice(i, 1); dkVizato(); };
     $('dk-rreshtat').appendChild(t);
