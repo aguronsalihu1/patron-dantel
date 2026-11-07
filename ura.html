@@ -154,7 +154,7 @@
   #zoom .zm-bar button, #zoom .zm-shig { background:rgba(255,255,255,.14); color:#fff; border:0; border-radius:12px; min-width:44px; height:44px; font-size:22px; cursor:pointer; }
   #zoom .zm-bar button + button { margin-left:6px; }
   #zoom .zm-skena { flex:1; position:relative; overflow:hidden; display:flex; align-items:center; justify-content:center; touch-action:none; cursor:grab; }
-  #zoom .zm-skena img { max-width:100%; max-height:100%; transform-origin:center center; user-select:none; -webkit-user-drag:none; will-change:transform; }
+  #zoom .zm-skena img { width:100%; height:100%; object-fit:contain; transform-origin:center center; user-select:none; -webkit-user-drag:none; will-change:transform; }
   #zoom .zm-shig { position:absolute; top:50%; transform:translateY(-50%); width:48px; height:64px; font-size:34px; }
   #zoom .zm-maj { left:8px; } #zoom .zm-dj { right:8px; }
   #zoom .zm-tekst { padding:10px 14px 16px; font-size:14px; line-height:1.4; opacity:.92; text-align:center; }
@@ -820,12 +820,16 @@
   } catch {}
 })();
 </script>
+<link rel="preconnect" href="https://bzlqzlgwsrdnxudcvzfr.supabase.co" crossorigin>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
 <script>
 const sb = supabase.createClient('https://bzlqzlgwsrdnxudcvzfr.supabase.co', 'sb_publishable_M302XR4KDMylBFHhzGxHdA_muxNiev-');
 const $ = (id) => document.getElementById(id);
+// Bibliotekat që duhen rrallë (barkodi, skaneri) ngarkohen kur duhen, që faqja të hapet pa i pritur.
+const LIB_BARKOD = 'https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js', LIB_ZXING = 'https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js';
+const libTe = new Map();
+const ngarkoLib = (url) => { if (!libTe.has(url)) libTe.set(url, new Promise((ok, gab) => { const s = document.createElement('script'); s.src = url; s.onload = ok; s.onerror = () => { libTe.delete(url); gab(new Error('Biblioteka nuk u ngarkua. Kontrollo internetin.')); }; document.head.appendChild(s); })); return libTe.get(url); };
+const vizatoBarkod = async (sel, vlera, opsionet) => { await ngarkoLib(LIB_BARKOD); JsBarcode(sel, vlera, opsionet); };
 const eur = (x) => (Math.round((+x || 0) * 100) / 100).toFixed(2);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -950,7 +954,7 @@ $('forma-hyrja').onsubmit = async (e) => {
   if (error) { m.className = 'mesazh gabim'; m.textContent = 'Numri i telefonit / username ose fjalëkalimi gabim.'; return; }
   m.className = 'mesazh'; $('h-pass').value = '';
 };
-$('dil').onclick = () => sb.auth.signOut();
+$('dil').onclick = () => { fotoKeshPastro(); sb.auth.signOut(); };
 let nisur = false;
 sb.auth.onAuthStateChange(async (_n, ses) => {
   perdoruesi = ses ? ses.user : null;
@@ -975,16 +979,18 @@ sb.auth.onAuthStateChange(async (_n, ses) => {
   $('menyja').hidden = paMeny; $('aplikacioni').classList.toggle('pa-meny', paMeny);
   $('menyja').innerHTML = MENYTE[profili.roli].map(([k, t]) => `<button data-faqe="${k}">${t}</button>`).join('');
   document.querySelectorAll('#menyja button').forEach((b) => b.onclick = () => hapFaqen(b.dataset.faqe));
-  await ngarkoListat();
-  if (eAdmin) await depNis();
+  await Promise.all([ngarkoListat(), eAdmin ? depNis() : null]);
   ngarkoQytetetTP();
-  statusi(); setInterval(statusi, 15000);
+  if (eAdmin) { statusi(); setInterval(() => { if (!document.hidden) statusi(); }, 15000); }   // dritat e lidhjes i sheh vetëm Super Admini
   const ngaLinku = location.hash.slice(1);   // p.sh. ura.html#depo (nga linku i vjetër depo.html)
   hapFaqen(MENYTE[profili.roli].some(([k]) => k === ngaLinku) ? ngaLinku : MENYTE[profili.roli][0][0]);
+  setTimeout(() => ngarkoLib(LIB_BARKOD).catch(() => {}), 3000);
+  let rtKohe;   // disa ndryshime njëherësh = një rifreskim i vetëm
   sb.channel('faturat').on('postgres_changes', { event: '*', schema: 'public', table: 'app_faturat' }, () => {
-    const a = document.querySelector('section.faqe.aktive'); if (a && NGARKUESIT[a.id.slice(2)]) NGARKUESIT[a.id.slice(2)](true);
+    clearTimeout(rtKohe); rtKohe = setTimeout(() => { const a = document.querySelector('section.faqe.aktive'); if (a && NGARKUESIT[a.id.slice(2)]) NGARKUESIT[a.id.slice(2)](true); }, 400);
   }).subscribe();
 });
+if ('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('ura-sw.js', { scope: './ura' }).catch(() => {});   // ruan fotot në pajisje
 
 async function ngarkoListat() {
   const { data: mg } = await sb.from('prodata_magazinat').select('kodi, emri').order('kodi');
@@ -1012,8 +1018,9 @@ async function statusi() {
 // ---------- Artikujt ----------
 async function kerkoArtikuj(q) {
   q = pastro(q); if (q.length < 2) return [];
-  const { data: art } = await sb.from('prodata_artikujt').select('prodata_id, kodi, barkodi, emri, njesia, cmimi')
-    .eq('aktiv', true).or(`kodi.eq.${q},barkodi.eq.${q},kodi.ilike.%${q}%,barkodi.ilike.%${q}%,emri.ilike.%${q}%`).limit(30);
+  let { data: art, error } = await sb.rpc('kerko_artikuj', { p_q: q, p_limit: 30 });   // funksioni përdor treguesin e kërkimit: ~40 ms në vend të ~1 s
+  if (error) ({ data: art } = await sb.from('prodata_artikujt').select('prodata_id, kodi, barkodi, emri, njesia, cmimi')
+    .eq('aktiv', true).or(`kodi.eq.${q},barkodi.eq.${q},kodi.ilike.%${q}%,barkodi.ilike.%${q}%,emri.ilike.%${q}%`).limit(30));
   if (!art || !art.length) return [];
   art.sort((a, b) => ((b.kodi === q || b.barkodi === q) - (a.kodi === q || a.barkodi === q)) || a.emri.localeCompare(b.emri));
   const { data: st } = await sb.from('prodata_stoku').select('prodata_artikull_id, magazina, sasia').in('prodata_artikull_id', art.map((a) => a.prodata_id)).neq('sasia', 0);
@@ -1021,20 +1028,25 @@ async function kerkoArtikuj(q) {
   return art;
 }
 function kerkimArtikujsh(inputId, listaId, kurZgjidhet) {
-  const inp = $(inputId), lista = $(listaId); let kohe;
-  const zgjidh = (a) => { lista.hidden = true; inp.value = ''; kurZgjidhet(a); inp.focus(); };
-  inp.oninput = () => { clearTimeout(kohe); kohe = setTimeout(async () => {
-    const q = inp.value.trim(); if (q.length < 2) { lista.hidden = true; return; }
+  const inp = $(inputId), lista = $(listaId); let kohe, koheZgjedhje, radha = 0, fundit = 0;
+  const zgjidh = (a) => { clearTimeout(koheZgjedhje); radha++; lista.hidden = true; inp.value = ''; kurZgjidhet(a); inp.focus(); };
+  inp.oninput = () => { clearTimeout(kohe); clearTimeout(koheZgjedhje); fundit = Date.now(); kohe = setTimeout(async () => {
+    const q = inp.value.trim(), nr = ++radha; if (q.length < 2) { lista.hidden = true; return; }
     const art = await kerkoArtikuj(q);
-    if (art.length && art.filter((a) => a.barkodi === q || a.kodi === q).length === 1 && (art[0].barkodi === q || art[0].kodi === q)) return zgjidh(art[0]);
+    if (nr !== radha) return;   // është shkruar diçka më e re: kjo përgjigje s'vlen më
+    // Lista del menjëherë; zgjedhja vetë e kodit të saktë pret 300 ms pa shkrim, që një kod më i gjatë të mos ndërpritet gjatë shkrimit.
+    if (art.length && art.filter((a) => a.barkodi === q || a.kodi === q).length === 1 && (art[0].barkodi === q || art[0].kodi === q)) koheZgjedhje = setTimeout(() => zgjidh(art[0]), Math.max(0, 300 - (Date.now() - fundit)));
     lista.innerHTML = art.length ? '' : '<div class="zbehte">Nuk u gjet asnjë artikull</div>';
-    const ft = await fotoArtikujsh(art.map((a) => a.prodata_id)).catch(() => new Map());   // foto e vogël e produktit, kur ka
-    for (const a of art) { const d = document.createElement('div'); d.className = 'art-rresht';
-      d.innerHTML = `${ft.get(a.prodata_id) ? `<img src="${esc(ft.get(a.prodata_id))}" alt="">` : '<span class="art-pa-foto">📦</span>'}<div>
+    for (const a of art) { const d = document.createElement('div'); d.className = 'art-rresht'; d.dataset.id = a.prodata_id;
+      d.innerHTML = `<span class="art-pa-foto">📦</span><div>
         <b>${esc(a.kodi)}</b> – ${esc(a.emri)} <span class="zbehte">· ${a.cmimi > 0 ? eur(a.cmimi) + ' €' : 'pa çmim'} · ${esc(a.barkodi || '')}</span>
         <div class="stoku">${stokuHTML(a)}</div></div>`;
       d.onclick = () => zgjidh(a); lista.appendChild(d); }
-    lista.hidden = false; }, 300); };
+    lista.hidden = false;
+    fotoArtikujsh(art.map((a) => a.prodata_id)).then((ft) => {   // fotot e vogla mbushen pasi lista është në ekran
+      if (nr !== radha) return;
+      lista.querySelectorAll('.art-rresht').forEach((d) => { const u = ft.get(d.dataset.id); if (u) { const im = new Image(); im.alt = ''; im.decoding = 'async'; im.src = u; d.firstElementChild.replaceWith(im); } });
+    }).catch(() => {}); }, 150); };
   inp.onkeydown = (e) => { if (e.key === 'Escape') lista.hidden = true; };
 }
 document.addEventListener('click', (e) => { if (!e.target.closest('.kerkimi')) document.querySelectorAll('.lista').forEach((l) => l.hidden = true); });
@@ -1135,13 +1147,13 @@ function shfaqBarkodin(el, f, meFatureRe) {
     <div>Statusi: <span class="bk-st" data-id="${f.id}">${shenje(f.statusi)}${f.porosia_nr ? ' → <b>' + esc(f.porosia_nr) + '</b>' : ''}</span></div>
     <p class="zbehte">Printoje biletën dhe jepja klientit, ose tregoja barkodin arkëtares.</p>
     <div class="butona" style="justify-content:center"><button class="kryesor bk-print">🖨️ Printo biletën me barkod</button>${meFatureRe ? `<button class="dyte bk-re">+ ${profili.roli === 'shitese_fizike' ? 'Shitje e re' : 'Faturë e re'}</button>` : ''}</div></div>`;
-  JsBarcode(`#bk-${f.nr}`, 'PD' + f.nr, { format: 'CODE128', height: 90, displayValue: true, fontSize: 18 });
+  vizatoBarkod(`#bk-${f.nr}`, 'PD' + f.nr, { format: 'CODE128', height: 90, displayValue: true, fontSize: 18 }).catch((e) => { const s = el.querySelector('svg'); if (s) s.outerHTML = `<p class="mesazh gabim" style="display:block">❌ Barkodi nuk u vizatua. ${esc(e.message)}</p>`; });
   el.hidden = false;
   el.querySelector('.bk-print').onclick = () => printoBileten(f);
   const re = el.querySelector('.bk-re'); if (re) re.onclick = () => { shPastro(); window.scrollTo(0, 0); };
 }
 // Bileta 80 mm me barkod: klienti e çon te arka
-function printoBileten(f) {
+async function printoBileten(f) {
   const p = $('printimi'); p.className = 'e80';
   p.innerHTML = `<div style="text-align:center"><b style="font-size:1.3em">PATRON DANTEL</b><br>MINNA SH.P.K.<br><b>FATURË PËR ARKË nr. ${f.nr}</b><br>
     <svg id="pr-bk"></svg><br><span>Paguhet në arkë · nuk është dokument fiskal</span></div>
@@ -1149,7 +1161,8 @@ function printoBileten(f) {
     <table><tr><th>Produkti</th><th>Sasia</th><th>€</th></tr>
     ${(f.rreshtat || []).map((r) => `<tr><td>${esc(r.kodi)} ${esc(r.emri)}${zbrTekst(r)}</td><td>${r.sasia}</td><td>${eur(vleraRr(r))}</td></tr>`).join('')}</table>
     ${zbrTotaliPrint(f)}<p style="text-align:right;font-size:1.4em"><b>Totali: ${eur(f.totali)} €</b></p>`;
-  JsBarcode('#pr-bk', 'PD' + f.nr, { format: 'CODE128', height: 60, width: 2, displayValue: true, fontSize: 14, margin: 4 });
+  try { await vizatoBarkod('#pr-bk', 'PD' + f.nr, { format: 'CODE128', height: 60, width: 2, displayValue: true, fontSize: 14, margin: 4 }); }
+  catch (e) { alert('Bileta nuk u printua: ' + e.message); return; }
   window.print();
 }
 $('sh-arka').onclick = async () => {
@@ -1331,13 +1344,42 @@ const MG_LLOJET = { artikull_i_ri: '🆕 Artikull i ri', hyrje: '📥 Hyrje nga 
 const MG_STATUSET = { ne_pritje: ['⏳ Pret Pro-Data', 's-pritje'], ne_proces: ['⚙️ Në proces', 's-pritje'], kryer: ['✅ Në Pro-Data', 's-ok'], gabim: ['❌ Gabim', 's-gabim'], anuluar: ['Anuluar', 's-hapur'] };
 let mgFotot = [];   // fotot e formës së hapur: [{ blob, url }]
 const mgLejuar = () => !!(profili && profili.lejo_regjistrim);
-async function fotoArtikujsh(idt) {   // → Map(artikulli_id → url e fotos së fundit)
+// Lidhjet e fotove ruhen në pajisje: e njëjta lidhje = shfletuesi s'e shkarkon sërish foton, dhe s'pyetet serveri për lidhje të re.
+// Vetëm përdoruesi i kyçur merr lidhje; fshihen kur del nga llogaria.
+const FOTO_JETA = { 'produktet-fotot': 7 * 86400, 'furnitoret-fotot': 7 * 86400, 'kerkesat-fotot': 86400 };   // sekonda; të tjerat 10 min
+const fotoKesh = new Map();
+try { for (const [k, u, d] of JSON.parse(localStorage.getItem('pd-foto-url') || '[]')) if (d > Date.now()) fotoKesh.set(k, { url: u, deri: d }); } catch {}
+let fotoKeshKohe;
+const fotoKeshRuaj = () => { clearTimeout(fotoKeshKohe); fotoKeshKohe = setTimeout(() => { try { localStorage.setItem('pd-foto-url', JSON.stringify([...fotoKesh].slice(-3000).map(([k, v]) => [k, v.url, v.deri]))); } catch {} }, 800); };
+function fotoKeshPastro() {
+  fotoKesh.clear(); clearTimeout(fotoKeshKohe);
+  try { localStorage.removeItem('pd-foto-url'); localStorage.removeItem('pd-gj-kat'); } catch {}
+  if (window.caches) caches.keys().then((kk) => kk.filter((k) => k.startsWith('pd-foto')).forEach((k) => caches.delete(k))).catch(() => {});
+}
+async function urlFotosh(bucket, rruget) {   // → Map(rruga → url); pyet serverin vetëm për ato që s'janë në pajisje
+  const m = new Map(), tani = Date.now(), mungojne = [], jeta = FOTO_JETA[bucket] || 600;
+  for (const r of new Set(rruget)) { const h = fotoKesh.get(bucket + '|' + r); if (h && h.deri > tani) m.set(r, h.url); else mungojne.push(r); }
+  for (let i = 0; i < mungojne.length; i += 200) {
+    const pjesa = mungojne.slice(i, i + 200), { data } = await sb.storage.from(bucket).createSignedUrls(pjesa, jeta);
+    (data || []).forEach((x, j) => { if (x.signedUrl) { m.set(pjesa[j], x.signedUrl); fotoKesh.set(bucket + '|' + pjesa[j], { url: x.signedUrl, deri: tani + jeta * 750 }); } });   // rinovohet kur ka kaluar 3/4 e jetës
+  }
+  if (mungojne.length) fotoKeshRuaj();
+  return m;
+}
+async function gjUrlVogla(rruget) {   // → Map(rruga → url): foto e vogël; nëse s'ka, origjinali
+  const m = new Map(); if (!rruget.length) return m;
+  const v = await urlFotosh('produktet-fotot', rruget.map((r) => 'thumb/' + r)), mungojne = [];
+  for (const r of rruget) { const u = v.get('thumb/' + r); if (u) m.set(r, u); else mungojne.push(r); }
+  if (mungojne.length) (await urlFotosh('produktet-fotot', mungojne)).forEach((u, r) => m.set(r, u));
+  return m;
+}
+async function fotoArtikujsh(idt) {   // → Map(artikulli_id → url e fotos së vogël të fundit)
   const m = new Map(); if (!idt.length) return m;
   const { data } = await sb.from('artikujt_fotot').select('artikulli_id, rruga, krijuar').in('artikulli_id', idt).order('krijuar', { ascending: false });
   const eFundit = new Map(); for (const f of data || []) if (!eFundit.has(f.artikulli_id)) eFundit.set(f.artikulli_id, f.rruga);
   if (!eFundit.size) return m;
-  const { data: url } = await sb.storage.from('produktet-fotot').createSignedUrls([...eFundit.values()], 3600);
-  [...eFundit.keys()].forEach((id, i) => { if (url && url[i] && url[i].signedUrl) m.set(id, url[i].signedUrl); });
+  const url = await gjUrlVogla([...new Set(eFundit.values())]);
+  eFundit.forEach((r, id) => { if (url.get(r)) m.set(id, url.get(r)); });
   return m;
 }
 async function shikoFototArtikullit(id) {   // të gjitha fotot e një artikulli, të mëdha
@@ -1798,14 +1840,13 @@ NGARKUESIT.mall = async (ngaRealtime) => {
   $('mg-excel').hidden = profili.roli !== 'admin';
   $('mg-ndalur').hidden = lejuar; $('mg-hapi1').hidden = !lejuar; if (!lejuar) $('mg-forma').innerHTML = '';
   const { data } = await sb.from('regjistrimet_mallit').select('*').order('krijuar', { ascending: false }).limit(40);
-  const url = new Map(); const rr = data || [];
-  const fotot = rr.map((r) => (r.fotot || [])[0]).filter(Boolean);
-  if (fotot.length) { const { data: u } = await sb.storage.from('produktet-fotot').createSignedUrls(fotot, 3600); (u || []).forEach((x, i) => url.set(fotot[i], x.signedUrl)); }
+  const rr = data || [];
+  const url = await gjUrlVogla([...new Set(rr.map((r) => (r.fotot || [])[0]).filter(Boolean))]);   // kutitë 56 px s'kanë pse të shkarkojnë foton e madhe
   $('mg-lista').innerHTML = rr.map((r) => { const f = (r.fotot || [])[0];
     // artikulli i ri i krijuar në Pro-Data, por sasia e tij pret recetën e hyrjes
     const [t, c] = r.lloji === 'artikull_i_ri' && r.artikulli_id && r.statusi === 'ne_pritje' ? ['✅ Në Pro-Data · ⏳ sasia pret', 's-pritje'] : MG_STATUSET[r.statusi] || [r.statusi, ''];
     return `<div class="ar-karte" style="cursor:default"><div class="rresht" style="justify-content:space-between;margin:0"><b>${esc(MG_LLOJET[r.lloji] || r.lloji)}</b><span class="shenje ${c}">${t}</span></div>
-      <div style="display:flex;gap:10px;margin-top:6px">${f && url.get(f) ? `<img src="${esc(url.get(f))}" style="width:56px;height:56px;border-radius:8px;object-fit:cover" alt="">` : ''}
+      <div style="display:flex;gap:10px;margin-top:6px">${f && url.get(f) ? `<img src="${esc(url.get(f))}" loading="lazy" decoding="async" style="width:56px;height:56px;border-radius:8px;object-fit:cover" alt="">` : ''}
       <div><b>${esc(r.emri || '')}</b><div class="zbehte">${esc(r.kodi || r.barkodi || '')}${r.sasia ? ' · ' + (+r.sasia) + ' ' + esc(r.njesia || '') : ''}${r.magazina ? ' · mag. ' + esc(r.magazina) : ''}${r.cmimi_shitjes ? ' · ' + eur(r.cmimi_shitjes) + ' €' : ''}</div>
       <div class="zbehte">${oraKS(r.krijuar)} · ${esc(r.krijuar_emri || '')}${r.arsyeja && r.lloji !== 'artikull_i_ri' ? ' · ' + esc(r.arsyeja) : ''}${r.prodata_nr ? ' · ' + esc(r.prodata_nr) : ''}</div>
       ${r.gabimi ? `<div style="color:var(--gabim)">${esc(r.gabimi)}</div>` : ''}</div></div></div>`; }).join('') || '<p class="zbehte">Ende asnjë regjistrim.</p>';
@@ -1816,56 +1857,60 @@ NGARKUESIT.mall = async (ngaRealtime) => {
 const GJ_FAQJA = 40;
 let gjNr = 0, gjKategoria = null, gjNgarkuar = 0, gjKategorite = null;
 const gjSasi = (x, nj) => `${(+x || 0).toLocaleString('de-DE', { maximumFractionDigits: 2 })}${nj ? ' ' + esc(nj) : ''}`;
-async function gjUrlVogla(rruget) {   // → Map(rruga → url): foto e vogël; nëse s'ka, origjinali
-  const m = new Map(); if (!rruget.length) return m;
-  const { data } = await sb.storage.from('produktet-fotot').createSignedUrls(rruget.map((r) => 'thumb/' + r), 3600);
-  const mungojne = [];
-  rruget.forEach((r, i) => { const u = data && data[i] && data[i].signedUrl; if (u) m.set(r, u); else mungojne.push(r); });
-  if (mungojne.length) { const { data: o } = await sb.storage.from('produktet-fotot').createSignedUrls(mungojne, 3600); mungojne.forEach((r, i) => { if (o && o[i] && o[i].signedUrl) m.set(r, o[i].signedUrl); }); }
-  return m;
-}
+const gjKesh = new Map();   // faqja e parë e kërkimeve të fundit: del menjëherë, pastaj përditësohet në heshtje
 async function gjShtoSasi(kodi) {   // nga galeria direkt te forma "Shto sasi" e Regjistro mall
   hapFaqen('mall'); $('mg-kerko').value = kodi; await mgKontrollo();
   const b = document.querySelector('#mg-rezultati .mg-karte.ekziston .mg-shto');
   if (b) { b.click(); $('mg-forma').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
 }
 async function gjKategoriteVizato() {
-  if (!gjKategorite) { const { data, error } = await sb.rpc('patron_kategorite'); if (error) throw new Error(error.message); gjKategorite = data || []; }
+  if (!gjKategorite) { try { const z = JSON.parse(localStorage.getItem('pd-gj-kat')); if (z && Date.now() - z.koha < 36e5) gjKategorite = z.lista; } catch {} }
+  if (!gjKategorite) { const { data, error } = await sb.rpc('patron_kategorite'); if (error) throw new Error(error.message); gjKategorite = data || []; try { localStorage.setItem('pd-gj-kat', JSON.stringify({ koha: Date.now(), lista: gjKategorite })); } catch {} }
   const tot = gjKategorite.reduce((s, k) => s + +k.nr, 0);
   $('gj-kategorite').innerHTML = [[null, 'Të gjitha', tot], ...gjKategorite.map((k) => [k.kategoria, k.kategoria, k.nr])].map(([k, t, n]) => `<button type="button" data-k="${esc(k || '')}" class="${k === gjKategoria ? 'on' : ''}">${esc(t)} ${n}</button>`).join('');
   $('gj-kategorite').querySelectorAll('button').forEach((b) => b.onclick = () => { gjKategoria = b.dataset.k || null; gjKategoriteVizato(); gjKerko(); });
 }
 async function gjKerko(meShume = false) {
-  const q = $('gj-kerko').value.trim(), el = $('gj-lista'), nr = ++gjNr;
-  if (!meShume) { gjNgarkuar = 0; el.innerHTML = '<p class="zbehte" style="grid-column:1/-1">⏳ Po ngarkohen artikujt…</p>'; $('gj-me-shume').hidden = true; }
+  const q = $('gj-kerko').value.trim(), el = $('gj-lista'), nr = ++gjNr, foto = $('gj-vetem-foto').checked;
+  const celes = JSON.stringify([q, gjKategoria, foto]), eRuajtur = meShume ? null : gjKesh.get(celes);
+  const lidhKartat = () => {
+    el.querySelectorAll('[data-foto]').forEach((b) => b.onclick = () => shikoFototArtikullit(b.dataset.foto));
+    el.querySelectorAll('.gj-shto').forEach((b) => b.onclick = () => gjShtoSasi(b.dataset.kodi));
+  };
+  const numri = (gjithsej) => { $('gj-nr').textContent = gjithsej ? `${gjNgarkuar} nga ${gjithsej} artikuj · me foto dalin të parët · kliko foton për ta hapur të madhe` : ''; $('gj-me-shume').hidden = gjNgarkuar >= gjithsej; };
+  if (!meShume) {
+    gjNgarkuar = 0;
+    if (eRuajtur) { el.innerHTML = eRuajtur.html; lidhKartat(); gjNgarkuar = eRuajtur.n; numri(eRuajtur.gjithsej); }
+    else { el.innerHTML = '<p class="zbehte" style="grid-column:1/-1">⏳ Po ngarkohen artikujt…</p>'; $('gj-me-shume').hidden = true; }
+  }
   try {
-    const { data, error } = await sb.rpc('patron_artikujt', { p_kerko: q || null, p_kategoria: gjKategoria, p_vetem_foto: $('gj-vetem-foto').checked }).order('rendi').range(gjNgarkuar, gjNgarkuar + GJ_FAQJA - 1);
+    const { data, error } = await sb.rpc('patron_artikujt_faqe', { p_kerko: q || null, p_kategoria: gjKategoria, p_vetem_foto: foto, p_limit: GJ_FAQJA, p_offset: meShume ? gjNgarkuar : 0 });
     if (error) throw new Error(error.message);
     const url = await gjUrlVogla(data.map((a) => a.foto).filter(Boolean));
     if (nr !== gjNr) return;
     const gjithsej = data.length ? +data[0].gjithsej : gjNgarkuar;
     const html = data.map((a) => { const u = a.foto && url.get(a.foto), ekz = !!q && (a.barkodi === q || a.kodi === q);
-      return `<div class="gj-karte ${ekz ? 'ekzakt' : ''}">${u ? `<button class="gj-foto" type="button" data-foto="${esc(a.prodata_id)}" title="Hape të madhe"><img src="${esc(u)}" alt="${esc(a.emri || '')}" loading="lazy"></button>` : '<div class="gj-pafoto"><span>📷</span>Pa foto</div>'}
+      return `<div class="gj-karte ${ekz ? 'ekzakt' : ''}">${u ? `<button class="gj-foto" type="button" data-foto="${esc(a.prodata_id)}" title="Hape të madhe"><img src="${esc(u)}" alt="${esc(a.emri || '')}" loading="lazy" decoding="async"></button>` : '<div class="gj-pafoto"><span>📷</span>Pa foto</div>'}
         <div class="gj-info"><div class="gj-emri">${esc(a.emri || '')}</div><div class="gj-kodi">Kodi <b>${esc(a.kodi || '')}</b>${a.barkodi && a.barkodi !== a.kodi ? '<br>Barkodi ' + esc(a.barkodi) : ''}<br>${+a.cmimi > 0 ? eur(a.cmimi) + ' €' : 'Pa çmim'}</div>
           <div class="gj-fakt">📍 Patron Dantel</div><div class="gj-fakt">📦 Sasia: <b>${gjSasi(a.sasia, a.njesia)}</b></div>
           <div class="gj-fakt" title="Nga 1.1.2026">🛒 Të shitura: <b>${gjSasi(a.shitur, a.njesia)}</b></div>
           ${mgLejuar() ? `<button class="dyte gj-shto" type="button" data-kodi="${esc(a.kodi || '')}" style="width:100%;margin-top:6px">➕ Shto sasi</button>` : ''}</div></div>`; }).join('');
-    if (meShume) el.insertAdjacentHTML('beforeend', html); else el.innerHTML = html || `<p class="zbehte" style="grid-column:1/-1">${q ? 'Asnjë artikull i Patron Dantelit me këtë kod ose emër.' : 'Asnjë artikull për këtë zgjedhje.'}</p>`;
-    gjNgarkuar += data.length;
-    $('gj-nr').textContent = gjithsej ? `${gjNgarkuar} nga ${gjithsej} artikuj · me foto dalin të parët · kliko foton për ta hapur të madhe` : '';
-    $('gj-me-shume').hidden = gjNgarkuar >= gjithsej;
-    el.querySelectorAll('[data-foto]').forEach((b) => b.onclick = () => shikoFototArtikullit(b.dataset.foto));
-    el.querySelectorAll('.gj-shto').forEach((b) => b.onclick = () => gjShtoSasi(b.dataset.kodi));
-  } catch (e) { if (nr === gjNr) el.innerHTML = `<p class="mesazh gabim" style="display:block;grid-column:1/-1">❌ ${esc(e.message)}</p>`; }
+    const htmlPare = html || `<p class="zbehte" style="grid-column:1/-1">${q ? 'Asnjë artikull i Patron Dantelit me këtë kod ose emër.' : 'Asnjë artikull për këtë zgjedhje.'}</p>`;
+    if (meShume) el.insertAdjacentHTML('beforeend', html);
+    else if (!eRuajtur || eRuajtur.html !== htmlPare) el.innerHTML = htmlPare;   // s'ka ndryshuar: fotot mbeten në ekran pa u rivizatuar
+    gjNgarkuar = (meShume ? gjNgarkuar : 0) + data.length;
+    if (!meShume) { gjKesh.delete(celes); gjKesh.set(celes, { html: htmlPare, n: data.length, gjithsej }); if (gjKesh.size > 30) gjKesh.delete(gjKesh.keys().next().value); }
+    numri(gjithsej); lidhKartat();
+  } catch (e) { if (nr === gjNr && !eRuajtur) el.innerHTML = `<p class="mesazh gabim" style="display:block;grid-column:1/-1">❌ ${esc(e.message)}</p>`; }
 }
-(() => { let t; $('gj-kerko').oninput = () => { clearTimeout(t); t = setTimeout(() => gjKerko(), 350); }; })();
+(() => { let t; $('gj-kerko').oninput = () => { clearTimeout(t); t = setTimeout(() => gjKerko(), 200); }; })();
 $('gj-kerko').onkeydown = (e) => { if (e.key === 'Enter') gjKerko(); };
 $('gj-vetem-foto').onchange = () => gjKerko();
 $('gj-me-shume').onclick = () => gjKerko(true);
 $('gj-skano').onclick = () => dkSkaneri((kodi) => { $('gj-kerko').value = kodi; gjKerko(); });
 NGARKUESIT.gjej = async (ngaRealtime) => {
   if (ngaRealtime) return;
-  try { await gjKategoriteVizato(); } catch (e) { $('gj-nr').textContent = '❌ ' + e.message; }
+  gjKategoriteVizato().catch((e) => { $('gj-nr').textContent = '❌ ' + e.message; });   // lista e artikujve s'pret kategoritë
   gjKerko();
 };
 
@@ -1969,10 +2014,7 @@ async function mnNgarko() {
   if (error) { $('mn-galeria').innerHTML = `<p class="mesazh gabim">❌ ${esc(error.message)}</p>`; return; }
   mnLista = data || [];
   const rruget = [...new Set(mnLista.flatMap((k) => k.fotot))].filter((r) => !mnUrl.has(r));
-  for (let i = 0; i < rruget.length; i += 200) {   // URL të përkohshme (1 orë), sepse fotot janë private
-    const { data: u } = await sb.storage.from('kerkesat-fotot').createSignedUrls(rruget.slice(i, i + 200), 3600);
-    (u || []).forEach((x) => { if (x.signedUrl) mnUrl.set(x.path, x.signedUrl); });
-  }
+  (await urlFotosh('kerkesat-fotot', rruget)).forEach((u, r) => mnUrl.set(r, u));   // URL të përkohshme, sepse fotot janë private
   if (eAdmin) {
     const vlerat = (fusha) => [...new Set(mnLista.map((k) => k[fusha]).filter(Boolean))].sort();
     for (const [id, fusha] of [['mn-shitesja', 'krijuar_emri'], ['mn-f-kanali', 'kanali']]) {
@@ -2025,7 +2067,7 @@ NGARKUESIT.mungesat = () => {
 const FR_STATUSET = { pa_konfirmim: '❔ Pa konfirmim', porositur: '📝 Porositur', ne_rruge: '🚢 Në rrugë', pranuar: '✅ Pranuar', anuluar: '🚫 Anuluar' };
 const FR_MAX_FOTO = 4;
 const FR_KLASA = { pa_konfirmim: 's-hapur', porositur: 's-pritje', ne_rruge: 's-pritje', pranuar: 's-ok', anuluar: 's-gabim' };
-let frF = [], frP = [], frR = [], frUrl = new Map(), frUrlKoha = 0, frZgjedhur = null, frKerkimi = '', frForma = null, frFormaF = null, frFotoPer = 0;
+let frF = [], frP = [], frR = [], frUrl = new Map(), frZgjedhur = null, frKerkimi = '', frForma = null, frFormaF = null, frFotoPer = 0;
 let frPamjaL = 'furnitoret', frFiltriS = '', frHapur = new Set(), frExcelFurnitor = null, frExcelFile = null, frRadha = null;
 const frTotali = (rr) => { const g = {}; rr.forEach((r) => { if (r.sasia != null) g[r.njesia || ''] = (g[r.njesia || ''] || 0) + Number(r.sasia); }); return Object.entries(g).map(([n, s]) => `${s.toLocaleString('de-DE')}${n ? ' ' + n : ''}`).join(' + '); };
 const frData = (d) => (d ? d.split('-').reverse().join('.') : 'pa datë');
@@ -2056,12 +2098,7 @@ async function frNgarko() {
       rr.push(...data); if (data.length < 1000) break;
     }
     frF = f.data; frP = p.data; frR = rr;
-    if (Date.now() - frUrlKoha > 45 * 60e3) { frUrl = new Map(); frUrlKoha = Date.now(); }   // URL-të e përkohshme vlejnë 1 orë
-    const rruget = [...new Set(frR.flatMap((r) => r.fotot))].filter((x) => !frUrl.has(x));
-    for (let i = 0; i < rruget.length; i += 200) {
-      const { data: u } = await sb.storage.from('furnitoret-fotot').createSignedUrls(rruget.slice(i, i + 200), 3600);
-      (u || []).forEach((x) => { if (x.signedUrl) frUrl.set(x.path, x.signedUrl); });
-    }
+    frUrl = await urlFotosh('furnitoret-fotot', frR.flatMap((r) => r.fotot));
     frVizato();
   } catch (e) { $('fr-pamja').innerHTML = `<p class="mesazh gabim">❌ ${esc(e.message)}</p>`; }
 }
@@ -2738,8 +2775,12 @@ function hapZoom(items, i0 = 0) {
     const px = (cx ?? r.left + r.width / 2) - (r.left + r.width / 2), py = (cy ?? r.top + r.height / 2) - (r.top + r.height / 2);
     x = px - (px - x) * (ns / s); y = py - (py - y) * (ns / s); s = ns; if (s === 1) x = y = 0; apliko();
   };
+  let ngarkimi = 0;
   const shfaq = () => {
-    s = 1; x = y = 0; img.src = items[i].url; apliko();
+    const it = items[i], nr = ++ngarkimi;
+    s = 1; x = y = 0; img.src = it.vogel || it.url; apliko();   // fotoja e vogël del menjëherë; e madhja e zëvendëson sapo të shkarkohet
+    if (it.vogel) { const e = new Image(); e.onload = () => { if (nr === ngarkimi) img.src = it.url; }; e.src = it.url; }
+    if (items.length > 1) new Image().src = items[(i + 1) % items.length].url;   // tjetra gati para se të klikohet
     d.querySelector('.zm-nr').textContent = items.length > 1 ? `${i + 1} / ${items.length}` : '';
     d.querySelector('.zm-tekst').textContent = items[i].tekst || '';
   };
@@ -3024,9 +3065,9 @@ async function ngarkoFotot(lista = onl.fotot) {   // → rrugët në bucket poro
   return rruget;
 }
 async function shikoFotot(rruget, bucket = 'porosi-fotot') {
-  const { data, error } = await sb.storage.from(bucket).createSignedUrls(rruget, 600);
-  if (error) return alert('Fotot nuk u hapën: ' + error.message);
-  hapZoom(data.map((x, i) => ({ url: x.signedUrl, tekst: data.length > 1 ? `Foto ${i + 1} / ${data.length}` : '' })));   // i njëjti shikues me zoom
+  const [mdha, vogla] = await Promise.all([urlFotosh(bucket, rruget), bucket === 'produktet-fotot' ? urlFotosh(bucket, rruget.map((r) => 'thumb/' + r)) : new Map()]);
+  if (!rruget.some((r) => mdha.has(r))) return alert('Fotot nuk u hapën. Provo përsëri.');
+  hapZoom(rruget.map((r, i) => ({ url: mdha.get(r), vogel: vogla.get('thumb/' + r), tekst: rruget.length > 1 ? `Foto ${i + 1} / ${rruget.length}` : '' })));   // i njëjti shikues me zoom
 }
 function onlTeDhenat() {
   const t = onlTotalet();
@@ -3282,7 +3323,7 @@ async function paneli() {
 $('p-periudha').onchange = () => { const z = $('p-periudha').value === 'zgjidh'; $('p-prej-l').hidden = !z; $('p-deri-l').hidden = !z; paneli(); };
 $('p-prej').onchange = $('p-deri').onchange = paneli;
 NGARKUESIT.paneli = paneli;
-setInterval(() => { const a = document.querySelector('section.faqe.aktive'); if (a && a.id === 'f-paneli') paneli(); }, 30000);
+setInterval(() => { const a = document.querySelector('section.faqe.aktive'); if (a && a.id === 'f-paneli' && !document.hidden) paneli(); }, 30000);
 
 // ---------- SHITJET (lista) ----------
 NGARKUESIT.shitjet = async () => {
@@ -3437,6 +3478,7 @@ async function lexoBarkodNgaFoto(file) {
     const img = await new Promise((ok, gab) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => gab(new Error('Ky file nuk është foto')); i.src = url; });
     const det = await detektoriBarkodeve();
     let zbar = null; try { zbar = await ngarkoZBar(); } catch {}
+    await ngarkoLib(LIB_ZXING).catch(() => {});
     for (const max of [1600, 1000, 2400]) {   // disa madhësi: barkodet e vogla lexohen më mirë të mëdha, të turbullta më mirë të vogla
       const k = Math.min(1, max / Math.max(img.width, img.height)), c = document.createElement('canvas');
       c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
@@ -3474,6 +3516,7 @@ let zxLexuesi = null;
 const zxKanv = document.createElement('canvas'), zxCtx = zxKanv.getContext('2d', { willReadFrequently: true });
 function lexoShiritin(burimi, W, H, kthyer) {
   if (!W || !H) return null;
+  if (!window.ZXing) { ngarkoLib(LIB_ZXING).catch(() => {}); return null; }   // ngarkohet vetëm kur ZBar s'mjafton; deri atëherë provohet sërish në kornizën tjetër
   if (!zxLexuesi) {
     const F = ZXing.BarcodeFormat, hints = new Map();
     hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [F.EAN_13, F.EAN_8, F.CODE_128, F.CODE_39, F.CODE_93, F.UPC_A, F.UPC_E, F.ITF, F.CODABAR]);
