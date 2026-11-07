@@ -910,7 +910,7 @@ const stokuHTML = (a) => (teGjithaMag()
 // ---------- Rolet dhe menytë ----------
 const MENYTE = {
   admin: [['paneli', '📊 Paneli'], ['arka', '🧾 Arka'], ['shitjet', '🛒 Shitjet'], ['telposta', '📮 Tel-Post'], ['mungesat', "🔍 S'e kemi"], ['blerjet', '📦 Blerjet'], ['furnitoret', '🚚 Furnitorët'], ['depo', '🏭 Depo'], ['pagesat', '💶 Arka dhe pagesat'],
-          ['stafi', '👷 Burime njerëzore'], ['klientet', '👥 Klientët'], ['produktet', '🧵 Produktet'], ['mall', '📦 Regjistro mall'], ['kontabiliteti', '📒 Kontabiliteti'], ['admin', '⚙️ Administrimi'], ['shitje', '➕ Faturë'], ['regjistrim', '📝 Regjistrim'], ['transfer', '🔁 Transfer']],
+          ['stafi', '👷 Burime njerëzore'], ['klientet', '👥 Klientët'], ['produktet', '🧵 Produktet'], ['gjej', '🔎 Gjej artikullin'], ['mall', '📦 Regjistro mall'], ['kontabiliteti', '📒 Kontabiliteti'], ['admin', '⚙️ Administrimi'], ['shitje', '➕ Faturë'], ['regjistrim', '📝 Regjistrim'], ['transfer', '🔁 Transfer']],
   depo: [['depo', '🏭 Depo']],
   // Depo dhe Transferi (magazina të tjera) mbeten vetëm te Super Admini
   arka: [['arka', '🧾 Arka'], ['shitje', '➕ Faturë'], ['shitjet', '🛒 Shitjet'], ['tp_lista', '📮 Tel-Post'], ['blerjet', '📦 Blerjet'], ['pagesat', '💶 Arka dhe pagesat'], ['stafi', '👷 Burime njerëzore'],
@@ -1799,6 +1799,11 @@ async function gjUrlVogla(rruget) {   // → Map(rruga → url): foto e vogël; 
   if (mungojne.length) { const { data: o } = await sb.storage.from('produktet-fotot').createSignedUrls(mungojne, 3600); mungojne.forEach((r, i) => { if (o && o[i] && o[i].signedUrl) m.set(r, o[i].signedUrl); }); }
   return m;
 }
+async function gjShtoSasi(kodi) {   // nga galeria direkt te forma "Shto sasi" e Regjistro mall
+  hapFaqen('mall'); $('mg-kerko').value = kodi; await mgKontrollo();
+  const b = document.querySelector('#mg-rezultati .mg-karte.ekziston .mg-shto');
+  if (b) { b.click(); $('mg-forma').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+}
 async function gjKategoriteVizato() {
   if (!gjKategorite) { const { data, error } = await sb.rpc('patron_kategorite'); if (error) throw new Error(error.message); gjKategorite = data || []; }
   const tot = gjKategorite.reduce((s, k) => s + +k.nr, 0);
@@ -1818,12 +1823,14 @@ async function gjKerko(meShume = false) {
       return `<div class="gj-karte ${ekz ? 'ekzakt' : ''}">${u ? `<button class="gj-foto" type="button" data-foto="${esc(a.prodata_id)}" title="Hape të madhe"><img src="${esc(u)}" alt="${esc(a.emri || '')}" loading="lazy"></button>` : '<div class="gj-pafoto"><span>📷</span>Pa foto</div>'}
         <div class="gj-info"><div class="gj-emri">${esc(a.emri || '')}</div><div class="gj-kodi">Kodi <b>${esc(a.kodi || '')}</b>${a.barkodi && a.barkodi !== a.kodi ? '<br>Barkodi ' + esc(a.barkodi) : ''}<br>${eur(a.cmimi)} €</div>
           <div class="gj-fakt">📍 Patron Dantel</div><div class="gj-fakt">📦 Sasia: <b>${gjSasi(a.sasia, a.njesia)}</b></div>
-          <div class="gj-fakt" title="Nga 1.1.2026">🛒 Të shitura: <b>${gjSasi(a.shitur, a.njesia)}</b></div></div></div>`; }).join('');
+          <div class="gj-fakt" title="Nga 1.1.2026">🛒 Të shitura: <b>${gjSasi(a.shitur, a.njesia)}</b></div>
+          ${mgLejuar() ? `<button class="dyte gj-shto" type="button" data-kodi="${esc(a.kodi || '')}" style="width:100%;margin-top:6px">➕ Shto sasi</button>` : ''}</div></div>`; }).join('');
     if (meShume) el.insertAdjacentHTML('beforeend', html); else el.innerHTML = html || `<p class="zbehte" style="grid-column:1/-1">${q ? 'Asnjë artikull i Patron Dantelit me këtë kod ose emër.' : 'Asnjë artikull për këtë zgjedhje.'}</p>`;
     gjNgarkuar += data.length;
     $('gj-nr').textContent = gjithsej ? `${gjNgarkuar} nga ${gjithsej} artikuj · me foto dalin të parët · kliko foton për ta hapur të madhe` : '';
     $('gj-me-shume').hidden = gjNgarkuar >= gjithsej;
     el.querySelectorAll('[data-foto]').forEach((b) => b.onclick = () => shikoFototArtikullit(b.dataset.foto));
+    el.querySelectorAll('.gj-shto').forEach((b) => b.onclick = () => gjShtoSasi(b.dataset.kodi));
   } catch (e) { if (nr === gjNr) el.innerHTML = `<p class="mesazh gabim" style="display:block;grid-column:1/-1">❌ ${esc(e.message)}</p>`; }
 }
 (() => { let t; $('gj-kerko').oninput = () => { clearTimeout(t); t = setTimeout(() => gjKerko(), 350); }; })();
