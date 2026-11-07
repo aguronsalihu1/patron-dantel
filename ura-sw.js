@@ -1,12 +1,14 @@
 // Ruan fotot e produkteve dhe të furnitorëve në pajisje: fotoja e parë shkarkohet një herë, pastaj hapet menjëherë.
 // Prek vetëm kërkesat e këtyre fotove; çdo gjë tjetër (të dhënat, faqja) shkon drejt e në internet si zakonisht.
-const KESH = { vogla: 'pd-foto-vogla-v1', mdha: 'pd-foto-mdha-v1' };
+const KESH = { vogla: 'pd-foto-vogla-v2', mdha: 'pd-foto-mdha-v2' };   // versioni i ri zëvendëson krejt fotot e ruajtura më parë
 const KUFI = { vogla: 4000, mdha: 400 };
 const BUCKET = /^\/storage\/v1\/object\/sign\/(produktet-fotot|furnitoret-fotot)\//;
 let shtuar = 0;
 
 self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
+self.addEventListener('activate', (e) => e.waitUntil(caches.keys()
+  .then((kk) => Promise.all(kk.filter((k) => k.startsWith('pd-foto') && !Object.values(KESH).includes(k)).map((k) => caches.delete(k))))
+  .then(() => self.clients.claim())));
 
 async function shkurto(emri, kufi) {   // më të vjetrat dalin të parat
   const c = await caches.open(emri), kk = await c.keys();
@@ -19,7 +21,7 @@ async function foto(url) {
   const h = await c.match(celes);
   if (h) return h;
   const r = await fetch(url.href, { mode: 'cors', credentials: 'omit' });
-  if (r.ok) { c.put(celes, r.clone()).then(() => { if (++shtuar % 50 === 0) return shkurto(KESH[lloji], KUFI[lloji]); }).catch(() => {}); }
+  if (r.ok && r.headers.get('content-length') !== '0') { c.put(celes, r.clone()).then(() => { if (++shtuar % 50 === 0) return shkurto(KESH[lloji], KUFI[lloji]); }).catch(() => {}); }
   return r;
 }
 
