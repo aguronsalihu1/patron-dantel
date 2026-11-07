@@ -1031,7 +1031,7 @@ function kerkimArtikujsh(inputId, listaId, kurZgjidhet) {
     const ft = await fotoArtikujsh(art.map((a) => a.prodata_id)).catch(() => new Map());   // foto e vogël e produktit, kur ka
     for (const a of art) { const d = document.createElement('div'); d.className = 'art-rresht';
       d.innerHTML = `${ft.get(a.prodata_id) ? `<img src="${esc(ft.get(a.prodata_id))}" alt="">` : '<span class="art-pa-foto">📦</span>'}<div>
-        <b>${esc(a.kodi)}</b> – ${esc(a.emri)} <span class="zbehte">· ${eur(a.cmimi)} € · ${esc(a.barkodi || '')}</span>
+        <b>${esc(a.kodi)}</b> – ${esc(a.emri)} <span class="zbehte">· ${a.cmimi > 0 ? eur(a.cmimi) + ' €' : 'pa çmim'} · ${esc(a.barkodi || '')}</span>
         <div class="stoku">${stokuHTML(a)}</div></div>`;
       d.onclick = () => zgjidh(a); lista.appendChild(d); }
     lista.hidden = false; }, 300); };
@@ -1055,13 +1055,24 @@ async function prisKomanden(celesi, sekonda = 240) {
 
 // ---------- SHITJE ----------
 let sh = { rreshtat: [], fatura: null };
+// Artikull pa çmim (0 në Pro-Data): shitja nuk ndalohet, por çmimi kërkohet para saj. Vlen vetëm për atë shitje, nuk ndryshon çmimin e artikullit.
+const PA_CMIM_SHENIM = '<div style="color:var(--gabim);font-size:13px;font-weight:600;margin-top:3px">⚠️ Pa çmim: shkruaje çmimin për këtë shitje</div>';
+const fokusoCmimin = (tbId, i) => setTimeout(() => { const c = $(tbId).querySelectorAll('input.cmim')[i]; if (c) { c.focus(); c.select(); } }, 0);   // pas inp.focus() të kërkimit
+const kerkoCmimin = (rreshtat, tbId) => {
+  const pa = rreshtat.filter((r) => !(r.cmimi > 0));
+  if (!pa.length) return true;
+  alert('Këta artikuj nuk kanë çmim. Shkruaj çmimin para shitjes:\n\n' + pa.map((r) => `• ${r.kodi} ${r.emri}`).join('\n'));
+  fokusoCmimin(tbId, rreshtat.indexOf(pa[0]));
+  return false;
+};
 setInterval(() => { $('sh-ora').textContent = new Date().toLocaleString('sq-AL', { timeZone: 'Europe/Belgrade', dateStyle: 'medium', timeStyle: 'short' }); }, 1000);
 function shVizato() {
   const tb = $('sh-rreshtat'); tb.innerHTML = '';
   sh.rreshtat.forEach((r, i) => {
     const tr = document.createElement('tr');
-    tr.innerHTML = `<td><b>${esc(r.emri)}</b><br><span class="zbehte">${esc(r.kodi)}${r.barkodi && r.barkodi !== r.kodi ? ' · ' + esc(r.barkodi) : ''}</span></td>
-      <td class="num"><input class="cmim" type="number" min="0" step="0.01" inputmode="decimal" value="${eur(r.cmimi)}"></td>
+    const paCmim = !(r.cmimi > 0);
+    tr.innerHTML = `<td><b>${esc(r.emri)}</b><br><span class="zbehte">${esc(r.kodi)}${r.barkodi && r.barkodi !== r.kodi ? ' · ' + esc(r.barkodi) : ''}</span>${paCmim ? PA_CMIM_SHENIM : ''}</td>
+      <td class="num"><input class="cmim" type="number" min="0" step="0.01" inputmode="decimal" value="${paCmim ? '' : eur(r.cmimi)}" placeholder="0.00" aria-label="Çmimi" style="${paCmim ? 'border:2px solid var(--gabim);background:#fff5f5;color:#1f1f1c' : ''}"></td>
       <td class="num"><input class="sasi" type="number" min="0" step="any" inputmode="decimal" value="${r.sasia}"></td>
       <td class="num"><input class="zbr" type="number" min="0" step="0.01" inputmode="decimal" value="${zbrP(r) ? eur(vleraRr(r)) : ''}" placeholder="${eur(r.sasia * r.cmimi)}"></td>
       <td class="num"><b>${eur(vleraRr(r))}</b>${zbrP(r) ? `<br><s class="zbehte">${eur(r.sasia * r.cmimi)}</s>` : ''}</td><td><button class="heq">✕</button></td>`;
@@ -1081,10 +1092,13 @@ kerkimArtikujsh('sh-artikulli', 'sh-artikulli-lista', (a) => {
   const ek = sh.rreshtat.find((r) => r.id === a.id);
   if (ek) ek.sasia += 1; else sh.rreshtat.push({ id: a.id, kodi: a.kodi, emri: a.emri, barkodi: a.barkodi, sasia: 1, cmimi: a.cmimi });
   shVizato();
+  const i = sh.rreshtat.findIndex((r) => r.id === a.id);
+  if (!(sh.rreshtat[i].cmimi > 0)) fokusoCmimin('sh-rreshtat', i);
 });
 function shKontrollo() {
   if (!sh.rreshtat.length) { alert('Shto të paktën një produkt.'); return false; }
   if (sh.rreshtat.some((r) => !(r.sasia > 0))) { alert('Çdo produkt duhet të ketë sasi më të madhe se 0.'); return false; }
+  if (!kerkoCmimin(sh.rreshtat, 'sh-rreshtat')) return false;
   if (!$('sh-klienti-kodi').value.trim()) { alert('Shkruaj kodin e klientit në Pro-Data (13850 = Qytetar- Patron).'); return false; }
   return true;
 }
@@ -1821,7 +1835,7 @@ async function gjKerko(meShume = false) {
     const gjithsej = data.length ? +data[0].gjithsej : gjNgarkuar;
     const html = data.map((a) => { const u = a.foto && url.get(a.foto), ekz = !!q && (a.barkodi === q || a.kodi === q);
       return `<div class="gj-karte ${ekz ? 'ekzakt' : ''}">${u ? `<button class="gj-foto" type="button" data-foto="${esc(a.prodata_id)}" title="Hape të madhe"><img src="${esc(u)}" alt="${esc(a.emri || '')}" loading="lazy"></button>` : '<div class="gj-pafoto"><span>📷</span>Pa foto</div>'}
-        <div class="gj-info"><div class="gj-emri">${esc(a.emri || '')}</div><div class="gj-kodi">Kodi <b>${esc(a.kodi || '')}</b>${a.barkodi && a.barkodi !== a.kodi ? '<br>Barkodi ' + esc(a.barkodi) : ''}<br>${eur(a.cmimi)} €</div>
+        <div class="gj-info"><div class="gj-emri">${esc(a.emri || '')}</div><div class="gj-kodi">Kodi <b>${esc(a.kodi || '')}</b>${a.barkodi && a.barkodi !== a.kodi ? '<br>Barkodi ' + esc(a.barkodi) : ''}<br>${+a.cmimi > 0 ? eur(a.cmimi) + ' €' : 'Pa çmim'}</div>
           <div class="gj-fakt">📍 Patron Dantel</div><div class="gj-fakt">📦 Sasia: <b>${gjSasi(a.sasia, a.njesia)}</b></div>
           <div class="gj-fakt" title="Nga 1.1.2026">🛒 Të shitura: <b>${gjSasi(a.shitur, a.njesia)}</b></div>
           ${mgLejuar() ? `<button class="dyte gj-shto" type="button" data-kodi="${esc(a.kodi || '')}" style="width:100%;margin-top:6px">➕ Shto sasi</button>` : ''}</div></div>`; }).join('');
@@ -2893,7 +2907,7 @@ function onlVizato() {
     const t = document.createElement('tr');
     // Renditja: Kodi · Materiali · Çmimi për metër (i editueshëm) · Sasia · Ngjyra/përshkrimi · Vlera
     const paCmim = !(r.cmimi > 0);
-    t.innerHTML = `<td><b>${esc(r.kodi)}</b><br><span class="zbehte">${esc(r.barkodi || '')}</span></td><td>${esc(r.emri)}</td>
+    t.innerHTML = `<td><b>${esc(r.kodi)}</b><br><span class="zbehte">${esc(r.barkodi || '')}</span></td><td>${esc(r.emri)}${paCmim ? PA_CMIM_SHENIM : ''}</td>
       <td class="num"><input class="cmim" type="number" min="0" step="0.01" inputmode="decimal" value="${paCmim ? '' : eur(r.cmimi)}" placeholder="0.00"
         style="${paCmim ? 'border:2px solid var(--gabim);background:#fff5f5' : ''}"></td>
       <td class="num"><input class="sasi" type="number" min="0" step="any" inputmode="decimal" value="${r.sasia}"> <span class="zbehte">${esc(r.njesia || '')}</span></td>
@@ -2930,6 +2944,8 @@ kerkimArtikujsh('onl-kerko', 'onl-lista', (a) => {
   else onl.rreshtat.push({ id: a.id, kodi: a.kodi, emri: a.emri, barkodi: a.barkodi, njesia: a.njesia, ngjyra: ngjyraNgaEmri(a.emri), sasia: 1,
     cmimiListe: a.cmimi, cmimi: onlEksport() ? Math.round(a.cmimi / 1.18 * 100) / 100 : a.cmimi });
   onlVizato();
+  const i = onl.rreshtat.findIndex((r) => r.id === a.id);
+  if (!(onl.rreshtat[i].cmimi > 0)) fokusoCmimin('onl-rreshtat', i);
 });
 // Artikulli i përgjithshëm në Pro-Data (ID 276088, Malli pa stoqe): çmimin për metër e shkruan shitësja te çdo shitje
 const KODI_DANTELLA = 'DANTELLA-GJATA';
@@ -2954,8 +2970,7 @@ function onlKontrollo(meFoto) {
   }
   if (!onl.rreshtat.length) { alert('Shto të paktën një material.'); return false; }
   if (onl.rreshtat.some((r) => !(r.sasia > 0))) { alert('Sasia duhet të jetë më e madhe se 0.'); return false; }
-  const paCmim = onl.rreshtat.filter((r) => !(r.cmimi > 0));
-  if (paCmim.length) { alert('Shkruaj çmimin për: ' + paCmim.map((r) => r.emri).join(', ') + '.'); return false; }
+  if (!kerkoCmimin(onl.rreshtat, 'onl-rreshtat')) return false;
   if (meFoto && onl.fotot.length < 2) { alert('Shto 2 deri 5 foto (screenshot) të bisedës me klientin ku i porosit materialet.'); return false; }
   return true;
 }
