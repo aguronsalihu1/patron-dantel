@@ -551,8 +551,16 @@
     </div>
     <div id="mg-forma"></div>
     <div class="mesazh" id="mg-mesazh"></div>
-    <h3>Regjistrimet e fundit</h3>
+    <h3>Regjistrimet</h3>
+    <div class="rresht" style="flex-wrap:wrap;gap:8px;margin-bottom:8px">
+      <input id="mg-l-kerko" placeholder="🔎 kodi, barkodi, emri ose shitësja…" autocomplete="off" style="flex:1;min-width:200px">
+      <input id="mg-l-dita" type="date" title="Dita (bosh = të gjitha ditët)">
+      <select id="mg-l-lloji"><option value="">Të gjitha llojet</option><option value="artikull_i_ri">🆕 Artikull i ri</option><option value="hyrje">📥 Hyrje</option><option value="caktivizim">🚫 Çaktivizim</option></select>
+      <select id="mg-l-statusi"><option value="">Çdo status</option><option value="kryer">✅ Në Pro-Data</option><option value="ne_pritje">⏳ Pret</option><option value="gabim">❌ Gabim</option></select>
+    </div>
+    <div class="zbehte" id="mg-l-nr" style="margin-bottom:6px"></div>
     <div class="ar-pritje" id="mg-lista"></div>
+    <div class="butona" style="justify-content:center"><button class="dyte" type="button" id="mg-l-me-shume" hidden>Shfaq më shumë</button></div>
   </section>
 
   <!-- ===== LLOGARIA IME ===== -->
@@ -1839,9 +1847,29 @@ NGARKUESIT.mall = async (ngaRealtime) => {
   const lejuar = mgLejuar();
   $('mg-excel').hidden = profili.roli !== 'admin';
   $('mg-ndalur').hidden = lejuar; $('mg-hapi1').hidden = !lejuar; if (!lejuar) $('mg-forma').innerHTML = '';
-  const { data } = await sb.from('regjistrimet_mallit').select('*').order('krijuar', { ascending: false }).limit(40);
-  const rr = data || [];
+  await mgListaNgarko(false, ngaRealtime);
+};
+// Lista e regjistrimeve: të gjitha që nga dita e parë, me kërkim, ditë, lloj e status; 40 në faqe + "Shfaq më shumë".
+const MG_FAQJA = 40;
+let mgLNr = 0, mgLRreshtat = [], mgLGjithsej = 0;
+async function mgListaNgarko(meShume = false, rifresko = false) {
+  const nr = ++mgLNr, q = $('mg-l-kerko').value.trim(), dita = $('mg-l-dita').value, lloji = $('mg-l-lloji').value, statusi = $('mg-l-statusi').value;
+  const nga = meShume ? mgLRreshtat.length : 0, sa = rifresko ? Math.max(MG_FAQJA, mgLRreshtat.length) : MG_FAQJA;   // rifreskimi s'e humb faqen ku je
+  let k = sb.from('regjistrimet_mallit').select('*', { count: 'exact' }).order('krijuar', { ascending: false }).range(nga, nga + sa - 1);
+  if (q) { const s = q.replace(/[,()*\\"]/g, ' ').trim(); if (s) k = k.or(['kodi', 'barkodi', 'emri', 'krijuar_emri', 'prodata_nr'].map((c) => `${c}.ilike.*${s}*`).join(',')); }
+  if (dita) { const a = new Date(dita + 'T00:00:00'), b = new Date(a); b.setDate(b.getDate() + 1); k = k.gte('krijuar', a.toISOString()).lt('krijuar', b.toISOString()); }
+  if (lloji) k = k.eq('lloji', lloji);
+  if (statusi) k = k.eq('statusi', statusi);
+  if (!meShume && !rifresko) $('mg-l-nr').textContent = '⏳ Po kërkohet…';
+  const { data, error, count } = await k;
+  if (nr !== mgLNr) return;
+  if (error) { $('mg-l-nr').textContent = '❌ ' + error.message; return; }
+  mgLRreshtat = meShume ? mgLRreshtat.concat(data || []) : (data || []); mgLGjithsej = count || 0;
+  const rr = mgLRreshtat;
   const url = await gjUrlVogla([...new Set(rr.map((r) => (r.fotot || [])[0]).filter(Boolean))]);   // kutitë 56 px s'kanë pse të shkarkojnë foton e madhe
+  if (nr !== mgLNr) return;
+  $('mg-l-nr').textContent = mgLGjithsej ? `${rr.length} nga ${mgLGjithsej} regjistrime${q || dita || lloji || statusi ? ' (të filtruara)' : ''}` : '';
+  $('mg-l-me-shume').hidden = rr.length >= mgLGjithsej;
   $('mg-lista').innerHTML = rr.map((r) => { const f = (r.fotot || [])[0];
     // artikulli i ri i krijuar në Pro-Data, por sasia e tij pret recetën e hyrjes
     const [t, c] = r.lloji === 'artikull_i_ri' && r.artikulli_id && r.statusi === 'ne_pritje' ? ['✅ Në Pro-Data · ⏳ sasia pret', 's-pritje'] : MG_STATUSET[r.statusi] || [r.statusi, ''];
@@ -1849,8 +1877,11 @@ NGARKUESIT.mall = async (ngaRealtime) => {
       <div style="display:flex;gap:10px;margin-top:6px">${f && url.get(f) ? `<img src="${esc(url.get(f))}" loading="lazy" decoding="async" style="width:56px;height:56px;border-radius:8px;object-fit:cover" alt="">` : ''}
       <div><b>${esc(r.emri || '')}</b><div class="zbehte">${esc(r.kodi || r.barkodi || '')}${r.sasia ? ' · ' + (+r.sasia) + ' ' + esc(r.njesia || '') : ''}${r.magazina ? ' · mag. ' + esc(r.magazina) : ''}${r.cmimi_shitjes ? ' · ' + eur(r.cmimi_shitjes) + ' €' : ''}</div>
       <div class="zbehte">${oraKS(r.krijuar)} · ${esc(r.krijuar_emri || '')}${r.arsyeja && r.lloji !== 'artikull_i_ri' ? ' · ' + esc(r.arsyeja) : ''}${r.prodata_nr ? ' · ' + esc(r.prodata_nr) : ''}</div>
-      ${r.gabimi ? `<div style="color:var(--gabim)">${esc(r.gabimi)}</div>` : ''}</div></div></div>`; }).join('') || '<p class="zbehte">Ende asnjë regjistrim.</p>';
-};
+      ${r.gabimi ? `<div style="color:var(--gabim)">${esc(r.gabimi)}</div>` : ''}</div></div></div>`; }).join('') || `<p class="zbehte">${q || dita || lloji || statusi ? 'Asnjë regjistrim me këto filtra.' : 'Ende asnjë regjistrim.'}</p>`;
+}
+{ let kohe; $('mg-l-kerko').oninput = () => { clearTimeout(kohe); kohe = setTimeout(() => mgListaNgarko(), 250); }; }
+['mg-l-dita', 'mg-l-lloji', 'mg-l-statusi'].forEach((id) => { $(id).onchange = () => mgListaNgarko(); });
+$('mg-l-me-shume').onclick = () => mgListaNgarko(true);
 
 // ---------- GJEJ ARTIKULLIN (shitëset fizike): vetëm shikim ----------
 // Galeri e artikujve të Patron Dantelit: shitësja e njeh produktin nga fotoja, pa e ditur kodin. Fotot e vogla (thumb/...) e mbajnë të shpejtë.
