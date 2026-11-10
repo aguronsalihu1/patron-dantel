@@ -318,8 +318,11 @@
   #pr-njoftim.ok { border-color:var(--ok); } #pr-njoftim.gabim { border-color:var(--gabim); }
   #pr-njoftim .pr-x { background:transparent; border:0; cursor:pointer; font-size:14px; margin-left:6px; } #pr-njoftim .dyte { margin-left:6px; padding:4px 10px; }
   #pr-dialog { position:fixed; inset:0; background:rgba(20,10,25,.45); z-index:1001; display:flex; align-items:center; justify-content:center; padding:16px; }
+  .pr-dialog-stil { position:fixed; inset:0; background:rgba(20,10,25,.45); z-index:1001; display:flex; align-items:center; justify-content:center; padding:16px; }
+  .pr-dialog-stil[hidden] { display:none; }
+  .mk-karte { border:1px solid var(--vije); border-radius:14px; padding:10px 12px; margin-bottom:8px; } .mk-karte[hidden] { display:none; }
   #pr-dialog[hidden], #pr-njoftim[hidden] { display:none; }
-  #pr-dialog .pr-kuti { background:#fff; border-radius:18px; padding:18px; width:min(460px, 100%); max-height:90vh; overflow:auto; box-shadow:var(--hije); }
+  #pr-dialog .pr-kuti, .pr-dialog-stil .pr-kuti { background:#fff; border-radius:18px; padding:18px; width:min(460px, 100%); max-height:90vh; overflow:auto; box-shadow:var(--hije); }
   @media print {
     body * { visibility:hidden; } #printimi, #printimi * { visibility:visible; }
     #printimi { display:block; position:absolute; left:0; top:0; width:100%; font-size:12px; }
@@ -551,7 +554,7 @@
       <div class="ar-skano-kuti"><span class="ikona">▥</span>
         <input id="mg-kerko" placeholder="barkodi, kodi ose emri i produktit…" autocomplete="off">
         <button class="kryesor" type="button" id="mg-skano">📷 Skano</button></div>
-      <div class="butona" style="margin-top:0"><button class="kryesor" id="mg-kontrollo">🔎 Kontrollo</button><button class="dyte" id="mg-ri-direkt">🆕 Artikull i ri</button><button class="dyte" id="mg-excel" type="button" hidden>📄 Ngarko Excel</button></div>
+      <div class="butona" style="margin-top:0"><button class="kryesor" id="mg-kontrollo">🔎 Kontrollo</button><button class="dyte" id="mg-ri-direkt">🆕 Artikull i ri</button><button class="dyte" id="mg-kodet" type="button">🔢 Kodi i radhës</button><button class="dyte" id="mg-excel" type="button" hidden>📄 Ngarko Excel</button></div>
       <input type="file" id="mg-excel-inp" accept=".xlsx,.xls,.csv" class="fsheh">
       <div id="mg-excel-zona"></div>
       <div id="mg-rezultati"></div>
@@ -1604,7 +1607,7 @@ function mgFormaRi(q) {
     <div class="tp-forma" style="margin-bottom:6px">
       <label>Emri i produktit * <input id="mg-emri" value="${ekod ? '' : esc(q)}" placeholder="p.sh. Dantell franceze me rruaza e bardhë"></label>
       <label>Barkodi <input id="mg-barkodi" value="${ekod ? esc(q) : ''}" placeholder="skano ose shkruaj"></label>
-      <label>Kodi në Pro-Data <input id="mg-kodi" placeholder="bosh = si barkodi"></label>
+      <label>Kodi në Pro-Data <input id="mg-kodi" placeholder="bosh = si barkodi"><button type="button" class="dyte" id="mg-kodi-radhes" style="margin-top:4px;padding:4px 10px">🔢 Merr kodin e radhës</button></label>
       <label>Njësia <select id="mg-njesia"><option value="M">M (metër)</option><option value="Copë">Copë</option></select></label>
       <label>Çmimi i shitjes me TVSH * <input id="mg-cmimi" type="text" inputmode="decimal" autocomplete="off"></label>
       <label>Sasia * <input id="mg-sasia" type="text" inputmode="decimal" autocomplete="off"></label>
@@ -1614,6 +1617,7 @@ function mgFormaRi(q) {
     <label style="margin-top:8px">Shënim <input id="mg-shenim" placeholder="opsional"></label>
     <div class="butona"><button class="kryesor" id="mg-ruaj">✅ Regjistro artikullin</button><button class="dyte" id="mg-anulo">Anulo</button></div></div>`;
   mgSasiaLidh(); mgFotoLidh();
+  $('mg-kodi-radhes').onclick = () => mgKodetHap();
   $('mg-anulo').onclick = () => { $('mg-forma').innerHTML = ''; };
   $('mg-ruaj').onclick = () => mgRuaj(async () => {
     const emri = $('mg-emri').value.trim(), cmimi = +$('mg-cmimi').value;
@@ -1710,6 +1714,43 @@ $('mg-kontrollo').onclick = mgKontrollo;
 $('mg-kerko').onkeydown = (e) => { if (e.key === 'Enter') mgKontrollo(); };
 $('mg-skano').onclick = () => dkSkaneri((kodi) => { $('mg-kerko').value = kodi; mgKontrollo(); });
 $('mg-ri-direkt').onclick = () => mgFormaRi($('mg-kerko').value.trim());
+// ---------- KODI I RADHËS ----------
+// Kodet ndërtohen: prefiksi + numri i radhës + çmimi + /ngjyra (p.sh. B-011 06 /12, Cope 0247 090).
+// Funksioni kodet_e_radhes gjen për çdo familje kodin e fundit të regjistruar dhe numrin e lirë që vjen pas tij
+// (edhe regjistrimet që ende presin Pro-Data-n numërohen, që dy shitëse të mos marrin të njëjtin numër).
+function mgKodetHap() {
+  let el = $('mg-kodet-dialog');
+  if (!el) { el = document.createElement('div'); el.id = 'mg-kodet-dialog'; el.className = 'pr-dialog-stil'; document.body.appendChild(el); }
+  el.hidden = false;
+  el.innerHTML = '<div class="pr-kuti" style="width:min(640px,100%)"><p>⏳ Po kërkohen kodet e fundit…</p></div>';
+  const mbyll = () => { el.hidden = true; };
+  el.onclick = (e) => { if (e.target === el) mbyll(); };
+  sb.rpc('kodet_e_radhes').then(({ data, error }) => {
+    if (error) { el.innerHTML = `<div class="pr-kuti"><p>❌ ${esc(error.message)}</p><div class="butona"><button class="dyte mk-mbyll">Mbyll</button></div></div>`; el.querySelector('.mk-mbyll').onclick = mbyll; return; }
+    const rr = data || [];
+    const karta = (k, i) => `<div class="mk-karte" data-f="${esc(k.familja.toLowerCase())}">
+      <div class="rresht" style="justify-content:space-between;margin:0"><b style="font-size:17px">${esc(k.familja)}${k.gjatesia ? ` <span class="zbehte" style="font-weight:400;font-size:13px">· numër me ${k.gjatesia} shifra · ${k.nr} artikuj</span>` : ''}</b></div>
+      <div>I fundit i regjistruar: <b>${esc(k.kodi_fundit)}</b> <span class="zbehte">${esc(k.emri_fundit || '')}</span></div>
+      <div class="zbehte" style="font-size:13px">Të fundit: ${(k.te_fundit || []).map((x) => esc(x.kodi) + (x.pritje ? ' ⏳' : '')).join(' · ')}</div>
+      <div class="butona" style="margin:6px 0 0"><button class="kryesor mk-merr" data-k="${esc(k.radhes)}" data-sh="${esc(k.kodi_fundit)}">Merr ${esc(k.radhes)}</button>
+      ${k.radhes_max !== k.radhes ? `<button class="dyte mk-merr" data-k="${esc(k.radhes_max)}" data-sh="${esc(k.kodi_max)}" title="Pas kodit më të lartë: ${esc(k.kodi_max)}">${esc(k.radhes_max)} <span class="zbehte">(pas ${esc(k.kodi_max)})</span></button>` : ''}</div></div>`;
+    el.innerHTML = `<div class="pr-kuti" style="width:min(640px,100%)"><div class="rresht" style="justify-content:space-between;margin:0"><h3 style="margin:0">🔢 Kodi i radhës</h3><button class="dyte mk-mbyll">Mbyll</button></div>
+      <p class="zbehte" style="margin:6px 0">Zgjidh familjen e kodit. Pas numrit shto çmimin dhe /ngjyrën si te kodi i fundit (p.sh. B-012 + 06 + /12). ⏳ = pret Pro-Data.</p>
+      <input class="mk-filtri" placeholder="filtro: b, a-, at, 00, cope…" autocomplete="off" style="width:100%;margin-bottom:8px">
+      <div class="mk-lista">${rr.map(karta).join('') || '<p class="zbehte">Nuk u gjet asnjë familje kodesh.</p>'}</div></div>`;
+    el.querySelector('.mk-mbyll').onclick = mbyll;
+    const filtri = el.querySelector('.mk-filtri');
+    filtri.oninput = () => { const q = filtri.value.trim().toLowerCase(); el.querySelectorAll('.mk-karte').forEach((c) => { c.hidden = !!q && !c.dataset.f.startsWith(q.replace(/-$/, '')) && !c.dataset.f.startsWith(q); }); };
+    el.querySelectorAll('.mk-merr').forEach((b) => b.onclick = () => {
+      mbyll();
+      if (!$('mg-kodi')) mgFormaRi('');
+      const i = $('mg-kodi'); i.value = b.dataset.k; i.focus(); i.setSelectionRange(i.value.length, i.value.length);
+      $('mg-mesazh').className = 'mesazh'; $('mg-mesazh').textContent = `🔢 Numri i radhës: ${b.dataset.k}. Shto çmimin dhe /ngjyrën, si te kodi i fundit ${b.dataset.sh}.`;
+      i.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  });
+}
+$('mg-kodet').onclick = () => mgKodetHap();
 // ---------- MALL NGA EXCEL ----------
 // Lexon skedarin në shfletues, gjen kolonat, kontrollon çdo rresht me listën e artikujve dhe tregon një parapamje.
 // Asgjë nuk ruhet pa shtypur "Fut". Rreshtat futen në një hap te regjistrimet_mallit (të gjithë ose asnjë) dhe ura i kalon në Pro-Data një nga një.
