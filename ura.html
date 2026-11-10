@@ -320,6 +320,9 @@
   #pr-dialog { position:fixed; inset:0; background:rgba(20,10,25,.45); z-index:1001; display:flex; align-items:center; justify-content:center; padding:16px; }
   .pr-dialog-stil { position:fixed; inset:0; background:rgba(20,10,25,.45); z-index:1001; display:flex; align-items:center; justify-content:center; padding:16px; }
   .pr-dialog-stil[hidden] { display:none; }
+  .mg-zgjedh { display:flex; flex-wrap:wrap; gap:6px; margin:6px 0 10px; }
+  .mg-zgjedh button { border:1px solid var(--vije); background:#fff; border-radius:12px; padding:9px 13px; font:inherit; cursor:pointer; color:var(--tekst); }
+  .mg-zgjedh button.on { border-color:var(--kryesor); background:#f6f0f7; font-weight:700; box-shadow:inset 0 0 0 1px var(--kryesor); }
   .mk-karte { border:1px solid var(--vije); border-radius:14px; padding:10px 12px; margin-bottom:8px; } .mk-karte[hidden] { display:none; }
   #pr-dialog[hidden], #pr-njoftim[hidden] { display:none; }
   #pr-dialog .pr-kuti, .pr-dialog-stil .pr-kuti { background:#fff; border-radius:18px; padding:18px; width:min(460px, 100%); max-height:90vh; overflow:auto; box-shadow:var(--hije); }
@@ -1601,26 +1604,84 @@ function mgSasiaTeDhenat(eDetyrueshme) {   // → fushat ose hedh gabim me tekst
   if (l === 'hyrje') return { sasia, lloji_hyrjes: 'hyrje', magazina: $('mg-mag').value };
   return { sasia, lloji_hyrjes: 'korrigjim', magazina: $('mg-mag').value, arsyeja: $('mg-arsyeja').value };
 }
+// Kodi i artikullit të ri ndërtohet vetë: prefiksi i familjes + numri i radhës + 0 (ndarës) + çmimi + /ngjyra, p.sh. C143 0 89 /21.
+// Familja del nga materiali dhe origjina (sipas Aguronit, 10.11.2026).
+const MG_MATERIALET = { dantelle: '🌸 Dantellë', bazike: '🧵 Bazike (saten, tyl, gomë)', aksesore: '💎 Aksesorë', cope: '✂️ Copë (të fundit)' };
+const MG_ORIGJINAT = { turqi: '🇹🇷 Turqi', kine: '🇨🇳 Kinë', indi: '🇮🇳 Indi' };
+const MG_PREFIKSAT = { 'dantelle|turqi': 'T', 'dantelle|kine': 'C', 'dantelle|indi': 'I', 'bazike|turqi': 'BT', 'bazike|kine': 'CB', 'bazike|indi': 'IB',
+  'aksesore|turqi': 'AT', 'aksesore|kine': 'CA', 'cope|': 'Cope' };
+let mgK = {};
+const mgPrefiksi = () => MG_PREFIKSAT[`${mgK.mat}|${mgK.mat === 'cope' ? '' : mgK.origj || ''}`] || null;
+function mgKodiNderto() {
+  const sh = $('mg-kodi-sh'); if (!sh) return;
+  if (!mgK.info) { sh.textContent = ''; return; }
+  const c = Number(($('mg-cmimi').value || '').replace(',', '.')), ngj = $('mg-ngjyra').value.trim().replace(/^\//, '');
+  const kodi = `${mgK.info.prefiksi}${mgK.info.seq}0${c > 0 ? String(c) : ''}${ngj ? '/' + ngj : ''}`;
+  if (!mgK.manual) $('mg-kodi').value = c > 0 ? kodi : '';
+  sh.innerHTML = mgK.manual ? `Kodi automatik do ishte <b>${esc(kodi)}</b> · <a href="#" id="mg-kodi-auto">↺ përdore</a>`
+    : c > 0 ? `= ${esc(mgK.info.prefiksi)} + nr. ${esc(mgK.info.seq)} + 0 + çmimi ${esc(String(c))}${ngj ? ' + /' + esc(ngj) : ''}` : 'Shkruaj çmimin dhe kodi plotësohet vetë.';
+  const a = $('mg-kodi-auto'); if (a) a.onclick = (e) => { e.preventDefault(); mgK.manual = false; mgKodiNderto(); };
+}
+async function mgKodiRifresko() {
+  const pr = mgPrefiksi(), el = $('mg-familja'); mgK.info = null;
+  if (!mgK.manual) $('mg-kodi').value = '';   // kodi i familjes së mëparshme s'vlen më
+  if (!pr) {
+    el.innerHTML = mgK.mat && (mgK.mat === 'cope' || mgK.origj) ? '⚠️ Për këtë material dhe origjinë nuk ka familje kodi. Shkruaje kodin vetë.' : '';
+    if (!mgK.manual) $('mg-kodi').value = '';   // kodi automatik i familjes së mëparshme s'vlen më
+    if (mgK.mat && mgK.origj) mgK.manual = true;
+    mgKodiNderto(); return;
+  }
+  el.textContent = '⏳ Po gjendet numri i radhës…';
+  const { data, error } = await sb.rpc('kodi_i_radhes', { p_prefiksi: pr });
+  if (pr !== mgPrefiksi()) return;   // zgjodhi diçka tjetër ndërkohë
+  if (error || !data || !data[0]) { el.textContent = '❌ Numri i radhës nuk u gjet: ' + (error ? error.message : '') + ' Shkruaje kodin vetë.'; mgK.manual = true; mgKodiNderto(); return; }
+  mgK.info = data[0];
+  el.innerHTML = `Familja <b>${esc(mgK.info.prefiksi)}</b> · ${mgK.info.kodi_fundit ? `kodi i fundit: <b>${esc(mgK.info.kodi_fundit)}</b> ${esc(mgK.info.emri_fundit || '')}` : 'kodi i parë i kësaj familjeje'} · numri i radhës: <b>${esc(mgK.info.seq)}</b>`;
+  mgKodiNderto();
+}
+function mgKodiLidh() {
+  mgK = { mat: null, origj: null, info: null, manual: false };
+  const zgjedh = (id, fusha) => $(id).querySelectorAll('button').forEach((b) => b.onclick = () => {
+    mgK[fusha] = b.dataset.v; $(id).querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+    $('mg-origj-b').hidden = mgK.mat === 'cope';
+    if (mgK.mat === 'cope' && $('mg-njesia').value !== 'Copë') $('mg-njesia').value = 'Copë';
+    if (mgPrefiksi()) mgK.manual = false;
+    mgKodiRifresko();
+  });
+  zgjedh('mg-mat', 'mat'); zgjedh('mg-origj', 'origj');
+  $('mg-cmimi').addEventListener('input', mgKodiNderto); $('mg-ngjyra').addEventListener('input', mgKodiNderto);
+  $('mg-kodi').addEventListener('input', () => { if (!mgK.manual) { mgK.manual = true; mgKodiNderto(); } });
+}
 function mgFormaRi(q) {
   const ekod = /^[\w\-./]+$/.test(q) && !/\s/.test(q);   // duket si barkod/kod
   $('mg-forma').innerHTML = `<div class="mg-forma"><h3 style="margin-top:0">🆕 Artikull i ri</h3>
+    <b>1) Çfarë materiali është? *</b><div class="mg-zgjedh" id="mg-mat">${Object.entries(MG_MATERIALET).map(([k, t]) => `<button type="button" data-v="${k}">${t}</button>`).join('')}</div>
+    <div id="mg-origj-b"><b>2) Prej nga është? *</b><div class="mg-zgjedh" id="mg-origj">${Object.entries(MG_ORIGJINAT).map(([k, t]) => `<button type="button" data-v="${k}">${t}</button>`).join('')}</div></div>
+    <div class="zbehte" id="mg-familja" style="margin-bottom:8px"></div>
     <div class="tp-forma" style="margin-bottom:6px">
       <label>Emri i produktit * <input id="mg-emri" value="${ekod ? '' : esc(q)}" placeholder="p.sh. Dantell franceze me rruaza e bardhë"></label>
       <label>Barkodi <input id="mg-barkodi" value="${ekod ? esc(q) : ''}" placeholder="skano ose shkruaj"></label>
-      <label>Kodi në Pro-Data <input id="mg-kodi" placeholder="bosh = si barkodi"><button type="button" class="dyte" id="mg-kodi-radhes" style="margin-top:4px;padding:4px 10px">🔢 Merr kodin e radhës</button></label>
-      <label>Njësia <select id="mg-njesia"><option value="M">M (metër)</option><option value="Copë">Copë</option></select></label>
       <label>Çmimi i shitjes me TVSH * <input id="mg-cmimi" type="text" inputmode="decimal" autocomplete="off"></label>
+      <label>Nr. i ngjyrës <input id="mg-ngjyra" type="text" inputmode="numeric" autocomplete="off" placeholder="p.sh. 21" style="width:110px"></label>
+      <label>Kodi në Pro-Data <input id="mg-kodi" placeholder="zgjidh materialin dhe origjinën"><span class="zbehte" id="mg-kodi-sh"></span></label>
+      <label>Njësia <select id="mg-njesia"><option value="M">M (metër)</option><option value="Copë">Copë</option></select></label>
       <label>Sasia * <input id="mg-sasia" type="text" inputmode="decimal" autocomplete="off"></label>
     </div>
     <h3>Si po hyn malli</h3>${mgSasiaHTML(true, false)}
     ${mgFotoHTML(true)}
     <label style="margin-top:8px">Shënim <input id="mg-shenim" placeholder="opsional"></label>
     <div class="butona"><button class="kryesor" id="mg-ruaj">✅ Regjistro artikullin</button><button class="dyte" id="mg-anulo">Anulo</button></div></div>`;
-  mgSasiaLidh(); mgFotoLidh();
-  $('mg-kodi-radhes').onclick = () => mgKodetHap();
+  mgSasiaLidh(); mgFotoLidh(); mgKodiLidh();
   $('mg-anulo').onclick = () => { $('mg-forma').innerHTML = ''; };
   $('mg-ruaj').onclick = () => mgRuaj(async () => {
-    const emri = $('mg-emri').value.trim(), cmimi = +$('mg-cmimi').value;
+    const emri = $('mg-emri').value.trim(), cmimi = +$('mg-cmimi').value.replace(',', '.');
+    if (!mgK.mat) throw new Error('Zgjidh çfarë materiali është (pyetja 1).');
+    if (mgK.mat !== 'cope' && !mgK.origj) throw new Error('Zgjidh prej nga është malli (pyetja 2).');
+    if (!$('mg-kodi').value.trim()) throw new Error('Mungon kodi. Kjo familje s\'ka kod automatik: shkruaje kodin vetë.');
+    if (!mgK.manual && mgK.info) {   // numri mund ta ketë zënë dikush tjetër ndërkohë
+      const vjeter = mgK.info.seq; await mgKodiRifresko();
+      if (mgK.info && mgK.info.seq !== vjeter && !confirm(`Numri ${vjeter} u zu ndërkohë nga një regjistrim tjetër.\nKodi i ri: ${$('mg-kodi').value}\nVazhdo me këtë kod?`)) return null;
+    }
     if (!emri) throw new Error('Shkruaj emrin e produktit.');
     if (!(cmimi > 0)) throw new Error('Shkruaj çmimin e shitjes me TVSH.');
     if (!(+$('mg-sasia').value > 0)) throw new Error('Shkruaj sasinë që po hyn.');
@@ -1632,6 +1693,7 @@ function mgFormaRi(q) {
     }
     const s = mgSasiaTeDhenat(true);
     return { lloji: 'artikull_i_ri', emri, barkodi, kodi, njesia: $('mg-njesia').value, cmimi_shitjes: cmimi, magazina: s.magazina || $('mg-mag').value,
+      materiali: mgK.mat, origjina: mgK.mat === 'cope' ? null : mgK.origj, ngjyra: $('mg-ngjyra').value.trim() || null,
       sasia: s.sasia, arsyeja: s.lloji_hyrjes === 'korrigjim' ? s.arsyeja : null, shenim: $('mg-shenim').value.trim() || null };
   });
   $('mg-forma').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1744,7 +1806,7 @@ function mgKodetHap() {
     el.querySelectorAll('.mk-merr').forEach((b) => b.onclick = () => {
       mbyll();
       if (!$('mg-kodi')) mgFormaRi('');
-      const i = $('mg-kodi'); i.value = b.dataset.k; i.focus(); i.setSelectionRange(i.value.length, i.value.length);
+      const i = $('mg-kodi'); i.value = b.dataset.k; mgK.manual = true; i.focus(); i.setSelectionRange(i.value.length, i.value.length);
       $('mg-mesazh').className = 'mesazh'; $('mg-mesazh').textContent = `🔢 Numri i radhës: ${b.dataset.k}. Shto çmimin dhe /ngjyrën, si te kodi i fundit ${b.dataset.sh}.`;
       i.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });
