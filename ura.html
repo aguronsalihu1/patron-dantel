@@ -313,6 +313,13 @@
   .kat-sel { min-width:0; padding:5px 6px; font-size:14px; }
   .sugj { background:#fff4d6; color:#8a5a00; border-radius:8px; padding:1px 6px; font-size:11px; font-weight:600; white-space:nowrap; }
   #printimi { display:none; }
+  #pr-btn { background:transparent; border:1px solid var(--vije); border-radius:10px; padding:4px 8px; font-size:16px; cursor:pointer; }
+  #pr-njoftim { position:fixed; left:50%; bottom:18px; transform:translateX(-50%); z-index:1000; background:#fff; border:2px solid var(--kryesor); border-radius:14px; padding:10px 14px; box-shadow:var(--hije); max-width:calc(100vw - 32px); font-weight:600; }
+  #pr-njoftim.ok { border-color:var(--ok); } #pr-njoftim.gabim { border-color:var(--gabim); }
+  #pr-njoftim .pr-x { background:transparent; border:0; cursor:pointer; font-size:14px; margin-left:6px; } #pr-njoftim .dyte { margin-left:6px; padding:4px 10px; }
+  #pr-dialog { position:fixed; inset:0; background:rgba(20,10,25,.45); z-index:1001; display:flex; align-items:center; justify-content:center; padding:16px; }
+  #pr-dialog[hidden], #pr-njoftim[hidden] { display:none; }
+  #pr-dialog .pr-kuti { background:#fff; border-radius:18px; padding:18px; width:min(460px, 100%); max-height:90vh; overflow:auto; box-shadow:var(--hije); }
   @media print {
     body * { visibility:hidden; } #printimi, #printimi * { visibility:visible; }
     #printimi { display:block; position:absolute; left:0; top:0; width:100%; font-size:12px; }
@@ -333,7 +340,7 @@
     <span><span id="d-lexim" class="drite"></span><span id="t-lexim">Leximi…</span></span>
     <span><span id="d-shkrim" class="drite"></span><span id="t-shkrim">Shkrimi…</span></span>
   </div>
-  <div class="djathtas" id="perdoruesi" hidden><span class="avatar" id="avatar"></span><span id="emri-perdoruesit"></span><button id="dil">Dil</button></div>
+  <div class="djathtas" id="perdoruesi" hidden><span class="avatar" id="avatar"></span><span id="emri-perdoruesit"></span><button id="pr-btn" title="Printerat e këtij aparati">🖨️</button><button id="dil">Dil</button></div>
 </header>
 
 <div id="hyrja">
@@ -900,6 +907,71 @@ function zbrTotaliPrint(f) {
   const pT = +f.zbritja_totali_p || 0, pasR = (f.rreshtat || []).reduce((s, r) => s + vleraRr(r), 0);
   return pT > 0 ? `<p style="text-align:right">Zbritje në total: −${eur(pasR - f.totali)} €</p>` : '';
 }
+// ---------- PRINTIMI ----------
+// Çdo aparat zgjedh një herë (🖨️ lart djathtas) ku printon secili format: dritarja e printimit e këtij aparati
+// (iPhone: AirPrint), ose direkt te një printer i arkës (roboti i printimit e printon pa dritare, me një klik).
+const PR_FORMATET = { '80': 'Faturë e vogël / biletë (80 mm)', a4: 'Faturë A4' };
+const prZgjedhja = (f) => { try { return localStorage.getItem('pd-printeri-' + f) || 'dritarja'; } catch { return 'dritarja'; } };
+const prOnline = (p) => !!p.pare_se_fundi && Date.now() - new Date(p.pare_se_fundi).getTime() < 3 * 60e3;
+async function prPrinterat() { const { data, error } = await sb.from('printerat').select('*').eq('aktiv', true).order('emri'); if (error) throw new Error(error.message); return data || []; }
+function prDokumenti(formati) {
+  return `<!doctype html><html><head><meta charset="utf-8"><style>
+    body{margin:0;font-family:Segoe UI,Arial,sans-serif;font-size:${formati === '80' ? 11 : 12}px;color:#000;background:#fff}
+    table{width:100%;border-collapse:collapse} td,th{padding:2px 3px;border-bottom:1px dotted #999;text-align:left;vertical-align:top} svg{max-width:100%}
+    </style></head><body>${$('printimi').innerHTML}</body></html>`;
+}
+function prNjofto(html, klasa = '') {
+  let el = $('pr-njoftim');
+  if (!el) { el = document.createElement('div'); el.id = 'pr-njoftim'; document.body.appendChild(el); }
+  el.className = klasa; el.innerHTML = html + ' <button type="button" class="pr-x" title="Mbyll">✕</button>'; el.hidden = false;
+  el.querySelector('.pr-x').onclick = () => { el.hidden = true; };
+  clearTimeout(prNjofto.kohe); if (klasa === 'ok') prNjofto.kohe = setTimeout(() => { el.hidden = true; }, 4000);
+}
+// Thirret nga çdo buton Print, pasi #printimi është mbushur.
+async function dergoPrintin(formati, titulli) {
+  const zgj = prZgjedhja(formati);
+  if (zgj === 'dritarja') { window.print(); return; }
+  const meDritare = () => { $('pr-njoftim').hidden = true; window.print(); };
+  prNjofto(`🖨️ Po dërgohet te printeri…`);
+  const { data: d, error } = await sb.from('printimet').insert({ printeri: zgj, titulli: titulli || null, krijuar_emri: profili.emri || null, html: prDokumenti(formati) }).select('id').single();
+  if (error) { prNjofto(`❌ Nuk u dërgua: ${esc(error.message)} <button type="button" class="dyte pr-dr">Printo me dritare</button>`, 'gabim'); $('pr-njoftim').querySelector('.pr-dr').onclick = meDritare; return; }
+  for (let i = 0; i < 40; i++) {
+    await new Promise((r) => setTimeout(r, 1500));
+    const { data: x } = await sb.from('printimet').select('statusi, gabimi').eq('id', d.id).maybeSingle();
+    if (x && x.statusi === 'kryer') return prNjofto('✅ U printua.', 'ok');
+    if (x && x.statusi === 'gabim') { prNjofto(`❌ Printeri: ${esc(x.gabimi || '')} <button type="button" class="dyte pr-dr">Printo me dritare</button>`, 'gabim'); $('pr-njoftim').querySelector('.pr-dr').onclick = meDritare; return; }
+    if (i === 10) prNjofto('⏳ Printeri ende s\'u përgjigj… (a është ndezur PC-ja e arkës?)');
+  }
+  prNjofto('⚠️ Printeri nuk u përgjigj. Dokumenti printohet sapo PC-ja e arkës të ndizet (brenda 10 min), ose <button type="button" class="dyte pr-dr">Printo me dritare</button>', 'gabim');
+  $('pr-njoftim').querySelector('.pr-dr').onclick = meDritare;
+}
+async function prHapCilesimet() {
+  let el = $('pr-dialog');
+  if (!el) { el = document.createElement('div'); el.id = 'pr-dialog'; document.body.appendChild(el); }
+  el.hidden = false; el.innerHTML = '<div class="pr-kuti"><p>⏳ Po ngarkohen printerat…</p></div>';
+  let lista = [];
+  try { lista = await prPrinterat(); } catch (e) { el.innerHTML = `<div class="pr-kuti"><p>❌ ${esc(e.message)}</p><div class="butona"><button class="dyte pr-mbyll">Mbyll</button></div></div>`; el.querySelector('.pr-mbyll').onclick = () => { el.hidden = true; }; return; }
+  el.innerHTML = `<div class="pr-kuti"><h3 style="margin-top:0">🖨️ Printerat e këtij aparati</h3>
+    <p class="zbehte" style="margin-top:0">Zgjedhja ruhet vetëm në këtë PC/telefon. "Direkt" printon me një klik, pa dritare.</p>
+    ${Object.entries(PR_FORMATET).map(([f, t]) => `<label style="display:block;margin:10px 0"><b>${t}</b><br>
+      <select data-f="${f}" style="width:100%"><option value="dritarja">Dritarja e printimit e këtij aparati${/iPhone|iPad/.test(navigator.userAgent) ? ' (AirPrint)' : ''}</option>
+      ${lista.filter((p) => p.formati === f).map((p) => `<option value="${esc(p.id)}">${prOnline(p) ? '🟢' : '🔴'} Direkt: ${esc(p.emri)}</option>`).join('')}</select></label>`).join('')}
+    <div class="butona"><button class="kryesor pr-ruaj">Ruaj</button><button class="dyte pr-prove">Printo provë</button><button class="dyte pr-mbyll">Mbyll</button></div>
+    <div class="mesazh pr-msg"></div></div>`;
+  el.querySelectorAll('select').forEach((s) => { s.value = prZgjedhja(s.dataset.f); if (!s.value) s.value = 'dritarja'; });
+  const ruaj = () => el.querySelectorAll('select').forEach((s) => { try { localStorage.setItem('pd-printeri-' + s.dataset.f, s.value); } catch {} });
+  el.querySelector('.pr-ruaj').onclick = () => { ruaj(); el.hidden = true; prNjofto('✅ Printerat u ruajtën për këtë aparat.', 'ok'); };
+  el.querySelector('.pr-mbyll').onclick = () => { el.hidden = true; };
+  el.querySelector('.pr-prove').onclick = async () => {
+    ruaj(); el.hidden = true;
+    for (const f of Object.keys(PR_FORMATET)) {
+      if (prZgjedhja(f) === 'dritarja') continue;
+      const p = $('printimi'); p.className = f === '80' ? 'e80' : '';
+      p.innerHTML = `<div style="text-align:center"><b style="font-size:1.3em">PATRON DANTEL</b><br>Provë printimi · ${PR_FORMATET[f]}<br>${esc(profili.emri || '')} · ${new Date().toLocaleString('sq-AL', { timeZone: 'Europe/Belgrade' })}</div><p>Nëse e lexon këtë, printimi direkt punon.</p>`;
+      await dergoPrintin(f, 'Provë printimi');
+    }
+  };
+}
 const pastro = (q) => q.replace(/[,()%*\\]/g, ' ').trim();
 // Kod unik për çdo komandë (punon edhe në shfletues/telefona pa crypto.randomUUID)
 const celesRi = (p) => `PD-${p}-${Array.from(crypto.getRandomValues(new Uint8Array(6)), (b) => b.toString(16).padStart(2, '0')).join('')}`;
@@ -963,6 +1035,7 @@ $('forma-hyrja').onsubmit = async (e) => {
   m.className = 'mesazh'; $('h-pass').value = '';
 };
 $('dil').onclick = () => { fotoKeshPastro(); sb.auth.signOut(); };
+$('pr-btn').onclick = () => prHapCilesimet();
 let nisur = false;
 sb.auth.onAuthStateChange(async (_n, ses) => {
   perdoruesi = ses ? ses.user : null;
@@ -1171,7 +1244,7 @@ async function printoBileten(f) {
     ${zbrTotaliPrint(f)}<p style="text-align:right;font-size:1.4em"><b>Totali: ${eur(f.totali)} €</b></p>`;
   try { await vizatoBarkod('#pr-bk', 'PD' + f.nr, { format: 'CODE128', height: 60, width: 2, displayValue: true, fontSize: 14, margin: 4 }); }
   catch (e) { alert('Bileta nuk u printua: ' + e.message); return; }
-  window.print();
+  await dergoPrintin('80', 'Biletë ' + f.nr);
 }
 $('sh-arka').onclick = async () => {
   if (!shKontrollo()) return;
@@ -1223,7 +1296,7 @@ function printo(lloji) {
     ${sh.rreshtat.map((r) => `<tr><td>${esc(r.kodi)} ${esc(r.emri)}${zbrTekst(r)}</td><td>${r.sasia}</td><td>${eur(r.cmimi)}</td><td>${eur(vleraRr(r))}</td></tr>`).join('')}</table>
     ${zbrTotaliPrint({ rreshtat: sh.rreshtat, zbritja_totali_p: shTotalet().pT, nentotali: shTotalet().bruto, totali: shTotalet().totali })}
     <p style="text-align:right;font-size:1.3em"><b>Totali: ${$('sh-totali').textContent} €</b><br><span style="font-size:.8em">Çmimet përfshijnë TVSH-në</span></p>`;
-  window.print();
+  dergoPrintin(lloji === '80' ? '80' : 'a4', 'Pro-faturë ' + nr);
 }
 $('sh-print-a4').onclick = () => printo('a4'); $('sh-print-80').onclick = () => printo('80');
 
@@ -3140,7 +3213,7 @@ function printoOnline(f) {
     ${tpTransporti(f) ? `<p style="text-align:right">Materiali: ${eur(f.totali)} €<br>Transporti (Telposta): ${eur(tpTransporti(f))} €</p>` : ''}
     <p style="text-align:right;font-size:1.3em"><b>Për pagesë: ${tpTransporti(f) ? tpVlera(f) + '.00' : eur(f.totali)} €</b>${f.telposta_kodi ? '<br>Telposta: ' + esc(f.telposta_kodi) : ''}<br><span style="font-size:.75em">${f.eksport ? 'Export, TVSH 0%' : 'Çmimet përfshijnë TVSH-në'} · Nuk është dokument fiskal</span></p>
     ${f.shenim ? `<p>Shënim: ${esc(f.shenim)}</p>` : ''}<p style="font-size:.8em">Shitësja: ${esc(f.shitesja_emri || '')}</p>`;
-  window.print();
+  dergoPrintin('80', 'Porosi online ' + (f.nr || ''));
 }
 $('onl-print').onclick = () => { if (!onlKontrollo()) return; printoOnline({ ...onlTeDhenat(), nr: onl.fatura ? onl.fatura.nr : '' }); };
 $('onl-telposta').onclick = () => { if (!onlKontrollo()) return; kopjoTelposta({ ...onlTeDhenat(), nr: onl.fatura ? onl.fatura.nr : '' }); };
