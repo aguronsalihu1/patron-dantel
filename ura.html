@@ -295,6 +295,8 @@
   .mg-lloji button.on { background:var(--kryesor); color:#fff; border-color:var(--kryesor); }
   .sh-arka-btn { width:100%; font-size:20px !important; padding:16px !important; border-radius:16px !important; background:linear-gradient(135deg, #065f46, #10b981) !important; }
   .barkodi { background:#fff; border:3px dashed var(--kryesor); border-radius:18px; padding:18px; margin-top:14px; text-align:center; }
+  .barkodi .bk-numri { font-size:20px; margin:6px 0; } .barkodi .bk-numri b { font-size:34px; letter-spacing:2px; }
+  .barkodi svg { background:#fff; }
   .barkodi .nr { font-size:22px; font-weight:800; } .barkodi .tot { font-size:30px; font-weight:800; color:var(--kryesor); margin:4px 0 6px; }
   .ar-skano-kuti { display:flex; gap:10px; align-items:center; background:#faf3fa; border:2px solid var(--kryesor); border-radius:18px; padding:12px 14px; margin-bottom:14px; }
   .ar-skano-kuti .ikona { font-size:30px; color:var(--kryesor); } .ar-skano-kuti input { flex:1; font-size:18px; border:0; background:transparent; min-width:0; }
@@ -976,8 +978,8 @@ function prNjofto(html, klasa = '') {
   clearTimeout(prNjofto.kohe); if (klasa === 'ok') prNjofto.kohe = setTimeout(() => { el.hidden = true; }, 4000);
 }
 // Thirret nga çdo buton Print, pasi #printimi është mbushur.
-async function dergoPrintin(formati, titulli) {
-  const zgj = prZgjedhja(formati);
+async function dergoPrintin(formati, titulli, ku) {   // ku = id e një printeri (p.sh. 'arka-80') që e kapërcen zgjedhjen e aparatit
+  const zgj = ku || prZgjedhja(formati);
   if (zgj === 'dritarja') { window.print(); return; }
   const meDritare = () => { $('pr-njoftim').hidden = true; window.print(); };
   prNjofto(`🖨️ Po dërgohet te printeri…`);
@@ -1274,15 +1276,19 @@ $('sh-pastro').onclick = () => { if (!sh.rreshtat.length || confirm('Ta pastroj 
 function shfaqBarkodin(el, f, meFatureRe) {
   el.innerHTML = `<div class="barkodi"><div class="nr">Fatura nr. ${f.nr}</div><div class="tot">${eur(f.totali)} €</div><svg id="bk-${f.nr}"></svg>
     <div>Statusi: <span class="bk-st" data-id="${f.id}">${shenje(f.statusi)}${f.porosia_nr ? ' → <b>' + esc(f.porosia_nr) + '</b>' : ''}</span></div>
-    <p class="zbehte">Printoje biletën dhe jepja klientit, ose tregoja barkodin arkëtares.</p>
-    <div class="butona" style="justify-content:center"><button class="kryesor bk-print">🖨️ Printo biletën me barkod</button>${meFatureRe ? `<button class="dyte bk-re">+ ${profili.roli === 'shitese_fizike' ? 'Shitje e re' : 'Faturë e re'}</button>` : ''}</div></div>`;
-  vizatoBarkod(`#bk-${f.nr}`, 'PD' + f.nr, { format: 'CODE128', height: 90, displayValue: true, fontSize: 18 }).catch((e) => { const s = el.querySelector('svg'); if (s) s.outerHTML = `<p class="mesazh gabim" style="display:block">❌ Barkodi nuk u vizatua. ${esc(e.message)}</p>`; });
+    <div class="bk-numri">Nr. për arkën: <b>${f.nr}</b></div>
+    <p class="zbehte">Fatura del vetë te arka, te lista <b>"Në pritje"</b>: arkëtarja e klikon, ose shkruan numrin <b>${f.nr}</b> + Enter.
+      Barkodin nga ekrani e lexon vetëm skaneri me kamerë: rrite ndriçimin e telefonit. Me letër: printo biletën te printeri i arkës.</p>
+    <div class="butona" style="justify-content:center"><button class="kryesor bk-print-arka">🖨️ Printo biletën te arka</button><button class="dyte bk-print">🖨️ Printo këtu</button>${meFatureRe ? `<button class="dyte bk-re">+ ${profili.roli === 'shitese_fizike' ? 'Shitje e re' : 'Faturë e re'}</button>` : ''}</div></div>`;
+  // vija të trasha dhe hapësirë e bardhë anash: skanerët e lexojnë më lehtë nga ekrani
+  vizatoBarkod(`#bk-${f.nr}`, 'PD' + f.nr, { format: 'CODE128', width: 3, height: 110, margin: 24, background: '#ffffff', lineColor: '#000000', displayValue: true, fontSize: 20 }).catch((e) => { const s = el.querySelector('svg'); if (s) s.outerHTML = `<p class="mesazh gabim" style="display:block">❌ Barkodi nuk u vizatua. ${esc(e.message)}</p>`; });
   el.hidden = false;
   el.querySelector('.bk-print').onclick = () => printoBileten(f);
+  el.querySelector('.bk-print-arka').onclick = () => printoBileten(f, 'arka-80');
   const re = el.querySelector('.bk-re'); if (re) re.onclick = () => { shPastro(); window.scrollTo(0, 0); };
 }
 // Bileta 80 mm me barkod: klienti e çon te arka
-async function printoBileten(f) {
+async function printoBileten(f, ku) {
   const p = $('printimi'); p.className = 'e80';
   p.innerHTML = `<div style="text-align:center"><b style="font-size:1.3em">PATRON DANTEL</b><br>MINNA SH.P.K.<br><b>FATURË PËR ARKË nr. ${f.nr}</b><br>
     <svg id="pr-bk"></svg><br><span>Paguhet në arkë · nuk është dokument fiskal</span></div>
@@ -1292,7 +1298,7 @@ async function printoBileten(f) {
     ${zbrTotaliPrint(f)}<p style="text-align:right;font-size:1.4em"><b>Totali: ${eur(f.totali)} €</b></p>`;
   try { await vizatoBarkod('#pr-bk', 'PD' + f.nr, { format: 'CODE128', height: 60, width: 2, displayValue: true, fontSize: 14, margin: 4 }); }
   catch (e) { alert('Bileta nuk u printua: ' + e.message); return; }
-  await dergoPrintin('80', 'Biletë ' + f.nr);
+  await dergoPrintin('80', 'Biletë ' + f.nr, ku);
 }
 $('sh-arka').onclick = async () => {
   if (!shKontrollo()) return;
@@ -1381,7 +1387,10 @@ async function arkaHap(nr) {
       <button class="kryesor ar-regj" id="ar-regjistro" disabled>✅ Regjistro shitjen</button>
       <div class="butona"><button class="rrezik" id="ar-anulo">Anulo faturën</button></div>`
       : f.porosia_nr ? `<p>Pro-Data: porosia <b>${esc(f.porosia_nr)}</b></p>` : ''}
-    <div class="mesazh" id="ar-mesazh"></div></div>`;
+    <div class="mesazh" id="ar-mesazh"></div>
+    <div class="butona"><button class="dyte" id="ar-print-80">🖨️ Printo faturën (e vogël)</button><button class="dyte" id="ar-print-a4">🖨️ Printo A4</button></div></div>`;
+  $('ar-print-80').onclick = () => printoFaturenArka(f.nr, '80');
+  $('ar-print-a4').onclick = () => printoFaturenArka(f.nr, 'a4');
   if (f.statusi !== 'ne_arke') return;
   $('ar-kontroll').onchange = (e) => { $('ar-regjistro').disabled = !e.target.checked; };
   $('ar-regjistro').onclick = async () => {
@@ -1394,6 +1403,21 @@ async function arkaHap(nr) {
     if (!confirm(`Ta anuloj faturën ${f.nr}? Nuk dërgohet në Pro-Data.`)) return;
     await sb.from('app_faturat').update({ statusi: 'anuluar' }).eq('id', f.id); arkaHap(f.nr); arkaListo();
   };
+}
+// Fatura e plotë për klientin, nga arka (para ose pas regjistrimit; pas regjistrimit me nr. e porosisë në Pro-Data)
+async function printoFaturenArka(nr, formati) {
+  const { data: f, error } = await sb.from('app_faturat').select('*').eq('nr', nr).maybeSingle();
+  if (error || !f) return alert('Fatura nuk u gjet: ' + (error ? error.message : nr));
+  const p = $('printimi'); p.className = formati === '80' ? 'e80' : '';
+  p.innerHTML = `<div style="text-align:center"><b style="font-size:1.3em">PATRON DANTEL</b><br>MINNA SH.P.K.<br><b>FATURË nr. ${f.nr}</b>${f.porosia_nr ? '<br>Pro-Data: ' + esc(f.porosia_nr) : ''}
+    <br><span>Nuk është dokument fiskal. Kuponi fiskal lëshohet nga arka.</span></div>
+    <p>Data: ${new Date(f.regjistruar_koha || f.krijuar).toLocaleString('sq-AL', { timeZone: 'Europe/Belgrade' })}<br>Klienti: ${esc(f.klienti_emri || 'Qytetar')} ${esc(f.klienti_telefoni || '')}
+    <br>Shitësja: ${esc(f.shitesja_emri || '')}<br>Arka: ${esc(profili.emri || '')}</p>
+    <table><tr><th>Produkti</th><th>Sasia</th><th>Çmimi</th><th>Vlera</th></tr>
+    ${(f.rreshtat || []).map((r) => `<tr><td>${esc(r.kodi)} ${esc(r.emri)}${zbrTekst(r)}</td><td>${r.sasia}</td><td>${eur(r.cmimi)}</td><td>${eur(vleraRr(r))}</td></tr>`).join('')}</table>
+    ${zbrTotaliPrint(f)}<p style="text-align:right;font-size:1.3em"><b>Totali: ${eur(f.totali)} €</b><br><span style="font-size:.8em">Çmimet përfshijnë TVSH-në</span></p>
+    <p style="text-align:center">Faleminderit!</p>`;
+  await dergoPrintin(formati, 'Faturë ' + f.nr);
 }
 async function arkaListo() {
   const { data: teGjitha } = await sb.from('app_faturat').select('nr, krijuar, shitesja_emri, klienti_emri, totali, magazina, rreshtat').eq('statusi', 'ne_arke').neq('kanali', 'online').order('krijuar');
