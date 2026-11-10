@@ -129,7 +129,7 @@
   #onl-qyteti:disabled { background:#f1eef3; color:#999; }
   .tp-qytetet { width:100%; max-height:260px; }
   .tp-qytetet div { padding:9px 12px; } .tp-qytetet mark { background:#ffe066; padding:0; }
-  .tp-qytetet .tit { font-weight:700; background:#f6f4f7; cursor:default; }
+  .tp-qytetet .tit { font-weight:700; background:#f6f4f7; cursor:default; } .tp-qytetet div.on { background:#f6f0f7; }
   .tp-kuti { flex-direction:row !important; align-items:center; gap:10px; color:var(--tekst) !important; font-size:15px !important; font-weight:600; }
   .tp-kuti input { width:20px !important; height:20px; min-width:0; }
   .tp-transporti { background:#fff7f0; border:1px dashed #f8a76a; border-radius:16px; padding:14px; align-self:start; }
@@ -907,6 +907,48 @@ function zbrTotaliPrint(f) {
   const pT = +f.zbritja_totali_p || 0, pasR = (f.rreshtat || []).reduce((s, r) => s + vleraRr(r), 0);
   return pT > 0 ? `<p style="text-align:right">Zbritje në total: −${eur(pasR - f.totali)} €</p>` : '';
 }
+// ---------- SUGJERIMET E KLIENTËVE ----------
+// Te fushat e emrit të klientit: që në shkronjën e parë del lista nga klientët e Pro-Data, porositë online dhe Telposta.
+function klientSugjerime(input, zgjidh) {
+  const kuti = document.createElement('span'); kuti.className = 'kerkimi'; kuti.style.display = 'block';
+  input.parentNode.insertBefore(kuti, input); kuti.appendChild(input); input.setAttribute('autocomplete', 'off');
+  const l = document.createElement('div'); l.className = 'lista tp-qytetet'; l.hidden = true; kuti.appendChild(l);
+  let nr = 0, kohe, rr = [], i = -1;
+  const theks = (x, q) => { const j = x.toLowerCase().indexOf(q.toLowerCase()); return j < 0 ? esc(x) : esc(x.slice(0, j)) + '<mark>' + esc(x.slice(j, j + q.length)) + '</mark>' + esc(x.slice(j + q.length)); };
+  const merr = (j) => { const k = rr[j]; if (!k) return; l.hidden = true; rr = []; zgjidh(k); };
+  const vizato = (q) => {
+    l.innerHTML = '<div class="tit">Klientët</div>' + rr.map((k, j) => `<div data-i="${j}" class="${j === i ? 'on' : ''}"><b>${theks(k.emri, q)}</b><br><small class="zbehte">${esc([k.telefoni, k.qyteti, k.kodi ? 'Pro-Data ' + k.kodi : k.burimi].filter(Boolean).join(' · '))}</small></div>`).join('');
+    l.querySelectorAll('[data-i]').forEach((d) => d.onmousedown = (e) => { e.preventDefault(); merr(+d.dataset.i); });
+    l.hidden = !rr.length;
+  };
+  input.addEventListener('input', () => {
+    clearTimeout(kohe); const q = input.value.trim();
+    if (!q) { nr++; rr = []; l.hidden = true; return; }
+    kohe = setTimeout(async () => {
+      const n = ++nr, { data } = await sb.rpc('sugjero_klientet', { p_q: q, p_limit: 8 });
+      if (n !== nr || input.value.trim() !== q) return;   // shkroi diçka tjetër ndërkohë
+      rr = data || []; i = -1; vizato(q);
+    }, 150);
+  });
+  input.addEventListener('keydown', (e) => {
+    if (l.hidden || !rr.length) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); i = (i + (e.key === 'ArrowDown' ? 1 : -1) + rr.length) % rr.length; vizato(input.value.trim()); }
+    else if (e.key === 'Enter' && i >= 0) { e.preventDefault(); merr(i); }
+    else if (e.key === 'Escape') l.hidden = true;
+  });
+  input.addEventListener('blur', () => setTimeout(() => { l.hidden = true; }, 150));
+}
+klientSugjerime($('sh-klienti-emri'), (k) => {
+  $('sh-klienti-emri').value = k.emri;
+  if (k.telefoni) $('sh-klienti-tel').value = k.telefoni;
+  if (k.kodi && !$('sh-kodi-l').hidden) $('sh-klienti-kodi').value = k.kodi;   // admin/arka: shitja shkon te ky klient në Pro-Data
+});
+klientSugjerime($('onl-emri'), (k) => {
+  $('onl-emri').value = k.emri;
+  if (k.telefoni) $('onl-tel').value = k.telefoni;
+  if (k.adresa) $('onl-adresa').value = k.adresa;
+  if (typeof onlVizato === 'function') onlVizato();
+});
 // ---------- PRINTIMI ----------
 // Çdo aparat zgjedh një herë (🖨️ lart djathtas) ku printon secili format: dritarja e printimit e këtij aparati
 // (iPhone: AirPrint), ose direkt te një printer i arkës (roboti i printimit e printon pa dritare, me një klik).
