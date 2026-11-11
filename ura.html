@@ -1158,7 +1158,7 @@ async function kerkoArtikuj(q) {
   for (const a of art) { a.id = +a.prodata_id; a.cmimi = +a.cmimi || 0; a.stoku = (st || []).filter((s) => s.prodata_artikull_id === a.prodata_id).map((s) => ({ magazina: s.magazina, sasia: +s.sasia })); }
   return art;
 }
-function kerkimArtikujsh(inputId, listaId, kurZgjidhet) {
+function kerkimArtikujsh(inputId, listaId, kurZgjidhet, kurMungon) {   // kurMungon(q): kur kodi/barkodi s'gjendet → "Regjistroje shpejt"
   const inp = $(inputId), lista = $(listaId); let kohe, koheZgjedhje, radha = 0, fundit = 0;
   const zgjidh = (a) => { clearTimeout(koheZgjedhje); radha++; lista.hidden = true; inp.value = ''; kurZgjidhet(a); inp.focus(); };
   inp.oninput = () => { clearTimeout(kohe); clearTimeout(koheZgjedhje); fundit = Date.now(); kohe = setTimeout(async () => {
@@ -1173,6 +1173,11 @@ function kerkimArtikujsh(inputId, listaId, kurZgjidhet) {
         <b>${esc(a.kodi)}</b> – ${esc(a.emri)} <span class="zbehte">· ${a.cmimi > 0 ? eur(a.cmimi) + ' €' : 'pa çmim'} · ${esc(a.barkodi || '')}</span>
         <div class="stoku">${stokuHTML(a)}</div></div>`;
       d.onclick = () => zgjidh(a); lista.appendChild(d); }
+    if (kurMungon && mgLejuar() && !art.some((a) => a.barkodi === q || a.kodi === q)) {
+      const d = document.createElement('div'); d.className = 'art-rresht art-ri';
+      d.innerHTML = `<span class="art-pa-foto">🆕</span><div><b>Nuk e gjen? Regjistroje shpejt</b><div class="zbehte">"${esc(q)}" krijohet në Pro-Data dhe shtohet te fatura</div></div>`;
+      d.onclick = () => { radha++; lista.hidden = true; inp.value = ''; kurMungon(q); }; lista.appendChild(d);
+    }
     lista.hidden = false;
     fotoArtikujsh(art.map((a) => a.prodata_id)).then((ft) => {   // fotot e vogla mbushen pasi lista është në ekran
       if (nr !== radha) return;
@@ -1242,13 +1247,14 @@ function shVizato() {
 }
 const shTotalet = () => llogaritTotalet(sh.rreshtat, $('sh-zbrt').value);
 $('sh-zbrt').oninput = () => shVizato();
-kerkimArtikujsh('sh-artikulli', 'sh-artikulli-lista', (a) => {
+function shShtoArtikullin(a) {
   const ek = sh.rreshtat.find((r) => r.id === a.id);
   if (ek) ek.sasia += 1; else sh.rreshtat.push({ id: a.id, kodi: a.kodi, emri: a.emri, barkodi: a.barkodi, sasia: 1, cmimi: a.cmimi });
   shVizato();
   const i = sh.rreshtat.findIndex((r) => r.id === a.id);
   if (!(sh.rreshtat[i].cmimi > 0)) fokusoCmimin('sh-rreshtat', i);
-});
+}
+kerkimArtikujsh('sh-artikulli', 'sh-artikulli-lista', shShtoArtikullin, (q) => regjistroShpejt(q, $('sh-magazina').value, shShtoArtikullin));
 function shKontrollo() {
   if (!sh.rreshtat.length) { alert('Shto të paktën një produkt.'); return false; }
   if (sh.rreshtat.some((r) => !(r.sasia > 0))) { alert('Çdo produkt duhet të ketë sasi më të madhe se 0.'); return false; }
@@ -1634,54 +1640,72 @@ const MG_MATERIALET = { dantelle: '🌸 Dantellë', bazike: '🧵 Bazike (saten,
 const MG_ORIGJINAT = { turqi: '🇹🇷 Turqi', kine: '🇨🇳 Kinë', indi: '🇮🇳 Indi' };
 const MG_PREFIKSAT = { 'dantelle|turqi': 'T', 'dantelle|kine': 'C', 'dantelle|indi': 'I', 'bazike|turqi': 'BT', 'bazike|kine': 'CB', 'bazike|indi': 'IB',
   'aksesore|turqi': 'AT', 'aksesore|kine': 'CA', 'cope|': 'Cope' };
+// kodiAuto(p): pyetjet material/origjinë + kodi automatik për një formë, fushat e së cilës fillojnë me p (p.sh. 'mg-', 'rs-')
+function kodiPyetjetHTML(p) {
+  return `<b>1) Çfarë materiali është? *</b><div class="mg-zgjedh" id="${p}mat">${Object.entries(MG_MATERIALET).map(([k, t]) => `<button type="button" data-v="${k}">${t}</button>`).join('')}</div>
+    <div id="${p}origj-b"><b>2) Prej nga është? *</b><div class="mg-zgjedh" id="${p}origj">${Object.entries(MG_ORIGJINAT).map(([k, t]) => `<button type="button" data-v="${k}">${t}</button>`).join('')}</div></div>
+    <div class="zbehte" id="${p}familja" style="margin-bottom:8px"></div>`;
+}
+function kodiAuto(p) {
+  const $p = (x) => $(p + x), K = { mat: null, origj: null, info: null, manual: false };
+  K.prefiksi = () => MG_PREFIKSAT[`${K.mat}|${K.mat === 'cope' ? '' : K.origj || ''}`] || null;
+  K.nderto = () => {
+    const sh = $p('kodi-sh'); if (!sh) return;
+    if (!K.info) { sh.textContent = ''; return; }
+    const c = Number(($p('cmimi').value || '').replace(',', '.')), ngj = ($p('ngjyra') ? $p('ngjyra').value : '').trim().replace(/^\//, '');
+    const kodi = `${K.info.prefiksi}${K.info.seq}0${c > 0 ? String(c) : ''}${ngj ? '/' + ngj : ''}`;
+    if (!K.manual) $p('kodi').value = c > 0 ? kodi : '';
+    sh.innerHTML = K.manual ? `Kodi automatik do ishte <b>${esc(kodi)}</b> · <a href="#" id="${p}kodi-auto">↺ përdore</a>`
+      : c > 0 ? `= ${esc(K.info.prefiksi)} + nr. ${esc(K.info.seq)} + 0 + çmimi ${esc(String(c))}${ngj ? ' + /' + esc(ngj) : ''}` : 'Shkruaj çmimin dhe kodi plotësohet vetë.';
+    const a = $p('kodi-auto'); if (a) a.onclick = (e) => { e.preventDefault(); K.manual = false; K.nderto(); };
+  };
+  K.rifresko = async () => {
+    const pr = K.prefiksi(), el = $p('familja'); K.info = null;
+    if (!K.manual) $p('kodi').value = '';   // kodi i familjes së mëparshme s'vlen më
+    if (!pr) {
+      el.innerHTML = K.mat && (K.mat === 'cope' || K.origj) ? '⚠️ Për këtë material dhe origjinë nuk ka familje kodi. Shkruaje kodin vetë.' : '';
+      if (K.mat && K.origj) K.manual = true;
+      K.nderto(); return;
+    }
+    el.textContent = '⏳ Po gjendet numri i radhës…';
+    const { data, error } = await sb.rpc('kodi_i_radhes', { p_prefiksi: pr });
+    if (pr !== K.prefiksi()) return;   // zgjodhi diçka tjetër ndërkohë
+    if (error || !data || !data[0]) { el.textContent = '❌ Numri i radhës nuk u gjet: ' + (error ? error.message : '') + ' Shkruaje kodin vetë.'; K.manual = true; K.nderto(); return; }
+    K.info = data[0];
+    el.innerHTML = `Familja <b>${esc(K.info.prefiksi)}</b> · ${K.info.kodi_fundit ? `kodi i fundit: <b>${esc(K.info.kodi_fundit)}</b> ${esc(K.info.emri_fundit || '')}` : 'kodi i parë i kësaj familjeje'} · numri i radhës: <b>${esc(K.info.seq)}</b>`;
+    K.nderto();
+  };
+  K.lidh = () => {
+    const zgjedh = (id, fusha) => $p(id).querySelectorAll('button').forEach((b) => b.onclick = () => {
+      K[fusha] = b.dataset.v; $p(id).querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
+      $p('origj-b').hidden = K.mat === 'cope';
+      if (K.mat === 'cope' && $p('njesia') && $p('njesia').value !== 'Copë') $p('njesia').value = 'Copë';
+      if (K.prefiksi()) K.manual = false;
+      K.rifresko();
+    });
+    zgjedh('mat', 'mat'); zgjedh('origj', 'origj');
+    $p('cmimi').addEventListener('input', K.nderto); if ($p('ngjyra')) $p('ngjyra').addEventListener('input', K.nderto);
+    $p('kodi').addEventListener('input', () => { if (!K.manual) { K.manual = true; K.nderto(); } });
+    return K;
+  };
+  // kontrolli para ruajtjes: materiali/origjina të zgjedhura, kodi jo bosh, numri ende i lirë
+  K.kontrollo = async () => {
+    if (!K.mat) throw new Error('Zgjidh çfarë materiali është (pyetja 1).');
+    if (K.mat !== 'cope' && !K.origj) throw new Error('Zgjidh prej nga është malli (pyetja 2).');
+    if (!$p('kodi').value.trim()) throw new Error(K.info ? 'Shkruaj çmimin, që të plotësohet kodi.' : 'Mungon kodi. Kjo familje s\'ka kod automatik: shkruaje kodin vetë.');
+    if (!K.manual && K.info) {   // numri mund ta ketë zënë dikush tjetër ndërkohë
+      const vjeter = K.info.seq; await K.rifresko();
+      if (K.info && K.info.seq !== vjeter && !confirm(`Numri ${vjeter} u zu ndërkohë nga një regjistrim tjetër.\nKodi i ri: ${$p('kodi').value}\nVazhdo me këtë kod?`)) return false;
+    }
+    return true;
+  };
+  return K;
+}
 let mgK = {};
-const mgPrefiksi = () => MG_PREFIKSAT[`${mgK.mat}|${mgK.mat === 'cope' ? '' : mgK.origj || ''}`] || null;
-function mgKodiNderto() {
-  const sh = $('mg-kodi-sh'); if (!sh) return;
-  if (!mgK.info) { sh.textContent = ''; return; }
-  const c = Number(($('mg-cmimi').value || '').replace(',', '.')), ngj = $('mg-ngjyra').value.trim().replace(/^\//, '');
-  const kodi = `${mgK.info.prefiksi}${mgK.info.seq}0${c > 0 ? String(c) : ''}${ngj ? '/' + ngj : ''}`;
-  if (!mgK.manual) $('mg-kodi').value = c > 0 ? kodi : '';
-  sh.innerHTML = mgK.manual ? `Kodi automatik do ishte <b>${esc(kodi)}</b> · <a href="#" id="mg-kodi-auto">↺ përdore</a>`
-    : c > 0 ? `= ${esc(mgK.info.prefiksi)} + nr. ${esc(mgK.info.seq)} + 0 + çmimi ${esc(String(c))}${ngj ? ' + /' + esc(ngj) : ''}` : 'Shkruaj çmimin dhe kodi plotësohet vetë.';
-  const a = $('mg-kodi-auto'); if (a) a.onclick = (e) => { e.preventDefault(); mgK.manual = false; mgKodiNderto(); };
-}
-async function mgKodiRifresko() {
-  const pr = mgPrefiksi(), el = $('mg-familja'); mgK.info = null;
-  if (!mgK.manual) $('mg-kodi').value = '';   // kodi i familjes së mëparshme s'vlen më
-  if (!pr) {
-    el.innerHTML = mgK.mat && (mgK.mat === 'cope' || mgK.origj) ? '⚠️ Për këtë material dhe origjinë nuk ka familje kodi. Shkruaje kodin vetë.' : '';
-    if (!mgK.manual) $('mg-kodi').value = '';   // kodi automatik i familjes së mëparshme s'vlen më
-    if (mgK.mat && mgK.origj) mgK.manual = true;
-    mgKodiNderto(); return;
-  }
-  el.textContent = '⏳ Po gjendet numri i radhës…';
-  const { data, error } = await sb.rpc('kodi_i_radhes', { p_prefiksi: pr });
-  if (pr !== mgPrefiksi()) return;   // zgjodhi diçka tjetër ndërkohë
-  if (error || !data || !data[0]) { el.textContent = '❌ Numri i radhës nuk u gjet: ' + (error ? error.message : '') + ' Shkruaje kodin vetë.'; mgK.manual = true; mgKodiNderto(); return; }
-  mgK.info = data[0];
-  el.innerHTML = `Familja <b>${esc(mgK.info.prefiksi)}</b> · ${mgK.info.kodi_fundit ? `kodi i fundit: <b>${esc(mgK.info.kodi_fundit)}</b> ${esc(mgK.info.emri_fundit || '')}` : 'kodi i parë i kësaj familjeje'} · numri i radhës: <b>${esc(mgK.info.seq)}</b>`;
-  mgKodiNderto();
-}
-function mgKodiLidh() {
-  mgK = { mat: null, origj: null, info: null, manual: false };
-  const zgjedh = (id, fusha) => $(id).querySelectorAll('button').forEach((b) => b.onclick = () => {
-    mgK[fusha] = b.dataset.v; $(id).querySelectorAll('button').forEach((x) => x.classList.toggle('on', x === b));
-    $('mg-origj-b').hidden = mgK.mat === 'cope';
-    if (mgK.mat === 'cope' && $('mg-njesia').value !== 'Copë') $('mg-njesia').value = 'Copë';
-    if (mgPrefiksi()) mgK.manual = false;
-    mgKodiRifresko();
-  });
-  zgjedh('mg-mat', 'mat'); zgjedh('mg-origj', 'origj');
-  $('mg-cmimi').addEventListener('input', mgKodiNderto); $('mg-ngjyra').addEventListener('input', mgKodiNderto);
-  $('mg-kodi').addEventListener('input', () => { if (!mgK.manual) { mgK.manual = true; mgKodiNderto(); } });
-}
 function mgFormaRi(q) {
   const ekod = /^[\w\-./]+$/.test(q) && !/\s/.test(q);   // duket si barkod/kod
   $('mg-forma').innerHTML = `<div class="mg-forma"><h3 style="margin-top:0">🆕 Artikull i ri</h3>
-    <b>1) Çfarë materiali është? *</b><div class="mg-zgjedh" id="mg-mat">${Object.entries(MG_MATERIALET).map(([k, t]) => `<button type="button" data-v="${k}">${t}</button>`).join('')}</div>
-    <div id="mg-origj-b"><b>2) Prej nga është? *</b><div class="mg-zgjedh" id="mg-origj">${Object.entries(MG_ORIGJINAT).map(([k, t]) => `<button type="button" data-v="${k}">${t}</button>`).join('')}</div></div>
-    <div class="zbehte" id="mg-familja" style="margin-bottom:8px"></div>
+    ${kodiPyetjetHTML('mg-')}
     <div class="tp-forma" style="margin-bottom:6px">
       <label>Emri i produktit * <input id="mg-emri" value="${ekod ? '' : esc(q)}" placeholder="p.sh. Dantell franceze me rruaza e bardhë"></label>
       <label>Barkodi <input id="mg-barkodi" value="${ekod ? esc(q) : ''}" placeholder="skano ose shkruaj"></label>
@@ -1695,17 +1719,11 @@ function mgFormaRi(q) {
     ${mgFotoHTML(true)}
     <label style="margin-top:8px">Shënim <input id="mg-shenim" placeholder="opsional"></label>
     <div class="butona"><button class="kryesor" id="mg-ruaj">✅ Regjistro artikullin</button><button class="dyte" id="mg-anulo">Anulo</button></div></div>`;
-  mgSasiaLidh(); mgFotoLidh(); mgKodiLidh();
+  mgSasiaLidh(); mgFotoLidh(); mgK = kodiAuto('mg-').lidh();
   $('mg-anulo').onclick = () => { $('mg-forma').innerHTML = ''; };
   $('mg-ruaj').onclick = () => mgRuaj(async () => {
     const emri = $('mg-emri').value.trim(), cmimi = +$('mg-cmimi').value.replace(',', '.');
-    if (!mgK.mat) throw new Error('Zgjidh çfarë materiali është (pyetja 1).');
-    if (mgK.mat !== 'cope' && !mgK.origj) throw new Error('Zgjidh prej nga është malli (pyetja 2).');
-    if (!$('mg-kodi').value.trim()) throw new Error('Mungon kodi. Kjo familje s\'ka kod automatik: shkruaje kodin vetë.');
-    if (!mgK.manual && mgK.info) {   // numri mund ta ketë zënë dikush tjetër ndërkohë
-      const vjeter = mgK.info.seq; await mgKodiRifresko();
-      if (mgK.info && mgK.info.seq !== vjeter && !confirm(`Numri ${vjeter} u zu ndërkohë nga një regjistrim tjetër.\nKodi i ri: ${$('mg-kodi').value}\nVazhdo me këtë kod?`)) return null;
-    }
+    if (!(await mgK.kontrollo())) return null;
     if (!emri) throw new Error('Shkruaj emrin e produktit.');
     if (!(cmimi > 0)) throw new Error('Shkruaj çmimin e shitjes me TVSH.');
     if (!(+$('mg-sasia').value > 0)) throw new Error('Shkruaj sasinë që po hyn.');
@@ -1721,6 +1739,69 @@ function mgFormaRi(q) {
       sasia: s.sasia, arsyeja: s.lloji_hyrjes === 'korrigjim' ? s.arsyeja : null, shenim: $('mg-shenim').value.trim() || null };
   });
   $('mg-forma').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+// ---------- REGJISTRIM I SHPEJTË: nga shitja, kur barkodi nuk gjendet ----------
+// Emri + materiali/origjina + çmimi → artikulli krijohet në Pro-Data (ura e shkrimit, si "Artikull i ri") dhe shtohet te fatura.
+// Foto s'kërkohet këtu (shitja s'pret); sasia në stok është opsionale.
+let rsK = {};
+function regjistroShpejt(q, magazina, kurGati) {
+  if (!mgLejuar()) return alert('Regjistrimi i mallit nuk është i lejuar për llogarinë tënde. Kërko nga Super Admin-i ta lejojë.');
+  const ekod = /^[\w\-./]+$/.test(q) && !/\s/.test(q);
+  let el = $('rs-dialog');
+  if (!el) { el = document.createElement('div'); el.id = 'rs-dialog'; el.className = 'pr-dialog-stil'; document.body.appendChild(el); }
+  el.hidden = false;
+  el.innerHTML = `<div class="pr-kuti" style="width:min(560px,100%)">
+    <div class="rresht" style="justify-content:space-between;margin:0"><h3 style="margin:0">🆕 Regjistrim i shpejtë</h3><button type="button" class="dyte rs-mbyll">Mbyll</button></div>
+    <p class="zbehte" style="margin:6px 0 10px">Artikulli krijohet në Pro-Data dhe shtohet menjëherë te fatura. Foton mund t'ia shtosh më vonë te 📦 Regjistro mall.</p>
+    ${kodiPyetjetHTML('rs-')}
+    <div class="tp-forma" style="margin-bottom:6px">
+      <label>Emri i produktit * <input id="rs-emri" value="${ekod ? '' : esc(q)}" placeholder="p.sh. Dantell franceze e bardhë"></label>
+      <label>Barkodi <input id="rs-barkodi" value="${ekod ? esc(q) : ''}"></label>
+      <label>Çmimi i shitjes me TVSH * <input id="rs-cmimi" type="text" inputmode="decimal" autocomplete="off"></label>
+      <label>Nr. i ngjyrës <input id="rs-ngjyra" type="text" inputmode="numeric" autocomplete="off" placeholder="p.sh. 21" style="width:110px"></label>
+      <label>Kodi në Pro-Data <input id="rs-kodi" placeholder="zgjidh materialin dhe origjinën"><span class="zbehte" id="rs-kodi-sh"></span></label>
+      <label>Njësia <select id="rs-njesia"><option value="M">M (metër)</option><option value="Copë">Copë</option></select></label>
+      <label>Sa ka gjithsej në dyqan? <input id="rs-sasia" type="text" inputmode="decimal" autocomplete="off" placeholder="opsionale"><span class="zbehte">hyn si stok te pika ${esc(magazina || '')}</span></label>
+    </div>
+    <div class="butona"><button class="kryesor" id="rs-ruaj">✅ Regjistro dhe shto te fatura</button></div>
+    <div class="mesazh" id="rs-mesazh"></div></div>`;
+  rsK = kodiAuto('rs-').lidh();
+  const mbyll = () => { el.hidden = true; };
+  el.querySelector('.rs-mbyll').onclick = mbyll;
+  setTimeout(() => $(ekod ? 'rs-emri' : 'rs-cmimi').focus(), 50);
+  $('rs-ruaj').onclick = async () => {
+    const btn = $('rs-ruaj'), m = $('rs-mesazh'); btn.disabled = true;
+    try {
+      const emri = $('rs-emri').value.trim(), cmimi = Number($('rs-cmimi').value.replace(',', '.')), sTekst = $('rs-sasia').value.trim(), sasia = sTekst ? Number(sTekst) : null;
+      if (!(await rsK.kontrollo())) { btn.disabled = false; return; }
+      if (!emri) throw new Error('Shkruaj emrin e produktit.');
+      if (!(cmimi > 0)) throw new Error('Shkruaj çmimin e shitjes me TVSH.');
+      if (sasia !== null && !(sasia > 0)) throw new Error('Sasia në dyqan duhet të jetë më e madhe se 0 (ose lëre bosh).');
+      const barkodi = $('rs-barkodi').value.trim() || null, kodi = $('rs-kodi').value.trim();
+      const ek = (await kerkoArtikuj(kodi)).concat(barkodi ? await kerkoArtikuj(barkodi) : [])
+        .filter((a) => [kodi, barkodi].includes(a.kodi) || [kodi, barkodi].includes(a.barkodi));
+      if (ek.length) throw new Error(`Kodi/barkodi ekziston te artikulli "${ek[0].emri}" (${ek[0].kodi}). Kërkoje te fatura dhe shtoje nga lista.`);
+      m.className = 'mesazh pritje'; m.textContent = '⏳ Po krijohet në Pro-Data…';
+      const { data: r, error } = await sb.from('regjistrimet_mallit').insert({ lloji: 'artikull_i_ri', emri, barkodi, kodi, njesia: $('rs-njesia').value, cmimi_shitjes: cmimi,
+        magazina, sasia, materiali: rsK.mat, origjina: rsK.mat === 'cope' ? null : rsK.origj, ngjyra: $('rs-ngjyra').value.trim() || null,
+        shenim: 'Regjistrim i shpejtë nga shitja', krijuar_emri: profili.emri || null, fotot: [] }).select('id').single();
+      if (error) throw new Error(error.message);
+      for (let i = 0; i < 60; i++) {   // ura e shkrimit e kryen zakonisht brenda pak sekondash
+        await new Promise((ok) => setTimeout(ok, 1500));
+        const { data: x } = await sb.from('regjistrimet_mallit').select('statusi, artikulli_id, kodi, gabimi').eq('id', r.id).maybeSingle();
+        if (x && x.statusi === 'gabim') throw new Error('Pro-Data nuk e pranoi: ' + (x.gabimi || ''));
+        if (x && x.artikulli_id) {
+          mbyll(); NGARKUESIT.mall && document.querySelector('#f-mall.aktive') && NGARKUESIT.mall();
+          kurGati({ id: +x.artikulli_id, prodata_id: String(x.artikulli_id), kodi: x.kodi || kodi, emri, barkodi, cmimi, njesia: $('rs-njesia').value, stoku: [] });
+          prNjofto(`✅ U krijua në Pro-Data: <b>${esc(x.kodi || kodi)}</b> · ${esc(emri)} · ${eur(cmimi)} €. U shtua te fatura.`, 'ok');
+          return;
+        }
+        if (i === 8) m.textContent = '⏳ Ura po vonon pak… (a është ndezur PC-ja e Pro-Data?)';
+      }
+      m.className = 'mesazh gabim'; m.textContent = '⚠️ Ura nuk u përgjigj. Regjistrimi mbetet në radhë dhe krijohet sapo ura të kthehet; pastaj kërkoje me barkod dhe shtoje te fatura.';
+    } catch (e) { m.className = 'mesazh gabim'; m.textContent = '❌ ' + e.message; }
+    btn.disabled = false;
+  };
 }
 function mgFormaShto(a) {
   $('mg-forma').innerHTML = `<div class="mg-forma"><h3 style="margin-top:0">➕ Shto sasi: ${esc(a.emri)}</h3><p class="zbehte">Kodi ${esc(a.kodi)} · ${eur(a.cmimi)} €</p><div class="stoku">${stokuHTML(a)}</div>
