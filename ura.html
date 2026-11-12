@@ -3486,7 +3486,7 @@ const TP_TRANSPORTI = {
 const TP_TRANSPORTI_KLIENTI = { KS: 2.5 };
 const tpTransporti = (f) => { const k = TP_SHTETI[f.shteti]; if (!k || !tpQyteti(f.qyteti, k)) return 0;
   return TP_TRANSPORTI_KLIENTI[k] ?? TP_TRANSPORTI[k][f.pako_madhesia || 'S'] ?? TP_TRANSPORTI[k].S; };
-const tpVlera = (f) => Math.round((+f.totali || 0) + tpTransporti(f));   // shuma që mbledh postieri (pa decimale)
+const tpVlera = (f) => Math.round(((+f.totali || 0) + tpTransporti(f)) * 100) / 100;   // shuma që mbledh postieri, me cent (Kosovë +2.50, jo 3 €; 12.11.2026)
 const tpNorm = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z]+/g, ' ').trim();
 const tpRrenja = (s) => tpNorm(s).replace(/[aeiou]$/, '');
 function tpQyteti(emri, kodi) {   // → { emri, kodi } sipas listës së Tel-Post, ose null
@@ -3586,7 +3586,7 @@ function onlVizato() {
   $('onl-zbrt').placeholder = eur(zt.pasR);
   const p = { shteti: $('onl-shteti').value, qyteti: $('onl-qyteti').value, totali: tot, pako_madhesia: $('onl-pako').value };
   const tr = tpTransporti(p);
-  $('onl-totali').textContent = tr ? `${eur(tot)} + transporti ${eur(tr)} = ${tpVlera(p)}.00` : eur(tot);
+  $('onl-totali').textContent = tr ? `${eur(tot)} + transporti ${eur(tr)} = ${eur(tpVlera(p))}` : eur(tot);
   // "Kosto e transportit" si te Tel-Post: Total (paguan klienti) = materialet + transporti
   const panel = $('onl-tp-panel'), v = (e, x, kl = '') => `<div class="v ${kl}">${e}<b>${x}</b></div>`;
   if (!p.shteti) panel.innerHTML = '<h3 class="tp-tit">📍 Zgjidhe shtetin</h3><p class="zbehte">Kostoja e transportit shfaqet pasi të zgjidhet shteti dhe qyteti i dërgesës.</p>';
@@ -3594,7 +3594,7 @@ function onlVizato() {
     <div class="rr">${v('Materialet', eur(tot) + ' €', 'total')}${v('Valuta', 'EUR')}</div>`;
   else if (!tr) panel.innerHTML = `<h3 class="tp-tit">Kosto e transportit:</h3><p class="zbehte">Zgjidhe qytetin nga lista që të llogaritet transporti.</p>`;
   else panel.innerHTML = `<h3 class="tp-tit">Kosto e transportit:</h3>
-    <div class="rr">${v('Total (paguan klienti)', tpVlera(p) + '.00 €', 'total')}${v('Valuta', 'EUR')}</div>
+    <div class="rr">${v('Total (paguan klienti)', eur(tpVlera(p)) + ' €', 'total')}${v('Valuta', 'EUR')}</div>
     <div class="rr" style="margin-top:8px">${v('Transporti', eur(tr) + ' €')}${v('Vlera e produktit', eur(tot) + ' €')}</div>`;
   if (zt.zbritja > 0 && p.shteti) panel.insertAdjacentHTML('beforeend', `<p class="zbehte" style="margin:8px 0 0">🏷️ ${zbrPermbHTML(zt)}</p>`);
 }
@@ -3715,7 +3715,7 @@ function printoOnline(f, ku) {
     ${(f.rreshtat || []).map((r) => `<tr><td>${esc(r.kodi)}</td><td>${esc(r.emri)}</td><td>${esc(r.ngjyra || '')}</td><td>${r.sasia} ${esc(r.njesia || '')}</td><td>${eur(vleraRr(r))}${zbrTekst(r)}</td></tr>`).join('')}</table>
     ${zbrTotaliPrint(f)}
     ${tpTransporti(f) ? `<p style="text-align:right">Materiali: ${eur(f.totali)} €<br>Transporti (Telposta): ${eur(tpTransporti(f))} €</p>` : ''}
-    <p style="text-align:right;font-size:1.3em"><b>Për pagesë: ${tpTransporti(f) ? tpVlera(f) + '.00' : eur(f.totali)} €</b>${f.telposta_kodi ? '<br>Telposta: ' + esc(f.telposta_kodi) : ''}<br><span style="font-size:.75em">${f.eksport ? 'Export, TVSH 0%' : 'Çmimet përfshijnë TVSH-në'} · Nuk është dokument fiskal</span></p>
+    <p style="text-align:right;font-size:1.3em"><b>Për pagesë: ${eur(tpTransporti(f) ? tpVlera(f) : f.totali)} €</b>${f.telposta_kodi ? '<br>Telposta: ' + esc(f.telposta_kodi) : ''}<br><span style="font-size:.75em">${f.eksport ? 'Export, TVSH 0%' : 'Çmimet përfshijnë TVSH-në'} · Nuk është dokument fiskal</span></p>
     ${f.shenim ? `<p>Shënim: ${esc(f.shenim)}</p>` : ''}<p style="font-size:.8em">Shitësja: ${esc(f.shitesja_emri || '')}</p>`;
   dergoPrintin('80', 'Porosi online ' + (f.nr || ''), ku);
 }
@@ -3745,7 +3745,7 @@ $('onl-regjistro').onclick = async () => {
   const d = onlTeDhenat();
   const tr = tpTransporti(d);
   if (!confirm(`Regjistro si shitje:\n${emriPlote(d)} · ${d.qyteti}, ${d.shteti}\n${d.rreshtat.length} materiale · ${eur(d.totali)} €${d.eksport ? ' (export, TVSH 0%)' : ''}`
-    + `${tr ? `\nKlienti paguan te postieri: ${tpVlera(d)} € (me transport ${eur(tr)} €)` : ''}\n${onl.fotot.length} foto të bisedës\n\nRegjistrohet në Pro-Data${tr ? ' dhe te Telposta' : ''}. Vazhdo?`)) return;
+    + `${tr ? `\nKlienti paguan te postieri: ${eur(tpVlera(d))} € (me transport ${eur(tr)} €)` : ''}\n${onl.fotot.length} foto të bisedës\n\nRegjistrohet në Pro-Data${tr ? ' dhe te Telposta' : ''}. Vazhdo?`)) return;
   const btn = $('onl-regjistro'), m = $('onl-mesazh'); btn.disabled = true;
   try {
     m.className = 'mesazh pritje'; m.textContent = '⏳ Po ngarkohen fotot…'; d.fotot = await ngarkoFotot();
