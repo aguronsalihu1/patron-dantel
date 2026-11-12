@@ -726,15 +726,15 @@
     <div class="ar-karte" style="cursor:default;margin-top:12px">
       <div class="rresht" style="flex-wrap:wrap;gap:8px">
         <label>Printeri <select id="et-printeri"><option value="dritarja">🖨️ Printeri i këtij kompjuteri (çdo printer)</option></select></label>
-        <label>Madhësia <select id="et-madhesia"><option value="50x40">50 × 40 mm</option><option value="40x25">40 × 25 mm</option><option value="50x30">50 × 30 mm</option><option value="58x40">58 × 40 mm</option><option value="tjeter">Tjetër…</option></select></label>
+        <label>Madhësia <select id="et-madhesia"><option value="55x40">55 × 40 mm</option><option value="50x40">50 × 40 mm</option><option value="40x25">40 × 25 mm</option><option value="50x30">50 × 30 mm</option><option value="58x40">58 × 40 mm</option><option value="tjeter">Tjetër…</option></select></label>
         <span id="et-tjeter" hidden><label>Gjerësia mm <input id="et-w" type="number" min="20" max="110" style="width:80px"></label> <label>Lartësia mm <input id="et-h" type="number" min="10" max="150" style="width:80px"></label></span>
         <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="et-rrotullo" style="min-width:0;width:18px;height:18px;margin:0;padding:0"> ↻ Rrotullo 90°</label>
       </div>
       <div class="zbehte" id="et-ndihma" style="margin:6px 0 0">Hera e parë: shtyp <b>Printo provë</b>. Në dritaren e printimit:
         <ol style="margin:4px 0 0;padding-left:20px">
           <li>Printeri: printeri i etiketave (p.sh. <b>HPRT Q31</b>).</li>
-          <li>Te <b>More settings</b>: <b>Paper size</b> = madhësia e etiketës (p.sh. 50 × 40 mm), <b>Margins: None</b>, <b>Scale: Default (100)</b>, hiq shenjën te <b>Headers and footers</b>.</li>
-          <li>Nëse Paper size 50 × 40 nuk është në listë: Windows → Settings → Printers → printeri i etiketave → <b>Printing preferences</b> → shto madhësinë 50 × 40 mm.</li>
+          <li>Te <b>More settings</b>: <b>Paper size</b> = madhësia e etiketës (p.sh. 55 × 40 mm), <b>Margins: None</b>, <b>Scale: Default (100)</b>, hiq shenjën te <b>Headers and footers</b>.</li>
+          <li>Nëse Paper size 55 × 40 nuk është në listë: Windows → Settings → Printers → printeri i etiketave → <b>Printing preferences</b> → shto madhësinë 55 × 40 mm.</li>
         </ol>
         Korniza e provës duhet të bjerë te skajet e etiketës. Nëse shkrimi del i kthyer anash, shëno <b>↻ Rrotullo 90°</b>.</div>
       <div class="butona"><button class="kryesor" type="button" id="et-printo">🖨️ Printo</button><button class="dyte" type="button" id="et-prove">Printo provë</button></div>
@@ -2365,7 +2365,7 @@ function etShtoArtikull(a) {   // nga kërkimi/skaneri: çdo artikull i Pro-Data
 kerkimArtikujsh('et-shto', 'et-shto-lista', etShtoArtikull);
 $('et-skano').onclick = () => dkSkaneri(async (kodi) => { const art = await kerkoArtikuj(kodi); const a = art.find((x) => x.barkodi === kodi || x.kodi === kodi) || (art.length === 1 ? art[0] : null);
   if (a) etShtoArtikull(a); else { $('et-shto').value = kodi; $('et-shto').dispatchEvent(new Event('input')); } });
-$('et-madhesia').onchange = () => { $('et-tjeter').hidden = $('et-madhesia').value !== 'tjeter'; etRuaj('masa', $('et-madhesia').value); };
+$('et-madhesia').onchange = () => { $('et-tjeter').hidden = $('et-madhesia').value !== 'tjeter'; etRuaj('masa2', $('et-madhesia').value); };
 ['et-w', 'et-h'].forEach((id) => { $(id).onchange = () => etRuaj('tjeter', `${$('et-w').value}x${$('et-h').value}`); });
 $('et-rrotullo').onchange = () => etRuaj('rrotullo', $('et-rrotullo').checked ? '1' : '0');
 $('et-printeri').onchange = () => { etRuaj('printeri', $('et-printeri').value); $('et-ndihma').hidden = $('et-printeri').value !== 'dritarja'; };
@@ -2466,7 +2466,7 @@ NGARKUESIT.etiketat = async (ngaRealtime) => {
   if (ngaRealtime) return;
   if (!etGati) {
     etGati = true;
-    $('et-madhesia').value = etLexo('masa', '50x40'); const [w, h] = etLexo('tjeter', '50x40').split('x'); $('et-w').value = w; $('et-h').value = h;   // etiketat e depos: 50 × 40 mm
+    $('et-madhesia').value = etLexo('masa2', '55x40'); const [w, h] = etLexo('tjeter', '55x40').split('x'); $('et-w').value = w; $('et-h').value = h;   // etiketat e depos: 55 × 40 mm (12.11.2026)
     $('et-rrotullo').checked = etLexo('rrotullo', '0') === '1';
     $('et-tjeter').hidden = $('et-madhesia').value !== 'tjeter';
     try {   // printerat e etiketave të robotit (p.sh. Zebra e arkës) si zgjedhje shtesë
