@@ -832,8 +832,14 @@
         <div class="rresht">
           <label>Kërko <input id="hr-pk" placeholder="emri, numri, pozita, pika…" autocomplete="off" style="width:220px"></label>
           <label>Shfaq <select id="hr-pf"><option value="aktiv">Në punë</option><option value="larguar">Të larguar</option><option value="te">Të gjithë</option></select></label>
+          <label title="Shfaq vetëm ata që s'kanë kaluar kartelën që nga kjo datë">Pa hyrje që nga <input id="hr-pd" type="date"></label>
           <button class="kryesor" type="button" id="hr-p-ri">+ Punëtor i ri</button>
           <button class="dyte" type="button" id="hr-p-excel">⬇ Excel</button>
+        </div>
+        <div class="rresht" id="hr-p-shumice" hidden style="align-items:center;background:#fdf1ee;border-radius:10px;padding:8px 12px">
+          <b id="hr-p-zgj-nr"></b>
+          <button class="kryesor" type="button" id="hr-p-largo-shume" style="background:#c0392b;border-color:#c0392b">Largo të zgjedhurit</button>
+          <button class="dyte" type="button" id="hr-p-zgj-hiq">Hiq zgjedhjen</button>
         </div>
         <form id="hr-forma" class="karte" hidden style="margin-bottom:14px" autocomplete="off">
           <h3 id="hr-f-titulli" style="margin-top:0">Punëtor i ri</h3>
@@ -859,7 +865,7 @@
         </form>
         <datalist id="hr-l-pikat"></datalist><datalist id="hr-l-pozitat"></datalist>
         <div id="hr-komandat"></div>
-        <div class="tabela"><table><thead><tr><th>Nr</th><th>Punëtori</th><th>Pozita</th><th>Pika</th><th>Telefoni</th><th>Fillimi</th><th>Kontrata</th><th>Kartela</th><th>Aparati</th></tr></thead><tbody id="hr-p-trupi"></tbody></table></div>
+        <div class="tabela"><table><thead><tr><th><input type="checkbox" id="hr-p-te" title="Zgjidh të gjithë në listë" style="min-width:0;width:18px;height:18px"></th><th>Nr</th><th>Punëtori</th><th>Pozita</th><th>Pika</th><th>Telefoni</th><th>Fillimi</th><th>Kontrata</th><th>Kartela</th><th>Hyrja e fundit</th><th>Aparati</th></tr></thead><tbody id="hr-p-trupi"></tbody></table></div>
         <div class="zbehte" style="margin-top:8px">Kliko punëtorin për ta ndryshuar. Ndryshimet e emrit dhe të kartelës shkojnë vetë te aparati brenda pak sekondash (emri te aparati del pa ë/ç, deri 24 shkronja).</div>
       </div>
       <!-- Pushimet -->
@@ -4485,14 +4491,19 @@ async function hrNis() {
     // Punëtorët
     $('hr-f-kontrata').innerHTML = HR_KONTRATAT.map((k) => `<option value="${esc(k)}">${k || '—'}</option>`).join('');
     $('hr-l-pikat').innerHTML = HR_PIKAT.map((p) => `<option value="${esc(p)}">`).join('');
-    $('hr-pk').oninput = hrVizatoPun; $('hr-pf').onchange = hrVizatoPun;
+    $('hr-pk').oninput = hrVizatoPun; $('hr-pf').onchange = hrVizatoPun; $('hr-pd').onchange = hrVizatoPun;
+    $('hr-p-te').onchange = () => { if ($('hr-p-te').checked) hrPamjaPun.forEach((nr) => hrZgjedhur.add(nr)); else hrZgjedhur.clear(); hrVizatoPun(); };
+    $('hr-p-zgj-hiq').onclick = () => { hrZgjedhur.clear(); hrVizatoPun(); };
+    $('hr-p-largo-shume').onclick = () => hrLargoShume().catch((er) => alert(er.message));
     $('hr-p-ri').onclick = () => hrHapFormen(null);
     $('hr-f-anulo').onclick = () => { $('hr-forma').hidden = true; hrNe = null; };
     $('hr-forma').onsubmit = (e) => { e.preventDefault(); hrRuajPunetorin().catch((er) => hrMesazh('hr-f-mesazh', 'gabim', er.message)); };
     $('hr-f-largo').onclick = () => hrLargo().catch((er) => hrMesazh('hr-f-mesazh', 'gabim', er.message));
     $('hr-f-kthe').onclick = () => hrKthe().catch((er) => hrMesazh('hr-f-mesazh', 'gabim', er.message));
     $('hr-f-emri').oninput = () => { const a = hrEmriAparat($('hr-f-emri').value); $('hr-f-ndihme').textContent = a ? `Te aparati do të dalë: "${a}"` : ''; };
-    $('hr-p-trupi').onclick = (e) => { const tr = e.target.closest('tr[data-nr]'); if (tr) hrHapFormen(tr.dataset.nr); };
+    $('hr-p-trupi').onclick = (e) => { const tr = e.target.closest('tr[data-nr]'); if (!tr) return;
+      if (e.target.classList.contains('hr-zgj')) { e.target.checked ? hrZgjedhur.add(tr.dataset.nr) : hrZgjedhur.delete(tr.dataset.nr); tr.style.background = e.target.checked ? '#fdf1ee' : ''; hrShumice(); return; }
+      hrHapFormen(tr.dataset.nr); };
     $('hr-p-excel').onclick = () => hrExcelPun().catch((e) => alert(e.message));
     // Pushimet
     $('hr-pu-lloji').innerHTML = Object.entries(HR_PUSHIMI).map(([k, t]) => `<option value="${k}">${t}</option>`).join('');
@@ -4576,7 +4587,7 @@ async function hrNgarko(heshtur) {
   const hyrjet = hrPamja === 'dita' || hrPamja === 'muaji';
   $('hr-p-hyrjet').hidden = !hyrjet; $('hr-p-punetoret').hidden = hrPamja !== 'punetoret';
   $('hr-p-pushimet').hidden = hrPamja !== 'pushimet'; $('hr-p-ankesat').hidden = hrPamja !== 'ankesat';
-  if (hrPamja === 'punetoret') { hrVizatoPun(); return hrNgarkoKomandat(); }
+  if (hrPamja === 'punetoret') { hrVizatoPun(); await hrNgarkoHyrjenFundit().catch(() => {}); return hrNgarkoKomandat(); }
   if (hrPamja === 'pushimet') { await hrNgarkoPushimet().catch(() => {}); return hrVizatoPushimet(); }
   if (hrPamja === 'ankesat') return hrNgarkoAnkesat();
   $('hr-l-data').hidden = hrPamja !== 'dita'; $('hr-l-muaji').hidden = hrPamja !== 'muaji';
@@ -4681,19 +4692,54 @@ async function hrExcel() {
 }
 
 // ---------- Punëtorët (dosja) ----------
+let hrZgjedhur = new Set(), hrHyrjaFundit = {}, hrPamjaPun = [];
 function hrVizatoPun() {
-  const q = $('hr-pk').value.trim().toLowerCase(), f = $('hr-pf').value, sot = dataKS();
+  const q = $('hr-pk').value.trim().toLowerCase(), f = $('hr-pf').value, sot = dataKS(), pd = $('hr-pd').value;
   const pritje = new Set(hrKomandat.filter((k) => ['ne_pritje', 'ne_proces'].includes(k.statusi)).map((k) => k.nr));
   const rr = Object.values(hrPun).filter((p) => (f === 'te' || (f === 'aktiv') === hrAktiv(p)))
     .filter((p) => !q || [p.nr, p.emri, p.emri_aparat, p.pozita, p.pika, p.telefoni].some((v) => String(v || '').toLowerCase().includes(q)))
+    .filter((p) => !pd || !hrHyrjaFundit[p.nr] || hrHyrjaFundit[p.nr].slice(0, 10) < pd)   // pa asnjë hyrje që nga data e zgjedhur
     .sort((a, b) => +a.nr - +b.nr);
+  hrPamjaPun = rr.filter(hrAktiv).map((p) => p.nr);   // vetëm punëtorët në punë mund të zgjidhen për largim
+  for (const nr of [...hrZgjedhur]) if (!hrPamjaPun.includes(nr)) hrZgjedhur.delete(nr);
   $('hr-p-trupi').innerHTML = rr.map((p) => {
     const kd = p.kontrata_deri ? ` <span class="${p.kontrata_deri < sot ? 'minus' : 'zbehte'}">deri ${hrDt(p.kontrata_deri)}</span>` : '';
-    const ap = pritje.has(p.nr) ? '⏳' : p.ne_aparat ? '✅' : '<span class="zbehte">—</span>';
-    return `<tr data-nr="${esc(p.nr)}" style="cursor:pointer"><td>${esc(p.nr)}</td><td><b>${esc(hrEmri(p.nr))}</b>${!hrAktiv(p) ? ` <span class="zbehte">· larguar ${hrDt(p.data_largimit)}</span>` : ''}</td>
+    const ap = pritje.has(p.nr) ? '⏳' : p.ne_aparat ? '✅' : '<span class="zbehte">—</span>', hf = hrHyrjaFundit[p.nr];
+    return `<tr data-nr="${esc(p.nr)}" style="cursor:pointer${hrZgjedhur.has(p.nr) ? ';background:#fdf1ee' : ''}">
+      <td>${hrAktiv(p) ? `<input type="checkbox" class="hr-zgj" ${hrZgjedhur.has(p.nr) ? 'checked' : ''} style="min-width:0;width:18px;height:18px">` : ''}</td>
+      <td>${esc(p.nr)}</td><td><b>${esc(hrEmri(p.nr))}</b>${!hrAktiv(p) ? ` <span class="zbehte">· larguar ${hrDt(p.data_largimit)}</span>` : ''}</td>
       <td>${esc(p.pozita || '')}</td><td>${esc(p.pika || '')}</td><td>${esc(p.telefoni || '')}</td><td>${p.data_fillimit ? hrDt(p.data_fillimit) : ''}</td>
-      <td>${esc(p.kontrata || '')}${kd}</td><td>${p.kartela ? hrKartelaTekst(p.kartela) : '<span class="zbehte">pa kartelë</span>'}</td><td>${ap}</td></tr>`;
-  }).join('') || '<tr><td colspan="9" class="zbehte">Asnjë punëtor</td></tr>';
+      <td>${esc(p.kontrata || '')}${kd}</td><td>${p.kartela ? hrKartelaTekst(p.kartela) : '<span class="zbehte">pa kartelë</span>'}</td>
+      <td>${hf ? hrDt(hf) : '<span class="zbehte">asnjëherë</span>'}</td><td>${ap}</td></tr>`;
+  }).join('') || '<tr><td colspan="11" class="zbehte">Asnjë punëtor</td></tr>';
+  hrShumice();
+}
+function hrShumice() {
+  const n = hrZgjedhur.size;
+  $('hr-p-shumice').hidden = !n;
+  $('hr-p-zgj-nr').textContent = `${n} të zgjedhur`;
+  $('hr-p-largo-shume').textContent = `Largo të zgjedhurit (${n})`;
+  $('hr-p-te').checked = n > 0 && hrPamjaPun.every((nr) => hrZgjedhur.has(nr));
+  $('hr-p-te').indeterminate = n > 0 && !$('hr-p-te').checked;
+}
+async function hrNgarkoHyrjenFundit() {
+  const { data } = await sb.from('hr_hyrja_fundit').select('nr, koha').limit(5000);
+  hrHyrjaFundit = Object.fromEntries((data || []).map((x) => [x.nr, x.koha]));
+}
+async function hrLargoShume() {
+  const nrat = hrPamjaPun.filter((nr) => hrZgjedhur.has(nr));
+  if (!nrat.length) return;
+  const emrat = nrat.map((nr) => `nr ${nr} · ${hrEmri(nr)}`);
+  const neAparat = nrat.filter((nr) => hrPun[nr] && hrPun[nr].ne_aparat);
+  if (!confirm(`Largo nga puna ${nrat.length} punëtorë?\n\n${emrat.slice(0, 25).join('\n')}${emrat.length > 25 ? `\n… dhe ${emrat.length - 25} të tjerë` : ''}\n\n`
+    + `${neAparat.length} hiqen edhe nga aparati (kartelat e tyre nuk hapin më). Historia e hyrjeve, pushimeve dhe ankesave mbetet.`)) return;
+  const { error } = await sb.from('hr_punetoret').update({ aktiv: false, data_largimit: dataKS() }).in('nr', nrat);
+  if (error) throw new Error(error.message);
+  if (neAparat.length) {
+    const { error: e2 } = await sb.from('hr_komandat').insert(neAparat.map((nr) => ({ lloji: 'hiq', nr, krijuar_emri: hrUneEmri() })));
+    if (e2) throw new Error('U shënuan të larguar, por komandat për aparatin s\'u ruajtën: ' + e2.message);
+  }
+  hrZgjedhur.clear(); await hrNgarkoPun(); hrVizatoPun(); hrNgarkoKomandat();
 }
 function hrHapFormen(nr) {
   const p = nr ? hrPun[nr] : null; hrNe = nr || null;
@@ -4763,14 +4809,14 @@ async function hrKthe() {
   await hrNgarkoPun(); $('hr-forma').hidden = true; hrNe = null; hrVizatoPun(); hrNgarkoKomandat();
 }
 async function hrNgarkoKomandat() {
-  const { data } = await sb.from('hr_komandat').select('*').order('id', { ascending: false }).limit(8);
+  const { data } = await sb.from('hr_komandat').select('*').order('id', { ascending: false }).limit(100);
   const para = hrKomandat.filter((k) => ['ne_pritje', 'ne_proces'].includes(k.statusi)).length;
   hrKomandat = data || [];
   const pritje = hrKomandat.filter((k) => ['ne_pritje', 'ne_proces'].includes(k.statusi));
   if (para && pritje.length < para) { await hrNgarkoPun(); }   // një komandë mbaroi: lista e punëtorëve rifreskohet
   const LL = { shto: '➕ Shto', ndrysho: '✏️ Ndrysho', hiq: '➖ Hiq' }, ST = { ne_pritje: ['⏳ Në pritje', 's-pritje'], ne_proces: ['⏳ Po kryhet', 's-pritje'], kryer: ['✅ U krye', 's-ok'], gabim: ['❌ Gabim', 's-gabim'] };
   const dite2 = Date.now() - 2 * 864e5, te = hrKomandat.filter((k) => new Date(k.krijuar) > dite2);
-  $('hr-komandat').innerHTML = te.length ? `<details ${pritje.length || te.some((k) => k.statusi === 'gabim' && new Date(k.krijuar) > Date.now() - 3600e3) ? 'open' : ''} style="margin-bottom:10px"><summary class="zbehte">Ndryshimet e fundit në aparat (${te.length})</summary>
+  $('hr-komandat').innerHTML = te.length ? `<details ${pritje.length || te.some((k) => k.statusi === 'gabim' && new Date(k.krijuar) > Date.now() - 3600e3) ? 'open' : ''} style="margin-bottom:10px"><summary class="zbehte">Ndryshimet e fundit në aparat (${te.length})${pritje.length ? ` · <b>⏳ ${pritje.length} po kryhen</b>` : ''}${te.some((k) => k.statusi === 'gabim') ? ` · <span class="minus">❌ ${te.filter((k) => k.statusi === 'gabim').length} me gabim</span>` : ''}</summary>
     <div class="tabela"><table><tbody>${te.map((k) => `<tr><td>${oraKS(k.krijuar)}</td><td>${LL[k.lloji] || k.lloji}</td><td>nr ${esc(k.nr)} ${esc(k.emri || hrEmri(k.nr))}${k.kartela ? ' · kartela ' + hrKartelaTekst(k.kartela) : ''}</td>
       <td>${hrShenje(ST, k.statusi)}${k.gabimi ? ` <span class="minus">${esc(k.gabimi)}</span>` : ''}</td><td class="zbehte">${esc(k.krijuar_emri || '')}</td></tr>`).join('')}</tbody></table></div></details>` : '';
   hrVizatoPun();
