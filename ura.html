@@ -717,14 +717,26 @@
       <span class="zbehte" id="et-nr"></span>
       <span><button class="dyte" type="button" id="et-te-gjitha">☑️ Zgjidh të gjitha</button> <button class="dyte" type="button" id="et-asnje">⬜ Asnjë</button></span>
     </div>
-    <div class="tabela"><table><thead><tr><th></th><th>Kodi</th><th>Artikulli</th><th class="num">Çmimi</th><th class="num">Copë</th></tr></thead><tbody id="et-rreshtat"></tbody></table></div>
+    <div class="rresht" style="flex-wrap:wrap;gap:8px;align-items:flex-end;margin:0 0 8px">
+      <label>Zgjidh nga nr. <input id="et-r-nga" type="number" min="1" style="width:80px"></label>
+      <label>deri nr. <input id="et-r-deri" type="number" min="1" style="width:80px"></label>
+      <button class="dyte" type="button" id="et-r-zgjidh">☑️ Zgjidh vetëm këto</button>
+    </div>
+    <div class="tabela"><table><thead><tr><th class="num">Nr.</th><th></th><th>Kodi</th><th>Artikulli</th><th class="num">Çmimi</th><th class="num">Copë</th></tr></thead><tbody id="et-rreshtat"></tbody></table></div>
     <div class="ar-karte" style="cursor:default;margin-top:12px">
       <div class="rresht" style="flex-wrap:wrap;gap:8px">
         <label>Printeri <select id="et-printeri"><option value="dritarja">🖨️ Printeri i këtij kompjuteri (çdo printer)</option></select></label>
-        <label>Madhësia <select id="et-madhesia"><option value="40x25">40 × 25 mm</option><option value="50x30">50 × 30 mm</option><option value="58x40">58 × 40 mm</option><option value="tjeter">Tjetër…</option></select></label>
+        <label>Madhësia <select id="et-madhesia"><option value="50x40">50 × 40 mm</option><option value="40x25">40 × 25 mm</option><option value="50x30">50 × 30 mm</option><option value="58x40">58 × 40 mm</option><option value="tjeter">Tjetër…</option></select></label>
         <span id="et-tjeter" hidden><label>Gjerësia mm <input id="et-w" type="number" min="20" max="110" style="width:80px"></label> <label>Lartësia mm <input id="et-h" type="number" min="10" max="150" style="width:80px"></label></span>
+        <label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="et-rrotullo" style="min-width:0;width:18px;height:18px;margin:0;padding:0"> ↻ Rrotullo 90°</label>
       </div>
-      <p class="zbehte" id="et-ndihma" style="margin:6px 0 0">Hera e parë: shtyp <b>Printo provë</b>. Në dritaren e printimit zgjidh printerin e etiketave, <b>Margins: None</b> dhe <b>Scale 100%</b>. Korniza e provës duhet të bjerë te skajet e etiketës.</p>
+      <div class="zbehte" id="et-ndihma" style="margin:6px 0 0">Hera e parë: shtyp <b>Printo provë</b>. Në dritaren e printimit:
+        <ol style="margin:4px 0 0;padding-left:20px">
+          <li>Printeri: printeri i etiketave (p.sh. <b>HPRT Q31</b>).</li>
+          <li>Te <b>More settings</b>: <b>Paper size</b> = madhësia e etiketës (p.sh. 50 × 40 mm), <b>Margins: None</b>, <b>Scale: Default (100)</b>, hiq shenjën te <b>Headers and footers</b>.</li>
+          <li>Nëse Paper size 50 × 40 nuk është në listë: Windows → Settings → Printers → printeri i etiketave → <b>Printing preferences</b> → shto madhësinë 50 × 40 mm.</li>
+        </ol>
+        Korniza e provës duhet të bjerë te skajet e etiketës. Nëse shkrimi del i kthyer anash, shëno <b>↻ Rrotullo 90°</b>.</div>
       <div class="butona"><button class="kryesor" type="button" id="et-printo">🖨️ Printo</button><button class="dyte" type="button" id="et-prove">Printo provë</button></div>
       <div class="mesazh" id="et-msg"></div>
     </div>
@@ -2296,12 +2308,13 @@ async function etNgarko() {
 }
 function etVizato() {
   $('et-rreshtat').innerHTML = etRreshtat.map((x, i) => `<tr data-i="${i}">
+    <td class="num zbehte">${i + 1}</td>
     <td><input type="checkbox" class="et-zgj" ${x.zgjedhur ? 'checked' : ''} style="min-width:0;width:18px;height:18px;margin:0;padding:0"></td>
     <td><b>${esc(x.kodi || '')}</b>${x.barkodi && x.barkodi !== x.kodi ? `<div class="zbehte">${esc(x.barkodi)}</div>` : ''}</td>
     <td>${esc(x.emri || '')}${x.printuar ? ' <span title="Ka marrë etiketë më parë">🏷️</span>' : ''}${x.dore ? ' <button class="dyte et-hiq" type="button" title="Hiqe nga lista">✕</button>' : ''}</td>
     <td class="num">${x.cmimi > 0 ? eur(x.cmimi) + ' €' : '<span style="color:var(--gabim)">pa çmim</span>'}</td>
     <td class="num"><input type="number" class="et-kopje" min="1" max="50" value="${x.kopje}" style="width:64px"></td></tr>`).join('')
-    || `<tr><td colspan="5" class="zbehte">${$('et-vetem-pa').checked ? 'Të gjitha kodet e kësaj zgjedhjeje e kanë marrë etiketën. Hiqe "Vetëm ato pa etiketë" për t\'i parë.' : 'Asnjë kod për këtë zgjedhje.'}</td></tr>`;
+    || `<tr><td colspan="6" class="zbehte">${$('et-vetem-pa').checked ? 'Të gjitha kodet e kësaj zgjedhjeje e kanë marrë etiketën. Hiqe "Vetëm ato pa etiketë" për t\'i parë.' : 'Asnjë kod për këtë zgjedhje.'}</td></tr>`;
   etNumri();
 }
 function etNumri() {
@@ -2317,6 +2330,11 @@ $('et-rreshtat').oninput = (e) => { if (e.target.classList.contains('et-kopje'))
 $('et-rreshtat').onclick = (e) => { if (!e.target.classList.contains('et-hiq')) return; etRreshtat.splice(+e.target.closest('tr').dataset.i, 1); etVizato(); };
 $('et-te-gjitha').onclick = () => { etRreshtat.forEach((x) => { x.zgjedhur = true; }); etVizato(); };
 $('et-asnje').onclick = () => { etRreshtat.forEach((x) => { x.zgjedhur = false; }); etVizato(); };
+$('et-r-zgjidh').onclick = () => {   // p.sh. nr. 1–50, pastaj 51–100: printim me pjesë
+  const n = etRreshtat.length, a = Math.max(1, Math.round(+$('et-r-nga').value) || 1), b = Math.min(n, Math.round(+$('et-r-deri').value) || n);
+  if (!n || a > b) return njoftim('Shkruaj numrat nga–deri sipas kolonës Nr.');
+  etRreshtat.forEach((x, i) => { x.zgjedhur = i + 1 >= a && i + 1 <= b; }); etVizato();
+};
 ['et-nga', 'et-deri', 'et-lloji', 'et-vetem-pa'].forEach((id) => { $(id).onchange = () => etNgarko(); });
 { let kohe; $('et-kerko').oninput = () => { clearTimeout(kohe); kohe = setTimeout(etNgarko, 300); }; }
 function etShtoArtikull(a) {   // nga kërkimi/skaneri: çdo artikull i Pro-Data-s, edhe pa regjistrim
@@ -2328,14 +2346,20 @@ function etShtoArtikull(a) {   // nga kërkimi/skaneri: çdo artikull i Pro-Data
 kerkimArtikujsh('et-shto', 'et-shto-lista', etShtoArtikull);
 $('et-skano').onclick = () => dkSkaneri(async (kodi) => { const art = await kerkoArtikuj(kodi); const a = art.find((x) => x.barkodi === kodi || x.kodi === kodi) || (art.length === 1 ? art[0] : null);
   if (a) etShtoArtikull(a); else { $('et-shto').value = kodi; $('et-shto').dispatchEvent(new Event('input')); } });
-$('et-madhesia').onchange = () => { $('et-tjeter').hidden = $('et-madhesia').value !== 'tjeter'; etRuaj('madhesia', $('et-madhesia').value); };
+$('et-madhesia').onchange = () => { $('et-tjeter').hidden = $('et-madhesia').value !== 'tjeter'; etRuaj('masa', $('et-madhesia').value); };
 ['et-w', 'et-h'].forEach((id) => { $(id).onchange = () => etRuaj('tjeter', `${$('et-w').value}x${$('et-h').value}`); });
+$('et-rrotullo').onchange = () => etRuaj('rrotullo', $('et-rrotullo').checked ? '1' : '0');
 $('et-printeri').onchange = () => { etRuaj('printeri', $('et-printeri').value); $('et-ndihma').hidden = $('et-printeri').value !== 'dritarja'; };
 
 // Faqja e etiketave për dritaren e printimit: një etiketë = një faqe me madhësinë e etiketës, barkodi SVG (i mprehtë në çdo printer).
-async function etFaqja(lista, m, prove) {
+// Pa "@page size": Chrome e kthen faqen me gjerësi > lartësi në "landscape" dhe drajveri i printerit e rrotullon (HPRT Q31, 12.11.2026).
+// Prandaj letra vjen nga printeri (Paper size), faqja = etiketa; "Rrotullo 90°" kur drajveri e ka letrën të kthyer anash.
+async function etFaqja(lista, m, prove, rrot) {
   await ngarkoLib(LIB_BARKOD);
-  const W = m.w, H = m.h, fK = (H * 0.15).toFixed(2), fC = (H * 0.17).toFixed(2), fB = (H * 0.08).toFixed(2), hB = (H * (prove ? 0.25 : 0.4)).toFixed(2);
+  const W = m.w, H = m.h, hB = (H * (prove ? 0.25 : 0.4)).toFixed(2);
+  const fit = (t, max, ber = 0.6) => Math.min(max, (W - 3) / Math.max(1, String(t || '').length * ber)).toFixed(2);   // shkrimi zvogëlohet që të nxë
+  const fK = (t) => fit(t, H * 0.15), fC = (t) => fit(t, H * 0.17), fB = (t) => fit(t, H * 0.08, 0.56);
+  const PW = rrot ? H : W, PH = rrot ? W : H;   // faqja (letra) në printer
   const barkod = (v) => {
     const vl = String(v || '').replace(/[^\x20-\x7E]/g, ''); if (!vl) return '';
     const s = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
@@ -2346,21 +2370,25 @@ async function etFaqja(lista, m, prove) {
     s.setAttribute('width', gj.toFixed(2) + 'mm'); s.setAttribute('height', hB + 'mm'); s.setAttribute('shape-rendering', 'crispEdges');
     return s.outerHTML;
   };
-  const nje = (e) => `<div class="et"><div class="k">${esc(e.kodi || '')}</div>${barkod(e.barkodi || e.kodi)}
-    ${e.barkodi && e.barkodi !== e.kodi ? `<div class="b">${esc(e.barkodi)}</div>` : ''}<div class="c">${e.cmimi > 0 ? eur(e.cmimi) + ' €' : ''}</div></div>`;
+  const tekst = (k, t) => `<div class="${k}" style="font-size:${(k === 'k' ? fK : k === 'c' ? fC : fB)(t)}mm">${esc(t)}</div>`;
+  const nje = (e) => { const c = e.cmimi > 0 ? eur(e.cmimi) + ' €' : '';
+    return `<div class="faqe"><div class="et">${tekst('k', e.kodi || '')}${barkod(e.barkodi || e.kodi)}
+    ${e.barkodi && e.barkodi !== e.kodi ? tekst('b', e.barkodi) : ''}${c ? tekst('c', c) : '<div></div>'}</div></div>`; };
   const trupi = prove
-    ? `<div class="et prove"><div class="k">PROVË ${W} × ${H} mm</div><div class="b">Korniza duhet të bjerë te skajet e etiketës</div>${barkod('C143012')}<div class="c">12.50 €</div></div>`
+    ? `<div class="faqe"><div class="et prove">${tekst('k', `PROVË ${W} × ${H}`)}${tekst('b', '↑ LART · korniza te skajet e etiketës')}${barkod('C143012')}${tekst('c', '12.50 €')}</div></div>`
     : lista.map(nje).join('');
   return `<!doctype html><html><head><meta charset="utf-8"><title>Etiketat</title><style>
-    @page { size: ${W}mm ${H}mm; margin: 0; }
+    @page { margin: 0; }
     html, body { margin: 0; padding: 0; background: #fff; }
-    .et { width: ${W}mm; height: ${H}mm; box-sizing: border-box; padding: 1.2mm 1.5mm; display: flex; flex-direction: column; align-items: center; justify-content: space-between;
-          overflow: hidden; page-break-after: always; break-after: page; font-family: Arial, Helvetica, sans-serif; color: #000; text-align: center; }
-    .et:last-child { page-break-after: auto; break-after: auto; }
+    .faqe { width: ${PW}mm; height: ${(PH - 0.4).toFixed(1)}mm; position: relative; overflow: hidden; page-break-after: always; break-after: page; page-break-inside: avoid; }
+    .faqe:last-child { page-break-after: auto; break-after: auto; }
+    .et { position: absolute; left: 0; top: 0; width: ${W}mm; height: ${(H - (rrot ? 0 : 0.4)).toFixed(1)}mm; box-sizing: border-box; padding: 1.2mm 1.5mm;
+          display: flex; flex-direction: column; align-items: center; justify-content: space-between; overflow: hidden;
+          font-family: Arial, Helvetica, sans-serif; color: #000; text-align: center;
+          ${rrot ? `transform-origin: 0 0; transform: translateX(${H}mm) rotate(90deg);` : ''} }
     .et.prove { border: 0.6mm solid #000; }
-    .k { font-weight: 700; font-size: ${fK}mm; line-height: 1; white-space: nowrap; }
-    .b { font-size: ${fB}mm; line-height: 1; white-space: nowrap; }
-    .c { font-weight: 700; font-size: ${fC}mm; line-height: 1; white-space: nowrap; }
+    .k, .c { font-weight: 700; line-height: 1; white-space: nowrap; }
+    .b { line-height: 1; white-space: nowrap; }
     svg { display: block; }
   </style></head><body>${trupi}</body></html>`;
 }
@@ -2396,8 +2424,8 @@ async function etPrinto(prove) {
   try {
     if (pr === 'dritarja') {
       etMsg('⏳ Po përgatiten etiketat…');
-      await etPrintoNeDritare(await etFaqja(etiketat, m, prove));
-      if (prove) return etMsg('A ra korniza te skajet e etiketës? Nëse jo, ndrysho madhësinë (ose te dritarja e printimit: Paper size / Margins: None / Scale 100%).');
+      await etPrintoNeDritare(await etFaqja(etiketat, m, prove, $('et-rrotullo').checked));
+      if (prove) return etMsg('A ra korniza te skajet e etiketës dhe "↑ LART" lart? Nëse jo: te dritarja e printimit Paper size = madhësia e etiketës, Margins: None, pa Headers and footers; nëse del anash, shëno ↻ Rrotullo 90°.');
       etMsg(`A dolën mirë ${etiketat.length} etiketat? <button class="kryesor" type="button" id="et-po">✅ Po, shënoji si të printuara</button> <button class="dyte" type="button" id="et-jo">Jo, do t'i printoj sërish</button>`);
       $('et-jo').onclick = () => etMsg('');
       $('et-po').onclick = async () => {
@@ -2419,7 +2447,8 @@ NGARKUESIT.etiketat = async (ngaRealtime) => {
   if (ngaRealtime) return;
   if (!etGati) {
     etGati = true;
-    $('et-madhesia').value = etLexo('madhesia', '50x30'); const [w, h] = etLexo('tjeter', '50x30').split('x'); $('et-w').value = w; $('et-h').value = h;
+    $('et-madhesia').value = etLexo('masa', '50x40'); const [w, h] = etLexo('tjeter', '50x40').split('x'); $('et-w').value = w; $('et-h').value = h;   // etiketat e depos: 50 × 40 mm
+    $('et-rrotullo').checked = etLexo('rrotullo', '0') === '1';
     $('et-tjeter').hidden = $('et-madhesia').value !== 'tjeter';
     try {   // printerat e etiketave të robotit (p.sh. Zebra e arkës) si zgjedhje shtesë
       const { data } = await sb.from('printerat').select('*').eq('aktiv', true).eq('formati', 'etiketa').order('emri');
