@@ -4572,8 +4572,6 @@ async function hrStatusi() {
     <div class="karte"><div class="tit">Punëtorë në punë</div><div class="vl">${aktive.length}</div><div class="det">${a && a.punetore != null ? a.punetore + ' në aparat' : ''}</div></div>
     <div class="karte"><div class="tit">Regjistrimi i fundit</div><div class="vl" style="font-size:18px">${fundi ? hrDt(fundi.koha) + ' ' + fundi.koha.slice(11, 16) : '—'}</div><div class="det">${fundi ? esc(hrEmri(fundi.nr)) : ''}</div></div>`;
   const par = [];
-  if (fundi && Date.now() - Date.parse(fundi.koha.slice(0, 10)) > 3 * 864e5)
-    par.push(`Aparati nuk ka asnjë regjistrim që nga <b>${hrDt(fundi.koha)}</b>. Punëtorët duhet ta kalojnë kartelën te aparati në hyrje dhe në dalje.`);
   if (diff != null && Math.abs(diff) >= 3)
     par.push(`Ora e aparatit është <b>${Math.abs(diff)} minuta ${diff > 0 ? 'përpara' : 'prapa'}</b> orës së saktë. Programi e korrigjon vetë natën (03:00).`);
   const sot = dataKS(), pas30 = new Date(Date.parse(sot + 'T12:00:00Z') + 30 * 864e5).toISOString().slice(0, 10);
