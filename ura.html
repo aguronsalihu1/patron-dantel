@@ -4935,7 +4935,7 @@ function hrDosjaHTML(t, perPrintim) {
   const kartat = [['Ditë pune', ditet.length, ''], ['Orë gjithsej', hrOre(tot), meOre.length < ditet.length ? `${ditet.length - meOre.length} ditë pa dalje` : ''],
     ['Mesatarja / ditë', hrOre(meOre.length ? tot / meOre.length : null), ''], ['Hyrja mesatare', hrOre(ditet.length ? ditet.reduce((s, d) => s + hrMin(d.hyrja), 0) / ditet.length : null), `fillimi ${$('hr-fillimi').value}`],
     ['Vonesa', vone.length, vone.length ? `${vMin} min gjithsej` : ''], ['Ditë pushimi', puDite, 'të aprovuara në periudhë'],
-    ['Ankesa / vërejtje', t.ank.filter((x) => ['ankese', 'verejtje', 'paralajmerim', 'incident'].includes(x.lloji)).length, `${t.ank.filter((x) => x.lloji === 'lavderim').length} lavdërime`]];
+    ['Ankesa / vërejtje', t.ank.filter((x) => ['ankese', 'verejtje', 'paralajmerim', 'incident'].includes(x.lloji)).length, ((n) => (n === 1 ? '1 lavdërim' : `${n} lavdërime`))(t.ank.filter((x) => x.lloji === 'lavderim').length)]];
   // sipas muajve
   const muajt = new Map();
   for (const d of ditet) { const m = d.data.slice(0, 7), r = muajt.get(m) || { dite: 0, min: 0, vone: 0, paDalje: 0 }; r.dite++; r.min += d.min || 0; r.vone += d.vone ? 1 : 0; r.paDalje += d.dalja ? 0 : 1; muajt.set(m, r); }
