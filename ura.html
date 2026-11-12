@@ -3705,7 +3705,7 @@ async function kopjoTelposta(f) {
   try { await navigator.clipboard.writeText(textiTelposta(f)); alert('U kopjua për Telposta. Ngjite (Ctrl+V / mbaj shtypur → Paste) te forma e Telpostës.'); }
   catch { prompt('Kopjo këtë tekst për Telposta:', textiTelposta(f).replace(/\n/g, ' | ')); }
 }
-function printoOnline(f) {
+function printoOnline(f, ku) {
   const p = $('printimi'); p.className = 'e80';
   p.innerHTML = `<div style="text-align:center"><b style="font-size:1.3em">MINNA · PATRON DANTEL</b><br>Porosi online nr. <b>${esc(f.nr || '—')}</b>${f.porosia_nr ? '<br>Pro-Data: ' + esc(f.porosia_nr) : ''}
     <br>${new Date(f.krijuar || Date.now()).toLocaleString('sq-AL', { timeZone: 'Europe/Belgrade' })}</div>
@@ -3717,7 +3717,26 @@ function printoOnline(f) {
     ${tpTransporti(f) ? `<p style="text-align:right">Materiali: ${eur(f.totali)} €<br>Transporti (Telposta): ${eur(tpTransporti(f))} €</p>` : ''}
     <p style="text-align:right;font-size:1.3em"><b>Për pagesë: ${tpTransporti(f) ? tpVlera(f) + '.00' : eur(f.totali)} €</b>${f.telposta_kodi ? '<br>Telposta: ' + esc(f.telposta_kodi) : ''}<br><span style="font-size:.75em">${f.eksport ? 'Export, TVSH 0%' : 'Çmimet përfshijnë TVSH-në'} · Nuk është dokument fiskal</span></p>
     ${f.shenim ? `<p>Shënim: ${esc(f.shenim)}</p>` : ''}<p style="font-size:.8em">Shitësja: ${esc(f.shitesja_emri || '')}</p>`;
-  dergoPrintin('80', 'Porosi online ' + (f.nr || ''));
+  dergoPrintin('80', 'Porosi online ' + (f.nr || ''), ku);
+}
+// Një klik → dy printime: letra e Tel-Post-it (PDF) te printeri A4 dhe porosia (materialet, sasitë) te printeri 80 mm.
+// Shkon gjithmonë te printerat e arkës përmes robotit (nga iPhone s'ka AirPrint për to); zgjedhja "Direkt" e aparatit ka përparësi.
+async function printoTeDyja(f, rruga, el) {
+  const zgj = (fm, def) => (prZgjedhja(fm) !== 'dritarja' ? prZgjedhja(fm) : def);
+  const a4 = zgj('a4', 'arka-a4'), v80 = zgj('80', 'arka-80');
+  el.innerHTML = '🖨️ Letra po dërgohet te printeri A4…';
+  const { data: d, error } = await sb.from('printimet').insert({ printeri: a4, titulli: 'Letra Tel-Post ' + (f.nr || ''), krijuar_emri: profili.emri || null, html: JSON.stringify({ pdf: rruga }) }).select('id').single();
+  if (error) el.innerHTML = `<span style="color:#c0392b">❌ Letra nuk u dërgua: ${esc(error.message)}</span>`;
+  printoOnline(f, v80);
+  if (error) return;
+  for (let i = 0; i < 60; i++) {
+    await new Promise((r) => setTimeout(r, 2000));
+    const { data: x } = await sb.from('printimet').select('statusi, gabimi').eq('id', d.id).maybeSingle();
+    if (x && x.statusi === 'kryer') { el.innerHTML = '✅ Letra u printua te printeri A4.'; return; }
+    if (x && x.statusi === 'gabim') { el.innerHTML = `<span style="color:#c0392b">❌ Letra (A4): ${esc(x.gabimi || '')}</span>`; return; }
+    if (i === 8) el.innerHTML = '⏳ Printeri A4 ende s\'u përgjigj… (a është ndezur PC-ja e arkës?)';
+  }
+  el.innerHTML = '<span style="color:#c0392b">⚠️ Printeri A4 nuk u përgjigj. Letra printohet sapo PC-ja e arkës të ndizet (brenda 10 min).</span>';
 }
 $('onl-print').onclick = () => { if (!onlKontrollo()) return; printoOnline({ ...onlTeDhenat(), nr: onl.fatura ? onl.fatura.nr : '' }); };
 $('onl-telposta').onclick = () => { if (!onlKontrollo()) return; kopjoTelposta({ ...onlTeDhenat(), nr: onl.fatura ? onl.fatura.nr : '' }); };
@@ -3746,10 +3765,14 @@ $('onl-regjistro').onclick = async () => {
       const fP = { ...f, porosia_nr: k.rezultati.prodata_nr };
       m.className = 'mesazh ok'; m.innerHTML = `✅ U regjistrua: porosia <b>${f.nr}</b> → Pro-Data <b>${esc(k.rezultati.prodata_nr)}</b>
         <div id="onl-tp-gjendja" style="margin-top:6px"></div>
-        <div class="butona"><button class="kryesor" id="onl-pas-letra" hidden style="background:#c0392b">🖨️ Letra e Telpostës</button><button class="dyte" id="onl-pas-print">🖨️ Print</button><button class="kryesor" id="onl-pas-re">+ Porosi e re</button></div>`;
+        <div class="butona"><button class="kryesor" id="onl-pas-dyja" hidden style="background:#c0392b">🖨️ Printo letrën (A4) + porosinë (80 mm)</button><button class="dyte" id="onl-pas-letra" hidden>📄 Hap letrën</button><button class="dyte" id="onl-pas-print">🖨️ Print porosinë</button><button class="kryesor" id="onl-pas-re">+ Porosi e re</button></div>
+        <div id="onl-pas-printimi" class="zbehte" style="margin-top:6px"></div>`;
       $('onl-pas-print').onclick = () => printoOnline(fP);
       $('onl-pas-re').onclick = () => onlPastro();
-      pritTelposten(f, $('onl-tp-gjendja'), $('onl-pas-letra'));
+      pritTelposten(f, $('onl-tp-gjendja'), $('onl-pas-letra'), (rruga) => {
+        const b = $('onl-pas-dyja'); if (!b) return; b.hidden = false;
+        b.onclick = () => { b.disabled = true; printoTeDyja(fP, rruga, $('onl-pas-printimi')).finally(() => { b.disabled = false; }); };
+      });
     } else { m.className = 'mesazh gabim'; m.innerHTML = k ? '❌ Pro-Data nuk e pranoi: ' + esc(k.gabimi) : '⚠️ Ura nuk u përgjigj. Porosia mbetet në radhë dhe regjistrohet kur ura të kthehet.'; }
   } catch (e) { m.className = 'mesazh gabim'; m.textContent = '❌ ' + e.message; }
   btn.disabled = false;
@@ -3762,7 +3785,7 @@ async function hapLetren(rruga) {
   if (w) w.location = data.signedUrl; else location.href = data.signedUrl;
 }
 // Pas regjistrimit: pret robotin derisa porosia të jetë te Tel-Post dhe letra gati (deri 3 minuta)
-async function pritTelposten(f, el, btn) {
+async function pritTelposten(f, el, btn, kurGati) {
   if (!tpTransporti(f)) { el.innerHTML = '🌍 Porosi jashtë vendit: dërgohet me <b>DHL ose postë tjetër</b>. Printo faturën tonë për pakon.'; return; }
   el.innerHTML = '📮 Po regjistrohet te Telposta… <span class="zbehte">(roboti, zakonisht brenda 1 minute)</span>';
   for (let i = 0; i < 60; i++) {
@@ -3772,7 +3795,7 @@ async function pritTelposten(f, el, btn) {
     if (!x) continue;
     if (x.telposta_letra) {
       el.innerHTML = `✅ Te Telposta: <b>${esc(x.telposta_kodi || '')}</b>. Printo letrën dhe ngjite te pakoja.`;
-      btn.hidden = false; btn.onclick = () => hapLetren(x.telposta_letra); return;
+      btn.hidden = false; btn.onclick = () => hapLetren(x.telposta_letra); if (kurGati) kurGati(x.telposta_letra); return;
     }
     if (x.telposta_statusi === 'gabim') { el.innerHTML = `<span style="color:#c0392b">⚠️ Telposta: ${esc(x.telposta_gabim || 'gabim')}</span>`; return; }
     if (x.telposta_statusi === 'derguar') el.innerHTML = `📮 Te Telposta${x.telposta_kodi ? ': <b>' + esc(x.telposta_kodi) + '</b>' : ''}. Po merret letra…`;
