@@ -840,7 +840,7 @@
           <div class="rresht">
             <label>Nr në aparat <input id="hr-f-nr" inputmode="numeric" style="width:90px"></label>
             <label>Emri i plotë <input id="hr-f-emri" style="width:220px"></label>
-            <label>Nr i kartelës <input id="hr-f-kartela" inputmode="numeric" placeholder="opsionale" style="width:140px"></label>
+            <label>Nr i kartelës (badge) <input id="hr-f-kartela" placeholder="p.sh. 0004776907 072,58315" style="width:230px"></label>
             <label>Pozita <input id="hr-f-pozita" list="hr-l-pozitat" style="width:170px"></label>
             <label>Pika / departamenti <input id="hr-f-pika" list="hr-l-pikat" style="width:190px"></label>
             <label>Telefoni <input id="hr-f-tel" inputmode="tel" style="width:150px"></label>
@@ -4442,6 +4442,21 @@ const hrMuajiZgjedhur = () => (hrPamja === 'dita' ? ($('hr-data').value || dataK
 const hrEmri = (nr) => { const p = hrPun[nr]; return p ? (p.emri || p.emri_aparat || 'Nr ' + nr) : 'Nr ' + nr; };
 const hrEmriAparat = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\x20-\x7e]/g, '').trim().slice(0, 24);
 const hrAktiv = (p) => p && p.aktiv !== false;
+// Kartelat (badge EM 125 kHz) kanë të shtypur "0004776907 072,58315": numri 10-shifror = ai që ruan aparati;
+// "072,58315" = i njëjti numër i ndarë (72 × 65536 + 58315). Pranohen të dyja format ose vetëm njëri; nëse jepen të dyja, duhet të përputhen.
+const hrKartelaTekst = (k) => String(k).padStart(10, '0');
+function hrKartelaLexo(s) {
+  s = String(s || '').trim(); if (!s) return null;
+  const vetemNdare = s.match(/^(\d{1,3})\s*[,.]\s*(\d{1,5})$/);
+  const m = vetemNdare ? [s, undefined, vetemNdare[1], vetemNdare[2]] : s.match(/^(\d{1,10})(?:\s+(\d{1,3})\s*[,.]\s*(\d{1,5}))?$/);
+  if (!m) throw new Error('Numri i kartelës: shkruaj numrin 10-shifror siç është në kartelë, p.sh. 0004776907.');
+  const ndare = m[2] != null ? +m[2] * 65536 + +m[3] : null;
+  if (m[3] != null && +m[3] > 65535) throw new Error('Pjesa pas presjes s\'mund të jetë mbi 65535: kontrollo numrin e kartelës.');
+  const k = m[1] ? +m[1] : ndare;
+  if (m[1] && ndare != null && k !== ndare) throw new Error(`Dy numrat e kartelës nuk përputhen (${hrKartelaTekst(k)} ≠ ${m[2]},${m[3]}). Kontrollo shifrat.`);
+  if (!k || k > 4294967295) throw new Error('Numri i kartelës nuk është i vlefshëm.');
+  return k;
+}
 const hrShenje = (map, k) => { const [t, c] = map[k] || [k, '']; return `<span class="shenje ${c}">${t}</span>`; };
 const hrMesazh = (id, lloji, tekst) => { const m = $(id); m.className = 'mesazh ' + (lloji || ''); m.textContent = tekst || ''; };
 const hrUneEmri = () => (profili && profili.emri) || (perdoruesi && (perdoruesi.email || '').split('@')[0]) || null;
@@ -4677,7 +4692,7 @@ function hrVizatoPun() {
     const ap = pritje.has(p.nr) ? '⏳' : p.ne_aparat ? '✅' : '<span class="zbehte">—</span>';
     return `<tr data-nr="${esc(p.nr)}" style="cursor:pointer"><td>${esc(p.nr)}</td><td><b>${esc(hrEmri(p.nr))}</b>${!hrAktiv(p) ? ` <span class="zbehte">· larguar ${hrDt(p.data_largimit)}</span>` : ''}</td>
       <td>${esc(p.pozita || '')}</td><td>${esc(p.pika || '')}</td><td>${esc(p.telefoni || '')}</td><td>${p.data_fillimit ? hrDt(p.data_fillimit) : ''}</td>
-      <td>${esc(p.kontrata || '')}${kd}</td><td>${p.kartela ? esc(p.kartela) : '<span class="zbehte">pa kartelë</span>'}</td><td>${ap}</td></tr>`;
+      <td>${esc(p.kontrata || '')}${kd}</td><td>${p.kartela ? hrKartelaTekst(p.kartela) : '<span class="zbehte">pa kartelë</span>'}</td><td>${ap}</td></tr>`;
   }).join('') || '<tr><td colspan="9" class="zbehte">Asnjë punëtor</td></tr>';
 }
 function hrHapFormen(nr) {
@@ -4686,7 +4701,7 @@ function hrHapFormen(nr) {
   $('hr-f-titulli').textContent = p ? `✏️ ${hrEmri(nr)} (nr ${nr})` : '+ Punëtor i ri';
   const tjetri = Math.max(0, ...Object.keys(hrPun).map(Number).filter((n) => n < 900)) + 1;
   $('hr-f-nr').value = p ? p.nr : tjetri; $('hr-f-nr').disabled = !!p;
-  $('hr-f-emri').value = p ? hrEmri(nr) : ''; $('hr-f-kartela').value = p && p.kartela ? p.kartela : '';
+  $('hr-f-emri').value = p ? hrEmri(nr) : ''; $('hr-f-kartela').value = p && p.kartela ? hrKartelaTekst(p.kartela) : '';
   $('hr-f-pozita').value = p ? p.pozita || '' : ''; $('hr-f-pika').value = p ? p.pika || '' : '';
   $('hr-f-tel').value = p ? p.telefoni || '' : ''; $('hr-f-fillimi').value = p ? p.data_fillimit || '' : dataKS();
   $('hr-f-kontrata').value = p ? p.kontrata || '' : ''; $('hr-f-kderi').value = p ? p.kontrata_deri || '' : '';
@@ -4701,7 +4716,7 @@ async function hrKomande(lloji, nr, emri, kartela) {
 }
 async function hrRuajPunetorin() {
   const ri = !hrNe, nr = ri ? $('hr-f-nr').value.trim() : hrNe, emri = $('hr-f-emri').value.trim().replace(/\s+/g, ' ');
-  const kT = $('hr-f-kartela').value.replace(/\D/g, ''), kartela = kT ? Number(kT) : null;
+  const kartela = hrKartelaLexo($('hr-f-kartela').value);
   if (!/^[0-9]{1,9}$/.test(nr)) throw new Error('Numri në aparat: vetëm shifra (1–9).');
   if (emri.length < 2 || !hrEmriAparat(emri)) throw new Error('Shkruaj emrin e plotë.');
   if (kartela != null && (kartela < 1 || kartela > 4294967295)) throw new Error('Numri i kartelës nuk është i vlefshëm.');
@@ -4756,7 +4771,7 @@ async function hrNgarkoKomandat() {
   const LL = { shto: '➕ Shto', ndrysho: '✏️ Ndrysho', hiq: '➖ Hiq' }, ST = { ne_pritje: ['⏳ Në pritje', 's-pritje'], ne_proces: ['⏳ Po kryhet', 's-pritje'], kryer: ['✅ U krye', 's-ok'], gabim: ['❌ Gabim', 's-gabim'] };
   const dite2 = Date.now() - 2 * 864e5, te = hrKomandat.filter((k) => new Date(k.krijuar) > dite2);
   $('hr-komandat').innerHTML = te.length ? `<details ${pritje.length || te.some((k) => k.statusi === 'gabim' && new Date(k.krijuar) > Date.now() - 3600e3) ? 'open' : ''} style="margin-bottom:10px"><summary class="zbehte">Ndryshimet e fundit në aparat (${te.length})</summary>
-    <div class="tabela"><table><tbody>${te.map((k) => `<tr><td>${oraKS(k.krijuar)}</td><td>${LL[k.lloji] || k.lloji}</td><td>nr ${esc(k.nr)} ${esc(k.emri || hrEmri(k.nr))}${k.kartela ? ' · kartela ' + esc(k.kartela) : ''}</td>
+    <div class="tabela"><table><tbody>${te.map((k) => `<tr><td>${oraKS(k.krijuar)}</td><td>${LL[k.lloji] || k.lloji}</td><td>nr ${esc(k.nr)} ${esc(k.emri || hrEmri(k.nr))}${k.kartela ? ' · kartela ' + hrKartelaTekst(k.kartela) : ''}</td>
       <td>${hrShenje(ST, k.statusi)}${k.gabimi ? ` <span class="minus">${esc(k.gabimi)}</span>` : ''}</td><td class="zbehte">${esc(k.krijuar_emri || '')}</td></tr>`).join('')}</tbody></table></div></details>` : '';
   hrVizatoPun();
   clearTimeout(hrKomKohe);
