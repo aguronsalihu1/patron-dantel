@@ -573,7 +573,8 @@
       <select id="mg-l-lloji"><option value="">Të gjitha llojet</option><option value="artikull_i_ri">🆕 Artikull i ri</option><option value="hyrje">📥 Hyrje</option><option value="caktivizim">🚫 Çaktivizim</option></select>
       <select id="mg-l-statusi"><option value="">Çdo status</option><option value="kryer">✅ Në Pro-Data</option><option value="ne_pritje">⏳ Pret</option><option value="gabim">❌ Gabim</option></select>
     </div>
-    <div class="zbehte" id="mg-l-nr" style="margin-bottom:6px"></div>
+    <div class="rresht" style="justify-content:space-between;flex-wrap:wrap;gap:8px;margin:0 0 6px"><span class="zbehte" id="mg-l-nr"></span>
+      <button class="dyte" type="button" id="mg-l-etiketat" hidden>🏷️ Printo etiketat e listës</button></div>
     <div class="ar-pritje" id="mg-lista"></div>
     <div class="butona" style="justify-content:center"><button class="dyte" type="button" id="mg-l-me-shume" hidden>Shfaq më shumë</button></div>
   </section>
@@ -2175,14 +2176,19 @@ NGARKUESIT.mall = async (ngaRealtime) => {
 // Lista e regjistrimeve: të gjitha që nga dita e parë, me kërkim, ditë, lloj e status; 40 në faqe + "Shfaq më shumë".
 const MG_FAQJA = 40;
 let mgLNr = 0, mgLRreshtat = [], mgLGjithsej = 0;
-async function mgListaNgarko(meShume = false, rifresko = false) {
-  const nr = ++mgLNr, q = $('mg-l-kerko').value.trim(), dita = $('mg-l-dita').value, lloji = $('mg-l-lloji').value, statusi = $('mg-l-statusi').value;
-  const nga = meShume ? mgLRreshtat.length : 0, sa = rifresko ? Math.max(MG_FAQJA, mgLRreshtat.length) : MG_FAQJA;   // rifreskimi s'e humb faqen ku je
-  let k = sb.from('regjistrimet_mallit').select('*', { count: 'exact' }).order('krijuar', { ascending: false }).range(nga, nga + sa - 1);
+function mgListaFiltrat(k) {   // filtrat e listës (kërkimi, dita, lloji, statusi): të njëjtët për listën dhe për etiketat
+  const q = $('mg-l-kerko').value.trim(), dita = $('mg-l-dita').value, lloji = $('mg-l-lloji').value, statusi = $('mg-l-statusi').value;
   if (q) { const s = q.replace(/[,()*\\"]/g, ' ').trim(); if (s) k = k.or(['kodi', 'barkodi', 'emri', 'krijuar_emri', 'prodata_nr'].map((c) => `${c}.ilike.*${s}*`).join(',')); }
   if (dita) { const a = new Date(dita + 'T00:00:00'), b = new Date(a); b.setDate(b.getDate() + 1); k = k.gte('krijuar', a.toISOString()).lt('krijuar', b.toISOString()); }
   if (lloji) k = k.eq('lloji', lloji);
   if (statusi) k = k.eq('statusi', statusi);
+  return k;
+}
+async function mgListaNgarko(meShume = false, rifresko = false) {
+  const nr = ++mgLNr, q = $('mg-l-kerko').value.trim(), dita = $('mg-l-dita').value, lloji = $('mg-l-lloji').value, statusi = $('mg-l-statusi').value;
+  const nga = meShume ? mgLRreshtat.length : 0, sa = rifresko ? Math.max(MG_FAQJA, mgLRreshtat.length) : MG_FAQJA;   // rifreskimi s'e humb faqen ku je
+  const k = mgListaFiltrat(sb.from('regjistrimet_mallit').select('*', { count: 'exact' })).order('krijuar', { ascending: false }).range(nga, nga + sa - 1);
+  $('mg-l-etiketat').hidden = !mgLejuar();
   if (!meShume && !rifresko) $('mg-l-nr').textContent = '⏳ Po kërkohet…';
   const { data, error, count } = await k;
   if (nr !== mgLNr) return;
@@ -2196,7 +2202,7 @@ async function mgListaNgarko(meShume = false, rifresko = false) {
   $('mg-lista').innerHTML = rr.map((r) => { const f = (r.fotot || [])[0];
     // artikulli i ri i krijuar në Pro-Data, por sasia e tij pret recetën e hyrjes
     const [t, c] = r.lloji === 'artikull_i_ri' && r.artikulli_id && r.statusi === 'ne_pritje' ? ['✅ Në Pro-Data · ⏳ sasia pret', 's-pritje'] : MG_STATUSET[r.statusi] || [r.statusi, ''];
-    return `<div class="ar-karte" style="cursor:default"><div class="rresht" style="justify-content:space-between;margin:0"><b>${esc(MG_LLOJET[r.lloji] || r.lloji)}</b><span class="shenje ${c}">${t}</span></div>
+    return `<div class="ar-karte" style="cursor:default"><div class="rresht" style="justify-content:space-between;margin:0"><b>${esc(MG_LLOJET[r.lloji] || r.lloji)}</b><span>${r.etiketa_printuar ? '<span title="Etiketa u printua">🏷️</span> ' : ''}<span class="shenje ${c}">${t}</span></span></div>
       <div style="display:flex;gap:10px;margin-top:6px">${f && url.get(f) ? `<img src="${esc(url.get(f))}" loading="lazy" decoding="async" style="width:56px;height:56px;border-radius:8px;object-fit:cover" alt="">` : ''}
       <div><b>${esc(r.emri || '')}</b><div class="zbehte">${esc(r.kodi || r.barkodi || '')}${r.sasia ? ' · ' + (+r.sasia) + ' ' + esc(r.njesia || '') : ''}${r.magazina ? ' · mag. ' + esc(r.magazina) : ''}${r.cmimi_shitjes ? ' · ' + eur(r.cmimi_shitjes) + ' €' : ''}</div>
       <div class="zbehte">${oraKS(r.krijuar)} · ${esc(r.krijuar_emri || '')}${r.arsyeja && r.lloji !== 'artikull_i_ri' ? ' · ' + esc(r.arsyeja) : ''}${r.prodata_nr ? ' · ' + esc(r.prodata_nr) : ''}</div>
@@ -2205,6 +2211,98 @@ async function mgListaNgarko(meShume = false, rifresko = false) {
 { let kohe; $('mg-l-kerko').oninput = () => { clearTimeout(kohe); kohe = setTimeout(() => mgListaNgarko(), 250); }; }
 ['mg-l-dita', 'mg-l-lloji', 'mg-l-statusi'].forEach((id) => { $(id).onchange = () => mgListaNgarko(); });
 $('mg-l-me-shume').onclick = () => mgListaNgarko(true);
+
+// ---------- ETIKETAT ME BARKOD (Zebra te arka) ----------
+// Merr të gjitha regjistrimet e listës (me filtrat e zgjedhur), një etiketë për artikull, me kodin/barkodin/çmimin e tanishëm
+// nga Pro-Data. Roboti i printimit i printon te printeri i kodeve dhe i shënon regjistrimet me 🏷️.
+const ET_MADHESITE = [['40x25', '40 × 25 mm'], ['50x30', '50 × 30 mm'], ['58x40', '58 × 40 mm'], ['tjeter', 'Tjetër…']];
+const etLexo = (c, d) => { try { return localStorage.getItem('pd-etiketa-' + c) || d; } catch { return d; } };
+const etRuaj = (c, v) => { try { localStorage.setItem('pd-etiketa-' + c, v); } catch {} };
+async function etHap() {
+  let el = $('et-dialog');
+  if (!el) { el = document.createElement('div'); el.id = 'et-dialog'; el.className = 'pr-dialog-stil'; document.body.appendChild(el); }
+  el.hidden = false; el.innerHTML = '<div class="pr-kuti"><p>⏳ Po mblidhen artikujt e listës…</p></div>';
+  const mbyll = () => { el.hidden = true; };
+  const gabim = (m) => { el.innerHTML = `<div class="pr-kuti"><p>❌ ${esc(m)}</p><div class="butona"><button class="dyte et-mbyll" type="button">Mbyll</button></div></div>`; el.querySelector('.et-mbyll').onclick = mbyll; };
+  let reg = [], printeri = null;
+  try {
+    for (let i = 0; i < 5000; i += 1000) {
+      const { data, error } = await mgListaFiltrat(sb.from('regjistrimet_mallit').select('id, krijuar, artikulli_id, kodi, barkodi, cmimi_shitjes, statusi, etiketa_printuar'))
+        .eq('statusi', 'kryer').not('artikulli_id', 'is', null).order('krijuar').range(i, i + 999);
+      if (error) throw new Error(error.message);
+      reg.push(...data); if (data.length < 1000) break;
+    }
+    const { data: p } = await sb.from('printerat').select('*').eq('id', 'arka-etiketa').maybeSingle(); printeri = p;
+  } catch (e) { return gabim(e.message); }
+  if (!printeri) return gabim('Printeri i kodeve ende nuk është lidhur (roboti i printimit te arka).');
+  // një etiketë për artikull; çmimi/kodi/barkodi i tanishëm nga Pro-Data
+  const sipasArt = new Map();
+  for (const r of reg) { const x = sipasArt.get(r.artikulli_id) || { id: r.artikulli_id, reg: [], paEtikete: false, r }; x.reg.push(r.id); if (!r.etiketa_printuar) x.paEtikete = true; sipasArt.set(r.artikulli_id, x); }
+  const ids = [...sipasArt.keys()], art = new Map();
+  try {
+    for (let i = 0; i < ids.length; i += 100) {
+      const { data, error } = await sb.from('prodata_artikujt').select('prodata_id, kodi, barkodi, cmimi').in('prodata_id', ids.slice(i, i + 100));
+      if (error) throw new Error(error.message);
+      (data || []).forEach((a) => art.set(String(a.prodata_id), a));
+    }
+  } catch (e) { return gabim(e.message); }
+  const teGjitha = [...sipasArt.values()].map((x) => { const a = art.get(String(x.id)) || {};
+    return { kodi: a.kodi || x.r.kodi || '', barkodi: a.barkodi || x.r.barkodi || a.kodi || x.r.kodi || '', cmimi: +(a.cmimi ?? x.r.cmimi_shitjes) || 0, reg: x.reg, paEtikete: x.paEtikete }; })
+    .filter((e) => e.kodi || e.barkodi);
+  const nrPa = teGjitha.filter((e) => e.paEtikete).length;
+  const mad = etLexo('madhesia', '50x30'), [w0, h0] = etLexo('tjeter', '50x30').split('x');
+  el.innerHTML = `<div class="pr-kuti"><h3 style="margin-top:0">🏷️ Etiketat me barkod</h3>
+    <p style="margin-top:0">${prOnline(printeri) ? '🟢' : '🔴'} ${esc(printeri.emri)}${prOnline(printeri) ? '' : ' · <b>roboti i printimit nuk përgjigjet</b> (a është ndezur PC-ja e arkës?)'}</p>
+    <p class="zbehte" style="margin-top:0">Nga lista: <b>${teGjitha.length}</b> artikuj (një etiketë për artikull, me çmimin e tanishëm në Pro-Data) · ${teGjitha.length - nrPa} kanë marrë etiketë më parë.${reg.length ? '' : ' Lista ka vetëm regjistrime që s\'janë ende në Pro-Data.'}</p>
+    <label style="flex-direction:row;align-items:center;gap:8px"><input type="checkbox" id="et-vetem-pa" ${nrPa ? 'checked' : ''} style="min-width:0;width:18px;height:18px;margin:0;padding:0"> Vetëm ato pa etiketë (${nrPa})</label>
+    <label style="display:block;margin:10px 0">Madhësia e etiketës<br><select id="et-madhesia" style="width:100%">${ET_MADHESITE.map(([v, t]) => `<option value="${v}" ${v === mad ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+    <div class="rresht" id="et-tjeter" ${mad === 'tjeter' ? '' : 'hidden'} style="gap:8px"><label>Gjerësia (mm) <input id="et-w" type="number" min="20" max="104" value="${esc(w0)}" style="width:90px"></label><label>Lartësia (mm) <input id="et-h" type="number" min="10" max="150" value="${esc(h0)}" style="width:90px"></label></div>
+    <label style="display:block;margin:10px 0">Kopje për çdo artikull <input id="et-kopje" type="number" min="1" max="20" value="1" style="width:80px"></label>
+    <p class="zbehte">Hera e parë: shtyp <b>Printo provë</b>. Korniza duhet të bjerë te skajet e etiketës; nëse jo, zgjidh madhësinë tjetër.</p>
+    <div class="butona"><button class="kryesor" type="button" id="et-printo"></button><button class="dyte" type="button" id="et-prove">Printo provë</button><button class="dyte et-mbyll" type="button">Mbyll</button></div>
+    <div class="mesazh" id="et-msg"></div></div>`;
+  const zgjedhura = () => ($('et-vetem-pa').checked ? teGjitha.filter((e) => e.paEtikete) : teGjitha);
+  const madhesia = () => { const v = $('et-madhesia').value; const [w, h] = (v === 'tjeter' ? `${$('et-w').value}x${$('et-h').value}` : v).split('x').map(Number); return { w, h }; };
+  const kopje = () => Math.max(1, Math.min(20, +$('et-kopje').value || 1));
+  const rifresko = () => { const n = zgjedhura().length * kopje(); $('et-printo').textContent = `🖨️ Printo ${n} etiket${n === 1 ? 'ë' : 'a'}`; $('et-printo').disabled = !n; };
+  $('et-madhesia').onchange = () => { $('et-tjeter').hidden = $('et-madhesia').value !== 'tjeter'; etRuaj('madhesia', $('et-madhesia').value); };
+  ['et-w', 'et-h'].forEach((id) => { $(id).onchange = () => etRuaj('tjeter', `${$('et-w').value}x${$('et-h').value}`); });
+  $('et-vetem-pa').onchange = rifresko; $('et-kopje').oninput = rifresko; rifresko();
+  el.querySelector('.et-mbyll').onclick = mbyll;
+  const msg = (t, k = '') => { const m = $('et-msg'); m.className = 'mesazh ' + k; m.style.display = 'block'; m.innerHTML = t; };
+  const dergo = async (punet) => {   // punet = [{ titulli, json }] → printimet; pret derisa roboti t'i kryejë
+    const m = madhesia(); if (!(m.w >= 20 && m.w <= 104 && m.h >= 10 && m.h <= 150)) { msg('Shkruaj madhësinë e etiketës (gjerësia 20–104 mm, lartësia 10–150 mm).', 'gabim'); return false; }
+    el.querySelectorAll('button').forEach((b) => { b.disabled = true; });
+    try {
+      const idt = [];
+      for (const p of punet) {
+        const { data, error } = await sb.from('printimet').insert({ printeri: 'arka-etiketa', titulli: p.titulli, krijuar_emri: profili.emri || null, html: JSON.stringify({ ...p.json, madhesia: m }) }).select('id').single();
+        if (error) throw new Error(error.message); idt.push(data.id);
+      }
+      msg('🖨️ U dërgua te printeri i kodeve… po pritet përgjigja.');
+      for (let i = 0; i < 120; i++) {
+        await new Promise((r) => setTimeout(r, 2000));
+        const { data } = await sb.from('printimet').select('statusi, gabimi').in('id', idt);
+        const gab = (data || []).find((x) => x.statusi === 'gabim'); if (gab) throw new Error('Printeri: ' + (gab.gabimi || ''));
+        const kryer = (data || []).filter((x) => x.statusi === 'kryer').length;
+        if (kryer >= idt.length) return true;
+        msg(`🖨️ Po printohet… ${kryer} nga ${idt.length} pako${i === 10 ? ' · ⏳ roboti ende s\'u përgjigj (a është ndezur PC-ja e arkës?)' : ''}`);
+      }
+      throw new Error('Roboti i printimit nuk u përgjigj. Kontrollo PC-në e arkës.');
+    } catch (e) { msg('❌ ' + esc(e.message), 'gabim'); return false; }
+    finally { el.querySelectorAll('button').forEach((b) => { b.disabled = false; }); rifresko(); }
+  };
+  $('et-prove').onclick = async () => { if (await dergo([{ titulli: 'Provë etikete', json: { prove: true } }])) msg('✅ Etiketa provë u dërgua te printeri. A ra korniza te skajet?', 'ok'); };
+  $('et-printo').onclick = async () => {
+    const lista = zgjedhura(), n = lista.length * kopje(); if (!lista.length) return;
+    if (n > 30 && !confirm(`Do të printohen ${n} etiketa te printeri i kodeve. Vazhdo?`)) return;
+    const punet = [];
+    for (let i = 0; i < lista.length; i += 300) { const pjesa = lista.slice(i, i + 300);
+      punet.push({ titulli: `Etiketa ${i + 1}–${i + pjesa.length} nga ${lista.length}`, json: { kopje: kopje(), etiketat: pjesa.map(({ kodi, barkodi, cmimi }) => ({ kodi, barkodi, cmimi })), regjistrimet: pjesa.flatMap((e) => e.reg) } }); }
+    if (await dergo(punet)) { msg(`✅ U printuan ${n} etiketa.`, 'ok'); lista.forEach((e) => { e.paEtikete = false; }); rifresko(); mgListaNgarko(false, true); }
+  };
+}
+$('mg-l-etiketat').onclick = () => etHap();
 
 // ---------- GJEJ ARTIKULLIN (shitëset fizike): vetëm shikim ----------
 // Galeri e artikujve të Patron Dantelit: shitësja e njeh produktin nga fotoja, pa e ditur kodin. Fotot e vogla (thumb/...) e mbajnë të shpejtë.
