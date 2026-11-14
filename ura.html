@@ -1006,7 +1006,7 @@
     </div>
     <div class="rresht"><label>Kërko <input id="ad-kerko" placeholder="emri, telefoni ose emaili" style="width:260px"></label>
       <label>Shfaq <select id="ad-filtri"><option value="te_gjitha">Të gjitha</option><option value="me_qasje">Vetëm me qasje</option><option value="pa_qasje">Vetëm pa qasje</option></select></label></div>
-    <div class="tabela"><table><thead><tr><th>Llogaria</th><th>Emri</th><th>Roli</th><th>📦 Regjistron mall</th><th>Hyrja e fundit</th><th></th></tr></thead><tbody id="ad-perdoruesit"></tbody></table></div>
+    <div class="tabela"><table><thead><tr><th>Llogaria</th><th>Emri</th><th>Roli</th><th>🏢 Departamenti</th><th>📦 Regjistron mall</th><th>Hyrja e fundit</th><th></th></tr></thead><tbody id="ad-perdoruesit"></tbody></table></div>
     <div class="mesazh" id="ad-mesazh"></div>
     <h3>Komandat drejt Pro-Data (50 të fundit)</h3>
     <div class="tabela"><table><thead><tr><th>Koha</th><th>Lloji</th><th>Statusi</th><th>Dokumenti / arsyeja</th></tr></thead><tbody id="ad-komandat"></tbody></table></div>
@@ -1222,13 +1222,16 @@ const shenje = (s) => { const [t, c] = shenjeStatusi[s] || [s, '']; return `<spa
 let profili = null, magazinat = [], perdoruesi = null;
 // Sistemi është vetëm për Patron Dantelin: magazina 002 në Pro-Data (vendim i Aguronit, 03.11.2026).
 // Vetëm Super Admini (dhe roli depo te faqja e vet) i sheh magazinat e tjera; serveri (RLS te prodata_stoku) e zbaton të njëjtën gjë.
-const PD_MAG = '002';
+// 13.11.2026: çdo llogari i përket një departamenti (prodata_perdoruesit.pika, e cakton Super Admini te Administrimi);
+// PD_MAG = magazina kryesore e departamentit të llogarisë, MAG_E_MIA = të gjitha magazinat e tij (p.sh. Molto: 0012 dhe 12).
+let PD_MAG = '002', MAG_E_MIA = ['002'];
+const DEP_ROLET = ['arka', 'shitese_fizike', 'shitese_online'];   // rolet që mbyllen në departamentin e vet (depo dhe HR jo)
 const teGjithaMag = () => !!profili && ['admin', 'depo'].includes(profili.roli);
-const magazinatE = () => (teGjithaMag() ? magazinat : magazinat.filter((m) => m.kodi === PD_MAG));
-// stoku i artikullit: Super Admini sheh çdo magazinë, të tjerët vetëm sasinë te Patron Danteli
+const magazinatE = () => (teGjithaMag() ? magazinat : magazinat.filter((m) => MAG_E_MIA.includes(m.kodi)));
+// stoku i artikullit: Super Admini sheh çdo magazinë, të tjerët vetëm sasinë te departamenti i vet
 const stokuHTML = (a) => (teGjithaMag()
   ? a.stoku.map((s) => `<span>${esc(s.magazina)}: ${s.sasia}</span>`).join('') || '<span>pa stok</span>'
-  : `<span>Stoku: ${(a.stoku.find((s) => s.magazina === PD_MAG) || {}).sasia ?? 0}</span>`);
+  : `<span>Stoku: ${Math.round(a.stoku.filter((s) => MAG_E_MIA.includes(s.magazina)).reduce((t, s) => t + s.sasia, 0) * 1000) / 1000}</span>`);
 
 // ---------- Rolet dhe menytë ----------
 const MENYTE = {
@@ -1274,7 +1277,7 @@ $('forma-hyrja').onsubmit = async (e) => {
   if (error) { m.className = 'mesazh gabim'; m.textContent = 'Numri i telefonit / username ose fjalëkalimi gabim.'; return; }
   m.className = 'mesazh'; $('h-pass').value = '';
 };
-$('dil').onclick = () => { fotoKeshPastro(); sb.auth.signOut(); };
+$('dil').onclick = () => { fotoKeshPastro(); $('dep').hidden = true; sb.auth.signOut(); };
 $('pr-btn').onclick = () => prHapCilesimet();
 let nisur = false;
 sb.auth.onAuthStateChange(async (_n, ses) => {
@@ -1285,8 +1288,9 @@ sb.auth.onAuthStateChange(async (_n, ses) => {
   // Supabase e thërret këtë edhe kur rifreskon hyrjen në sfond: koka fshihet vetëm kur dikush del
   if (!perdoruesi) { $('statusi').hidden = $('titulli').hidden = $('shtepia').hidden = true; nisur = false; return; }
   if (nisur) return; nisur = true;
-  const { data } = await sb.from('prodata_perdoruesit').select('roli, emri, lejo_regjistrim').eq('user_id', perdoruesi.id).maybeSingle();
+  const { data } = await sb.from('prodata_perdoruesit').select('roli, emri, lejo_regjistrim, pika').eq('user_id', perdoruesi.id).maybeSingle();
   profili = data;
+  $('dep').hidden = true;   // zgjedhja e departamentit lart: vetëm Super Admini (depNis e shfaq)
   if (!profili || !profili.roli) {
     $('menyja').innerHTML = ''; document.querySelector('main').innerHTML = '<section class="faqe aktive"><div class="udhezim">Llogaria jote nuk ka ende rol. Kërko nga administratori të të caktojë rolin.</div></section>'; return;
   }
@@ -1300,6 +1304,13 @@ sb.auth.onAuthStateChange(async (_n, ses) => {
   $('menyja').hidden = paMeny; $('aplikacioni').classList.toggle('pa-meny', paMeny);
   $('menyja').innerHTML = MENYTE[profili.roli].map(([k, t]) => `<button data-faqe="${k}">${t}</button>`).join('');
   document.querySelectorAll('#menyja button').forEach((b) => b.onclick = () => hapFaqen(b.dataset.faqe));
+  await ngarkoPikat().catch(() => {});
+  PD_MAG = '002'; MAG_E_MIA = ['002'];
+  if (DEP_ROLET.includes(profili.roli)) {   // departamenti i llogarisë (pa departament = Patron Dantel, si më parë)
+    const p = pikat.find((x) => x.kodi === (profili.pika || 'patron'));
+    const mags = p ? (p.magazinat || []).filter((m) => m.db === 'MINNA SH.P.K.').map((m) => m.mag) : [];
+    if (mags.length) { MAG_E_MIA = mags; PD_MAG = mags[0]; }
+  }
   await Promise.all([ngarkoListat(), eAdmin ? depNis() : null]);
   ngarkoQytetetTP();
   if (eAdmin) { statusi(); setInterval(() => { if (!document.hidden) statusi(); }, 15000); }   // dritat e lidhjes i sheh vetëm Super Admini
@@ -3995,7 +4006,11 @@ async function ngarkoPikat() {
 // Lidhet vetëm me faqet që tregojnë të dhëna; format që shkruajnë në Pro-Data kanë magazinën e vet, që zgjedhja lart të mos e çojë mallin ose shitjen gabim.
 const DEP_FAQET = ['paneli', 'arka', 'shitjet', 'blerjet', 'pagesat', 'klientet', 'produktet'];
 let depZgjedhur = null;
-const depPikat = () => (depZgjedhur ? pikat.filter((p) => depZgjedhur.includes(p.kodi)) : null);
+const depPikat = () => {
+  if (profili && DEP_ROLET.includes(profili.roli)) return pikat.filter((p) => p.kodi === (profili.pika || 'patron'));   // vetëm departamenti i vet
+  if (profili && profili.roli !== 'admin') return null;   // depo, HR: si më parë
+  return depZgjedhur ? pikat.filter((p) => depZgjedhur.includes(p.kodi)) : null;
+};
 const depMagazinat = () => { const s = depPikat(); return s ? [...new Set(s.flatMap((p) => (p.magazinat || []).map((m) => m.mag)))] : null; };
 const depLejon = (mag, db) => { const s = depPikat(); return !s || s.some((p) => iPerket(p, db, mag)); };
 function depVizato() {
@@ -5414,14 +5429,19 @@ function adVizato() {
   const rr = adLista.filter((x) => (f === 'te_gjitha' || (f === 'me_qasje') === !!x.roli) && (!q || [x.llogaria, x.emri].some((v) => String(v || '').toLowerCase().includes(q))));
   $('ad-perdoruesit').innerHTML = rr.map((x) => {
     const vetja = x.user_id === perdoruesi.id;
-    if (!uAdmin) return `<tr><td>${esc(x.llogaria)}</td><td>${esc(x.emri || '')}</td><td>${ROLET[x.roli] || '<span class="zbehte">pa qasje</span>'}</td><td></td><td>${x.hyrja_fundit ? oraKS(x.hyrja_fundit) : '—'}</td><td></td></tr>`;
+    if (!uAdmin) return `<tr><td>${esc(x.llogaria)}</td><td>${esc(x.emri || '')}</td><td>${ROLET[x.roli] || '<span class="zbehte">pa qasje</span>'}</td><td></td><td></td><td>${x.hyrja_fundit ? oraKS(x.hyrja_fundit) : '—'}</td><td></td></tr>`;
+    // departamenti: vetëm për arkën dhe shitëset; Super Admini sheh gjithçka, depo/HR nuk ndahen
+    const dep = DEP_ROLET.includes(x.roli)
+      ? `<select class="ad-pika" title="Departamenti i kësaj llogarie">${pikat.map((p) => `<option value="${esc(p.kodi)}" ${(x.pika || 'patron') === p.kodi ? 'selected' : ''}>${esc(p.emri)}</option>`).join('')}</select>`
+      : `<span class="zbehte">${x.roli === 'admin' ? 'të gjitha' : '—'}</span>`;
     return `<tr data-id="${x.user_id}"><td>${esc(x.llogaria)}${vetja ? ' <span class="shenje s-ok">ti</span>' : ''}</td>
       <td><input class="ad-emri" value="${esc(x.emri || '')}" placeholder="emri" style="width:150px"></td>
       <td><select class="ad-roli" ${vetja ? 'disabled' : ''}><option value="">— pa qasje —</option>${Object.entries(ROLET).map(([k, t]) => `<option value="${k}" ${x.roli === k ? 'selected' : ''}>${t}</option>`).join('')}</select></td>
+      <td>${dep}</td>
       <td>${x.roli ? `<label class="celesi" title="Lejo/ndalo regjistrimin e mallit"><input type="checkbox" class="ad-regj" ${x.lejo_regjistrim ? 'checked' : ''}><span></span></label>` : '<span class="zbehte">—</span>'}</td>
       <td>${x.hyrja_fundit ? oraKS(x.hyrja_fundit) : '—'}</td>
       <td style="white-space:nowrap"><button class="dyte ad-ruaj">Ruaj</button> <button class="dyte ad-pass" title="Vendos fjalëkalim të ri">🔑</button> ${x.roli && !vetja ? '<button class="rrezik ad-hiq">Hiq qasjen</button>' : ''}</td></tr>`;
-  }).join('') || '<tr><td colspan="6" class="zbehte">Asnjë llogari</td></tr>';
+  }).join('') || '<tr><td colspan="7" class="zbehte">Asnjë llogari</td></tr>';
   document.querySelectorAll('#ad-perdoruesit tr[data-id]').forEach((tr) => {
     const id = tr.dataset.id, x = adLista.find((y) => y.user_id === id);
     const ruaj = async (roli) => {
@@ -5437,6 +5457,12 @@ function adVizato() {
       const { data, error } = await sb.rpc('prodata_admin_lejo_regjistrim', { p_user: id, p_lejo: rg.checked });
       const m = $('ad-mesazh'); m.className = 'mesazh ' + (error ? 'gabim' : 'ok'); m.textContent = error ? '❌ ' + error.message : `✅ ${data}: ${x.emri || x.llogaria}`;
       if (error) rg.checked = !rg.checked; else x.lejo_regjistrim = rg.checked;
+    };
+    const pk = tr.querySelector('.ad-pika'); if (pk) pk.onchange = async () => {   // departamenti: vlen nga hyrja e ardhshme e llogarisë
+      const { data, error } = await sb.rpc('prodata_admin_cakto_piken', { p_user: id, p_pika: pk.value });
+      const m = $('ad-mesazh'); m.className = 'mesazh ' + (error ? 'gabim' : 'ok');
+      m.textContent = error ? '❌ ' + error.message : `✅ ${x.emri || x.llogaria} → ${data}. Vlen kur ta rifreskojë faqen ose të hyjë sërish.`;
+      if (error) pk.value = x.pika || 'patron'; else x.pika = pk.value;
     };
     const h = tr.querySelector('.ad-hiq'); if (h) h.onclick = () => ruaj(null);
     tr.querySelector('.ad-pass').onclick = async () => {
