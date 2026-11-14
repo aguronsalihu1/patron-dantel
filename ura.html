@@ -4463,7 +4463,6 @@ NGARKUESIT.stafi = async () => {
 // ---------- Burime njerëzore (Super Admin + roli 'hr'): punëtorët, hyrje/daljet, pushimet, ankesat ----------
 // Programi ura_hr.js në PC-në e urës lexon aparatin ZKTeco UA150 çdo 2 minuta dhe ekzekuton brenda ~10 s komandat
 // e hr_komandat (shto / ndrysho / hiq punëtor). Koha e hyrjeve ruhet si "orë muri" e aparatit (ora e Kosovës): "2025-09-16T14:01:15".
-const HR_GJ = { 0: ['▶', 'hyrje'], 1: ['◀', 'dalje'], 4: ['▶', 'hyrje orë shtesë'], 5: ['◀', 'dalje orë shtesë'] };
 const HR_TABET = [['dita', '📅 Dita'], ['muaji', '🗓️ Muaji'], ['punetoret', '👥 Punëtorët'], ['pushimet', '🌴 Pushimet'], ['ankesat', '📣 Ankesat & vërejtjet']];
 const HR_PUSHIMI = { vjetor: '🌴 Vjetor', mjekesor: '🩺 Mjekësor', pa_pagese: '⏸️ Pa pagesë', lehonie: '👶 Lehonie', festa: '🎉 Festë zyrtare', tjeter: 'Tjetër' };
 const HR_PU_ST = { kerkuar: ['⏳ Kërkuar', 's-pritje'], aprovuar: ['✅ Aprovuar', 's-ok'], refuzuar: ['❌ Refuzuar', 's-gabim'] };
@@ -4650,22 +4649,33 @@ async function hrNgarko(heshtur) {
   hrVizato();
 }
 
-function hrDitet(rr) {   // një rresht për punëtor × ditë: hyrja e parë, dalja e fundit, orët në mes
+// Hyrja/dalja caktohet nga RADHA e kalimeve të kartelës brenda ditës, jo nga butoni i aparatit (13.11.2026, kërkesë e Aguronit):
+// kalimi i 1-rë = hyrje, i 2-ti = dalje, i 3-ti = hyrje (p.sh. pas pushimit), i 4-ti = dalje…
+// Dy kalime brenda 2 minutave (kartela e kaluar dy herë gabimisht) llogariten si një.
+// Orët = shuma e çifteve hyrje→dalje, pra pushimi i drekës zbritet kur punëtori del dhe hyn me kartelë.
+// Numër tek kalimesh = punëtori është brenda (ose harroi të dalë me kartelë).
+const HR_DYFISHI_SEK = 120;
+const HR_LL = { hyrje: ['▶', 'hyrje'], dalje: ['◀', 'dalje'] };
+function hrDitet(rr) {   // një rresht për punëtor × ditë
   const m = new Map();
   for (const r of rr) { const k = r.nr + '|' + r.koha.slice(0, 10);
     if (!m.has(k)) m.set(k, { nr: r.nr, data: r.koha.slice(0, 10), pr: [] });
-    m.get(k).pr.push({ ora: r.koha.slice(11, 16), gj: r.gjendja }); }
+    m.get(k).pr.push({ ora: r.koha.slice(11, 16), sek: hrMin(r.koha.slice(11, 16)) * 60 + (+r.koha.slice(17, 19) || 0) }); }
   const fill = hrMin($('hr-fillimi').value || '08:00'), tol = parseInt($('hr-toleranca').value, 10) || 0;
   return [...m.values()].map((d) => {
-    d.hyrja = d.pr[0].ora; d.dalja = d.pr.length > 1 ? d.pr[d.pr.length - 1].ora : null;
-    d.min = d.dalja ? hrMin(d.dalja) - hrMin(d.hyrja) : null;
+    d.pr.sort((a, b) => a.sek - b.sek);
+    d.pr = d.pr.filter((p, i, a) => i === 0 || p.sek - a[i - 1].sek > HR_DYFISHI_SEK);
+    d.pr.forEach((p, i) => { p.lloji = i % 2 === 0 ? 'hyrje' : 'dalje'; });
+    d.brenda = d.pr.length % 2 === 1;
+    d.hyrja = d.pr[0].ora; d.dalja = d.brenda ? null : d.pr[d.pr.length - 1].ora;
+    let sek = 0; for (let i = 0; i + 1 < d.pr.length; i += 2) sek += d.pr[i + 1].sek - d.pr[i].sek;
+    d.min = d.pr.length > 1 ? Math.round(sek / 60) : null;
     d.vonese = hrMin(d.hyrja) - fill; d.vone = d.vonese > tol;
-    d.brenda = [0, 4].includes(d.pr[d.pr.length - 1].gj);
     return d;
   });
 }
 const hrKerkimi = (nr) => { const q = $('hr-kerko').value.trim().toLowerCase(); return !q || hrEmri(nr).toLowerCase().includes(q) || String(nr) === q; };
-const hrPrHTML = (pr) => pr.map((p) => `<span title="${(HR_GJ[p.gj] || ['', 'gjendja ' + p.gj])[1]}" style="white-space:nowrap">${(HR_GJ[p.gj] || ['•'])[0]} ${p.ora}</span>`).join(' &nbsp;');
+const hrPrHTML = (pr) => pr.map((p) => `<span title="${HR_LL[p.lloji][1]}" style="white-space:nowrap">${HR_LL[p.lloji][0]} ${p.ora}</span>`).join(' &nbsp;');
 const hrVoneHTML = (d) => (d.vone ? `<span class="minus">+${d.vonese} min</span>` : '<span class="zbehte">—</span>');
 const hrKarte = (tit, vl, det, ngjyra) => `<div class="karte"${ngjyra ? ` style="border-left:6px solid ${ngjyra}"` : ''}><div class="tit">${tit}</div><div class="vl">${vl}</div><div class="det">${det || ''}</div></div>`;
 // ditët e pushimit të aprovuar të një punëtori brenda muajit (e hënë–e shtunë)
@@ -4680,7 +4690,7 @@ function hrVizato() {
     const aktivet = Object.values(hrPun).filter((p) => hrAktiv(p) && hrKerkimi(p.nr) && !dd.some((d) => d.nr === p.nr));
     const pushim = aktivet.filter((p) => hrNePushim(p.nr, dita)), mungojne = aktivet.filter((p) => !hrNePushim(p.nr, dita));
     $('hr-permb').innerHTML = hrKarte('Erdhën', dd.length, hrDt(dita), '#1f8a5b')
-      + (sot ? hrKarte('Në punë tani', dd.filter((d) => d.brenda).length, 'regjistrimi i fundit = hyrje') : '')
+      + (sot ? hrKarte('Në punë tani', dd.filter((d) => d.brenda).length, 'kanë hyrë e s\'kanë dalë ende') : '')
       + hrKarte('Me vonesë', dd.filter((d) => d.vone).length, `pas ${$('hr-fillimi').value} + ${parseInt($('hr-toleranca').value, 10) || 0} min`, '#d9482b')
       + hrKarte('Në pushim', pushim.length, 'pushime të aprovuara')
       + hrKarte('Pa regjistrim', mungojne.length, 'punëtorë në punë, pa pushim');
@@ -4713,7 +4723,7 @@ function hrVizato() {
     + (hrHapur.has(r.nr) ? r.dd.map((d) => `<tr style="background:#faf8fb"><td></td><td class="zbehte">${hrDt(d.data)}</td><td colspan="2">${d.hyrja} → ${d.dalja || '—'} · <b>${hrOre(d.min)}</b></td>
       <td colspan="2" class="wrap">${hrPrHTML(d.pr)}</td><td>${hrVoneHTML(d)}</td><td colspan="2"></td></tr>`).join('') : '')).join('')
     || `<tr><td colspan="9" class="zbehte">Asnjë regjistrim në ${hrMuajTekst(m)}.</td></tr>`;
-  $('hr-shenim').textContent = 'Orët = nga hyrja e parë deri te dalja e fundit e ditës (pushimet e drekës nuk zbriten). Kliko punëtorin për ditët e tij.';
+  $('hr-shenim').textContent = 'Kalimi i parë i kartelës në ditë = hyrje, i dyti = dalje, i treti = hyrje… (butoni i aparatit s\'ka rëndësi). Orët = koha mes hyrjeve dhe daljeve, pra pushimi zbritet kur dalin me kartelë. Kliko punëtorin për ditët e tij.';
 }
 
 async function hrExcel() {
@@ -4727,7 +4737,7 @@ async function hrExcel() {
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Nr', 'Punëtori', 'Pozita', 'Pika', 'Ditë pune', 'Orë gjithsej', 'Ditë me vonesë', 'Ditë pa dalje', 'Ditë pushimi'],
     ...[...permb.entries()].sort((a, b) => +a[0] - +b[0]).map(([nr, p]) => [nr, hrEmri(nr), (hrPun[nr] || {}).pozita || '', (hrPun[nr] || {}).pika || '', p.dite, ore(p.min), p.vone, p.paDalje, hrPushimMuaji(nr, m)])]), 'Përmbledhja');
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Nr', 'Punëtori', 'Data', 'Hyrja', 'Dalja', 'Orë', 'Vonesa (min)', 'Të gjitha regjistrimet'],
-    ...ditet.map((d) => [d.nr, hrEmri(d.nr), hrDt(d.data), d.hyrja, d.dalja || '', ore(d.min), d.vone ? d.vonese : '', d.pr.map((p) => `${p.ora} ${(HR_GJ[p.gj] || ['', ''])[1]}`).join(', ')])]), 'Ditët');
+    ...ditet.map((d) => [d.nr, hrEmri(d.nr), hrDt(d.data), d.hyrja, d.dalja || '', ore(d.min), d.vone ? d.vonese : '', d.pr.map((p) => `${p.ora} ${HR_LL[p.lloji][1]}`).join(', ')])]), 'Ditët');
   const pu = hrPushimet.filter((x) => x.statusi === 'aprovuar' && x.prej < hrMuajiPas(m) + '-01' && x.deri >= m + '-01' && hrKerkimi(x.nr));
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['Nr', 'Punëtori', 'Lloji', 'Prej', 'Deri', 'Ditë', 'Shënim'],
     ...pu.map((x) => [x.nr, hrEmri(x.nr), (HR_PUSHIMI[x.lloji] || x.lloji).replace(/^\S+\s/, ''), hrDt(x.prej), hrDt(x.deri), +x.dite, x.shenim || ''])]), 'Pushimet');
@@ -4953,7 +4963,7 @@ function hrDosjaHTML(t, perPrintim) {
   const puDite = puPer.filter((x) => x.statusi === 'aprovuar').reduce((s, x) => s + hrDitePune(prejMin(x.prej, t.prej), deriMin(x.deri, t.deri)), 0);
   const viti = t.deri.slice(0, 4);
   const vjetorMarre = hrPushimet.filter((x) => x.nr === t.nr && x.statusi === 'aprovuar' && x.lloji === 'vjetor' && x.prej.slice(0, 4) === viti).reduce((s, x) => s + +x.dite, 0);
-  const kartat = [['Ditë pune', ditet.length, ''], ['Orë gjithsej', hrOre(tot), meOre.length < ditet.length ? `${ditet.length - meOre.length} ditë pa dalje` : ''],
+  const kartat = [['Ditë pune', ditet.length, ''], ['Orë gjithsej', hrOre(tot), ditet.some((d) => !d.dalja) ? `${ditet.filter((d) => !d.dalja).length} ditë pa dalje` : ''],
     ['Mesatarja / ditë', hrOre(meOre.length ? tot / meOre.length : null), ''], ['Hyrja mesatare', hrOre(ditet.length ? ditet.reduce((s, d) => s + hrMin(d.hyrja), 0) / ditet.length : null), `fillimi ${$('hr-fillimi').value}`],
     ['Vonesa', vone.length, vone.length ? `${vMin} min gjithsej` : ''], ['Ditë pushimi', puDite, 'të aprovuara në periudhë'],
     ['Ankesa / vërejtje', t.ank.filter((x) => ['ankese', 'verejtje', 'paralajmerim', 'incident'].includes(x.lloji)).length, ((n) => (n === 1 ? '1 lavdërim' : `${n} lavdërime`))(t.ank.filter((x) => x.lloji === 'lavderim').length)]];
@@ -4970,7 +4980,7 @@ function hrDosjaHTML(t, perPrintim) {
     ${x.pershkrimi ? `<div style="white-space:pre-wrap">${esc(x.pershkrimi)}</div>` : ''}${x.zgjidhja ? `<div style="white-space:pre-wrap;margin-top:4px"><b>Zgjidhja:</b> ${esc(x.zgjidhja)}</div>` : ''}</div>`).join('');
   const shfaqDitet = !perPrintim || $('hr-d-ditet').checked;
   const tabDitet = `<table><thead><tr><th>Data</th><th>Hyrja</th><th>Dalja</th><th class="n">Orë</th><th>Vonesa</th><th>Regjistrimet</th></tr></thead><tbody>${ditet.map((d) => `<tr><td>${hrDt(d.data)}</td><td>${d.hyrja}</td><td>${d.dalja || '—'}</td><td class="n">${hrOre(d.min)}</td>
-    <td>${d.vone ? `<span class="vone">+${d.vonese} min</span>` : ''}</td><td>${d.pr.map((x) => `${(HR_GJ[x.gj] || ['•'])[0]} ${x.ora}`).join('  ')}</td></tr>`).join('') || '<tr><td colspan="6" class="zb">Asnjë regjistrim</td></tr>'}</tbody></table>`;
+    <td>${d.vone ? `<span class="vone">+${d.vonese} min</span>` : ''}</td><td>${d.pr.map((x) => `${HR_LL[x.lloji][0]} ${x.ora}`).join('  ')}</td></tr>`).join('') || '<tr><td colspan="6" class="zb">Asnjë regjistrim</td></tr>'}</tbody></table>`;
   return `<div class="ds">
     ${perPrintim ? `<div style="display:flex;justify-content:space-between;font-size:11px;color:#6b5f73;margin-bottom:8px"><span>DOSJA E PUNËTORIT · Burime njerëzore</span><span>Printuar më ${hrDt(sot)}${hrUneEmri() ? ' nga ' + esc(hrUneEmri()) : ''}</span></div>` : ''}
     <div class="ds-koka"><div><div class="ds-emri">${esc(hrEmri(t.nr))}</div><div class="ds-sub">${[p.pozita, p.pika].filter(Boolean).map(esc).join(' · ') || 'Pozita/pika pa plotësuar'}</div></div>
