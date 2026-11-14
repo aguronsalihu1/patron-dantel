@@ -596,7 +596,10 @@
   <section class="faqe" id="f-llogaria">
     <h2 id="ll-titulli">Llogaria ime</h2>
     <div class="karta" id="ll-karta"></div>
-    <h3>Faturat e mia sot</h3>
+    <div class="rresht" style="justify-content:space-between;align-items:flex-end"><h3 style="margin:16px 0 6px">Faturat e mia</h3>
+      <label>Periudha <select id="ll-periudha"><option value="0">Sot</option><option value="1">Dje</option><option value="7">7 ditët e fundit</option><option value="30">30 ditët e fundit</option></select></label></div>
+    <input type="search" id="ll-kerko" placeholder="🔎 Kërko me nr. të faturës ose emrin e klientit" style="width:100%;margin-bottom:8px">
+    <p class="zbehte" style="margin:0 0 8px">👆 Kliko një faturë për ta printuar përsëri (A4 ose e vogël).</p>
     <div class="ar-pritje" id="ll-faturat"></div>
     <div id="ll-barkodi"></div>
   </section>
@@ -701,7 +704,7 @@
     <div class="rresht" style="justify-content:space-between"><h2 style="margin:0">Shitjet</h2>
       <label>Periudha <select id="sl-periudha"><option value="sot">Sot</option><option value="dje">Dje</option><option value="7" selected>7 ditët e fundit</option><option value="muaj">Ky muaj</option></select></label></div>
     <h3>Faturat nga aplikacioni</h3>
-    <div class="tabela"><table><thead><tr><th>Nr</th><th>Koha</th><th>Shitësja</th><th>Klienti</th><th class="num">Totali</th><th>Statusi</th><th>Pro-Data</th></tr></thead><tbody id="sl-app"></tbody></table></div>
+    <div class="tabela"><table><thead><tr><th>Nr</th><th>Koha</th><th>Shitësja</th><th>Klienti</th><th class="num">Totali</th><th>Statusi</th><th>Pro-Data</th><th>Printo</th></tr></thead><tbody id="sl-app"></tbody></table></div>
     <h3>Shitjet e regjistruara në Pro-Data</h3>
     <div class="tabela"><table><thead><tr><th>Data</th><th>Nr</th><th>Lloji</th><th>Pika</th><th>Shitësja</th><th>Pagesa</th><th class="num">Totali</th></tr></thead><tbody id="sl-pd"></tbody></table></div>
   </section>
@@ -2779,17 +2782,40 @@ NGARKUESIT.llogaria = async () => {
   $('ll-karta').innerHTML = `<div class="karte"><div class="tit">Porosi të dërguara sot</div><div class="vl">${sot.filter((f) => f.statusi !== 'anuluar').length}</div></div>
     <div class="karte"><div class="tit">Të regjistruara</div><div class="vl">${reg.length}</div><div class="det">${eur(reg.reduce((s, f) => s + +f.totali, 0))} €</div></div>
     <div class="karte"><div class="tit">Në arkë</div><div class="vl">${sot.filter((f) => f.statusi === 'ne_arke').length}</div></div>`;
-  $('ll-faturat').innerHTML = sot.map((f) => `<button class="ar-karte" data-id="${f.id}"><div class="rresht" style="justify-content:space-between;margin:0"><span class="nr">#${f.nr}</span>${shenje(f.statusi)}</div>
+  await llListo();
+};
+// Faturat e mia (14.11.2026, Aguroni): edhe faturat e ditëve të kaluara mund të hapen dhe të printohen përsëri, direkt te roboti i arkës.
+let llFaturat = [];
+async function llListo() {
+  const dite = +$('ll-periudha').value || 0, dita = ditaPlus(dataKS(), -(dite === 1 ? 1 : dite));
+  const { data, error } = await sb.from('app_faturat').select('*').eq('shitesja_id', perdoruesi.id).gte('krijuar', fillimiDitesKS(dita).toISOString())
+    .order('krijuar', { ascending: false }).limit(300);
+  if (error) { $('ll-faturat').innerHTML = `<p class="mesazh gabim" style="display:block">❌ ${esc(error.message)}</p>`; return; }
+  llFaturat = (data || []).filter((f) => dite !== 1 || dataKS(new Date(f.krijuar)) === dita);
+  llVizato();
+}
+function llVizato() {
+  const q = $('ll-kerko').value.trim().toLowerCase().replace(/^#/, '');
+  const rr = llFaturat.filter((f) => !q || String(f.nr).includes(q) || String(f.klienti_emri || '').toLowerCase().includes(q) || String(f.porosia_nr || '').toLowerCase().includes(q));
+  $('ll-faturat').innerHTML = rr.map((f) => `<button class="ar-karte" data-id="${f.id}"><div class="rresht" style="justify-content:space-between;margin:0"><span class="nr">#${f.nr}</span>${shenje(f.statusi)}</div>
       <div class="tot">${eur(f.totali)} €</div><div class="zbehte">${oraKS(f.krijuar)} · ${esc(f.klienti_emri || 'Qytetar')}${f.porosia_nr ? ' · Pro-Data ' + esc(f.porosia_nr) : ''}</div>
-      ${f.statusi === 'ne_arke' ? '<div class="zbehte" style="margin-top:4px">👆 Kliko për barkodin</div>' : ''}</button>`).join('')
-    || '<p class="zbehte">Ende asnjë faturë sot.</p>';
+      <div class="zbehte" style="margin-top:4px">👆 ${f.statusi === 'ne_arke' ? 'Kliko për barkodin / printim' : f.statusi === 'anuluar' ? 'E anuluar' : 'Kliko për printim'}</div></button>`).join('')
+    || `<p class="zbehte">${q ? 'Asnjë faturë me këtë kërkim.' : 'Asnjë faturë në këtë periudhë.'}</p>`;
   document.querySelectorAll('#ll-faturat [data-id]').forEach((b) => b.onclick = () => {
-    const f = sot.find((x) => x.id === b.dataset.id);
-    if (f.statusi !== 'ne_arke') return;
-    shfaqBarkodin($('ll-barkodi'), f, false); $('ll-barkodi').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const f = llFaturat.find((x) => x.id === b.dataset.id); if (!f || f.statusi === 'anuluar') return;
+    const el = $('ll-barkodi');
+    if (f.statusi === 'ne_arke') shfaqBarkodin(el, f, false); else { el.innerHTML = ''; el.hidden = false; }
+    const k = document.createElement('div'); k.className = 'sh-pyetja'; el.appendChild(k);
+    k.innerHTML = `<b style="font-size:18px">Printo faturën nr. ${f.nr}</b><div class="zbehte" style="margin:4px 0 10px">${eur(f.totali)} € · ${oraKS(f.krijuar)} · ${esc(f.klienti_emri || 'Qytetar')}${f.porosia_nr ? ' · Pro-Data ' + esc(f.porosia_nr) : ''}</div>
+      <div class="sh-dy"><button class="kryesor sh-arka-btn sh-regj-btn" data-f="a4">📄 Faturë A4</button><button class="kryesor sh-arka-btn" data-f="80">🧾 Faturë e vogël</button></div>
+      <p class="zbehte" style="margin:8px 0 0">Printohet te printerat e arkës (roboti), jo te telefoni.</p>`;
+    k.querySelectorAll('[data-f]').forEach((x) => x.onclick = () => printoFaturenArka(f.nr, x.dataset.f, 'arka-' + x.dataset.f));
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
   });
   rifreskoStatusetBk();
-};
+}
+$('ll-periudha').onchange = () => { $('ll-barkodi').innerHTML = ''; llListo(); };
+$('ll-kerko').oninput = llVizato;
 NGARKUESIT.fiz_home = async () => {
   const { data } = await sb.from('app_faturat').select('statusi, krijuar').eq('shitesja_id', perdoruesi.id).gte('krijuar', new Date(Date.now() - 864e5).toISOString());
   const sot = (data || []).filter((f) => dataKS(new Date(f.krijuar)) === dataKS() && f.statusi !== 'anuluar');
@@ -4217,7 +4243,9 @@ NGARKUESIT.shitjet = async () => {
   let qPd = sb.from('prodata_shitjet').select('*').gte('data', prej + 'T00:00:00+02:00').lte('data', deri + 'T23:59:59+02:00');
   if (mags) { qApp = qApp.in('magazina', mags); qPd = qPd.in('magazina', mags); }
   const [{ data: app }, { data: pd }] = await Promise.all([qApp.order('krijuar', { ascending: false }).limit(300), qPd.order('data', { ascending: false }).limit(500)]);
-  $('sl-app').innerHTML = (app || []).filter((f) => ditaKS(f.krijuar) <= deri).map((f) => `<tr><td>${f.nr}</td><td>${oraKS(f.krijuar)}</td><td>${esc(f.shitesja_emri || '')}</td><td>${esc(f.klienti_emri || 'Qytetar')}</td><td class="num">${eur(f.totali)}</td><td>${shenje(f.statusi)}</td><td>${esc(f.porosia_nr || '')}</td></tr>`).join('') || '<tr><td colspan="7" class="zbehte">Asnjë</td></tr>';
+  $('sl-app').innerHTML = (app || []).filter((f) => ditaKS(f.krijuar) <= deri).map((f) => `<tr><td>${f.nr}</td><td>${oraKS(f.krijuar)}</td><td>${esc(f.shitesja_emri || '')}</td><td>${esc(f.klienti_emri || 'Qytetar')}</td><td class="num">${eur(f.totali)}</td><td>${shenje(f.statusi)}</td><td>${esc(f.porosia_nr || '')}</td>
+    <td style="white-space:nowrap">${f.statusi === 'anuluar' ? '' : `<button class="dyte sl-pr" data-nr="${f.nr}" data-f="80" title="Faturë e vogël te XP-80C">🧾</button> <button class="dyte sl-pr" data-nr="${f.nr}" data-f="a4" title="Faturë A4 te HP">📄</button>`}</td></tr>`).join('') || '<tr><td colspan="8" class="zbehte">Asnjë</td></tr>';
+  document.querySelectorAll('#sl-app .sl-pr').forEach((b) => b.onclick = () => printoFaturenArka(+b.dataset.nr, b.dataset.f, 'arka-' + b.dataset.f));
   const emriPikes = (x) => { const p = pikat.find((p) => iPerket(p, x.databaza, x.magazina)); return p ? p.emri : `${x.magazina}${x.databaza && x.databaza !== DB1 ? ' (' + x.databaza + ')' : ''}`; };
   $('sl-pd').innerHTML = (pd || []).map((x) => `<tr><td>${dataKS(new Date(x.data))}</td><td>${esc(x.nr)}</td><td>${esc(x.txn || '')}</td><td>${esc(emriPikes(x))}</td><td>${esc(x.agjenti || '')}</td><td>${esc(x.menyra_pagese || '')}</td><td class="num">${eur(x.totali)}</td></tr>`).join('') || '<tr><td colspan="7" class="zbehte">Asnjë</td></tr>';
 };
