@@ -1570,7 +1570,7 @@ function shPyetFaturen(f) {
   el.innerHTML = `<b style="font-size:18px">Çfarë fature do për shitjen nr. ${f.nr}?</b><div class="zbehte" style="margin:4px 0 10px">${eur(f.totali)} €</div>
     <div class="sh-dy"><button class="kryesor sh-arka-btn sh-regj-btn" data-f="a4">📄 Faturë A4</button><button class="kryesor sh-arka-btn" data-f="80">🧾 Faturë e vogël</button></div>
     <button class="dyte" data-f="" style="margin-top:8px">Pa faturë</button>`;
-  el.querySelectorAll('[data-f]').forEach((b) => b.onclick = () => { el.hidden = true; if (b.dataset.f) printoFaturenArka(f.nr, b.dataset.f); });
+  el.querySelectorAll('[data-f]').forEach((b) => b.onclick = () => { el.hidden = true; if (b.dataset.f) printoFaturenArka(f.nr, b.dataset.f, 'arka-' + b.dataset.f); });   // direkt te roboti i arkës (XP-80C / HP), jo te printerat e telefonit (14.11.2026)
   el.hidden = false; el.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 $('sh-posta-link').onclick = () => alert('Lidhja me web-in e postës lokale: më trego cilën postë përdorni dhe adresën e saj, dhe e lidh këtu.');
@@ -1641,7 +1641,7 @@ async function arkaHap(nr) {
   };
 }
 // Fatura e plotë për klientin, nga arka (para ose pas regjistrimit; pas regjistrimit me nr. e porosisë në Pro-Data)
-async function printoFaturenArka(nr, formati) {
+async function printoFaturenArka(nr, formati, ku) {
   const { data: f, error } = await sb.from('app_faturat').select('*').eq('nr', nr).maybeSingle();
   if (error || !f) return alert('Fatura nuk u gjet: ' + (error ? error.message : nr));
   const p = $('printimi'); p.className = formati === '80' ? 'e80' : '';
@@ -1653,7 +1653,7 @@ async function printoFaturenArka(nr, formati) {
     ${(f.rreshtat || []).map((r) => `<tr><td>${esc(r.kodi)} ${esc(r.emri)}${zbrTekst(r)}</td><td>${r.sasia}</td><td>${eur(r.cmimi)}</td><td>${eur(vleraRr(r))}</td></tr>`).join('')}</table>
     ${zbrTotaliPrint(f)}<p style="text-align:right;font-size:1.3em"><b>Totali: ${eur(f.totali)} €</b><br><span style="font-size:.8em">Çmimet përfshijnë TVSH-në</span></p>
     <p style="text-align:center">Faleminderit!</p>`;
-  await dergoPrintin(formati, 'Faturë ' + f.nr);
+  await dergoPrintin(formati, 'Faturë ' + f.nr, ku);
 }
 async function arkaListo() {
   const { data: teGjitha } = await sb.from('app_faturat').select('nr, krijuar, shitesja_emri, klienti_emri, totali, magazina, rreshtat').eq('statusi', 'ne_arke').neq('kanali', 'online').order('krijuar');
