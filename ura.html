@@ -835,6 +835,15 @@
         <div class="tabela"><table><thead id="hr-koka"></thead><tbody id="hr-trupi"></tbody></table></div>
         <div class="zbehte" id="hr-shenim" style="margin-top:8px"></div>
       </div>
+      <!-- Tani: kush është në punë në këtë moment -->
+      <div id="hr-p-tani" hidden>
+        <div class="rresht" style="justify-content:space-between;align-items:center">
+          <div><b id="hr-t-titulli">🟢 Tani</b> <span class="zbehte" id="hr-t-koha"></span></div>
+          <button class="dyte" type="button" id="hr-t-rifresko">↻ Rifresko</button>
+        </div>
+        <div class="karta" id="hr-t-permb"></div>
+        <div id="hr-t-lista"></div>
+      </div>
       <!-- Punëtorët: dosja + shto/ndrysho/hiq nga aparati -->
       <div id="hr-p-punetoret" hidden>
         <div class="rresht">
@@ -4466,7 +4475,7 @@ NGARKUESIT.stafi = async () => {
 // ---------- Burime njerëzore (Super Admin + roli 'hr'): punëtorët, hyrje/daljet, pushimet, ankesat ----------
 // Programi ura_hr.js në PC-në e urës lexon aparatin ZKTeco UA150 çdo 2 minuta dhe ekzekuton brenda ~10 s komandat
 // e hr_komandat (shto / ndrysho / hiq punëtor). Koha e hyrjeve ruhet si "orë muri" e aparatit (ora e Kosovës): "2025-09-16T14:01:15".
-const HR_TABET = [['dita', '📅 Dita'], ['muaji', '🗓️ Muaji'], ['punetoret', '👥 Punëtorët'], ['pushimet', '🌴 Pushimet'], ['ankesat', '📣 Ankesat & vërejtjet']];
+const HR_TABET = [['dita', '📅 Dita'], ['muaji', '🗓️ Muaji'], ['tani', '🟢 Tani'], ['punetoret', '👥 Punëtorët'], ['pushimet', '🌴 Pushimet'], ['ankesat', '📣 Ankesat & vërejtjet']];
 const HR_PUSHIMI = { vjetor: '🌴 Vjetor', mjekesor: '🩺 Mjekësor', pa_pagese: '⏸️ Pa pagesë', lehonie: '👶 Lehonie', festa: '🎉 Festë zyrtare', tjeter: 'Tjetër' };
 const HR_PU_ST = { kerkuar: ['⏳ Kërkuar', 's-pritje'], aprovuar: ['✅ Aprovuar', 's-ok'], refuzuar: ['❌ Refuzuar', 's-gabim'] };
 const HR_AN_LL = { ankese: '😟 Ankesë', verejtje: '⚠️ Vërejtje', paralajmerim: '🛑 Paralajmërim', lavderim: '🌟 Lavdërim', incident: '🚨 Incident', tjeter: '📝 Tjetër' };
@@ -4550,6 +4559,10 @@ async function hrNis() {
     $('hr-d-prej').onchange = hrDosjaNgarko; $('hr-d-deri').onchange = hrDosjaNgarko;
     $('hr-d-ndrysho').onclick = () => { const nr = hrDosjaNr; hrPamja = 'punetoret'; hrNgarko(); hrHapFormen(nr); };
     $('hr-d-printo').onclick = () => hrDosjaPrinto();
+    // Tani: rifreskohet vetë çdo minutë kur faqja është e hapur (ura e lexon aparatin çdo 2 minuta)
+    $('hr-t-rifresko').onclick = () => hrTaniNgarko();
+    $('hr-t-lista').onclick = (e) => { const k = e.target.closest('[data-dosja]'); if (k) hrHapDosjen(k.dataset.dosja); };
+    setInterval(() => { if (hrPamja === 'tani' && $('f-stafi').classList.contains('aktive') && !document.hidden) hrTaniNgarko(true); }, 60000);
     $('hr-p-excel').onclick = () => hrExcelPun().catch((e) => alert(e.message));
     // Pushimet
     $('hr-pu-lloji').innerHTML = Object.entries(HR_PUSHIMI).map(([k, t]) => `<option value="${k}">${t}</option>`).join('');
@@ -4631,6 +4644,8 @@ async function hrNgarko(heshtur) {
   const hyrjet = hrPamja === 'dita' || hrPamja === 'muaji';
   $('hr-p-hyrjet').hidden = !hyrjet; $('hr-p-punetoret').hidden = hrPamja !== 'punetoret';
   $('hr-p-pushimet').hidden = hrPamja !== 'pushimet'; $('hr-p-ankesat').hidden = hrPamja !== 'ankesat'; $('hr-p-dosja').hidden = hrPamja !== 'dosja';
+  $('hr-p-tani').hidden = hrPamja !== 'tani';
+  if (hrPamja === 'tani') return hrTaniNgarko();
   if (hrPamja === 'dosja') return hrDosjaNgarko();
   if (hrPamja === 'punetoret') { hrVizatoPun(); await hrNgarkoHyrjenFundit().catch(() => {}); return hrNgarkoKomandat(); }
   if (hrPamja === 'pushimet') { await hrNgarkoPushimet().catch(() => {}); return hrVizatoPushimet(); }
@@ -4887,6 +4902,55 @@ async function hrExcelPun() {
     ...rr.map((p) => [p.nr, hrEmri(p.nr), p.pozita || '', p.pika || '', p.telefoni || '', hrDt(p.data_fillimit).replace('—', ''), p.kontrata || '', hrDt(p.kontrata_deri).replace('—', ''),
       +p.ditet_pushimit, p.kartela || '', p.ne_aparat ? 'Po' : 'Jo', hrAktiv(p) ? 'Në punë' : 'Larguar', hrDt(p.data_largimit).replace('—', ''), p.shenim || ''])]), 'Punëtorët');
   XLSX.writeFile(wb, `Punetoret_${dataKS()}.xlsx`);
+}
+
+// ---------- 🟢 Tani: kush është në punë, kush ka dalë, kush është në pushim, kush mungon ----------
+(() => { const s = document.createElement('style'); s.textContent = `
+  .hr-drite { display:inline-block; width:12px; height:12px; border-radius:50%; flex:none; background:#22c55e; animation:hrPulso 1.6s ease-out infinite; }
+  .hr-drite.dal { background:#94a3b8; animation:none; } .hr-drite.mung { background:#ef4444; animation:none; } .hr-drite.push { background:#f59e0b; animation:none; }
+  @keyframes hrPulso { 0% { box-shadow:0 0 0 0 rgba(34,197,94,.7); } 70% { box-shadow:0 0 0 9px rgba(34,197,94,0); } 100% { box-shadow:0 0 0 0 rgba(34,197,94,0); } }
+  @media (prefers-reduced-motion: reduce) { .hr-drite { animation:none; } }
+  .hr-t-grup { margin:16px 0 6px; font-weight:700; display:flex; align-items:center; gap:8px; font-size:16px; }
+  .hr-t-rrjeta { display:grid; grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); gap:8px; }
+  .hr-t-p { display:flex; align-items:center; gap:10px; border:1px solid var(--vije); border-radius:12px; padding:10px 12px; background:#fff; cursor:pointer; }
+  .hr-t-p.ne-pune { border-color:#bbe5c8; background:#f3fbf5; } .hr-t-p.mungon { border-color:#f3c4c0; background:#fdf5f4; }
+  .hr-t-p b { display:block; overflow-wrap:anywhere; } .hr-t-p small { color:var(--zbehte); }`; document.head.appendChild(s); })();
+async function hrTaniNgarko(heshtur) {
+  const sot = dataKS();
+  if (!heshtur) $('hr-t-lista').innerHTML = '<div class="zbehte">Duke ngarkuar…</div>';
+  try {
+    const [{ data, error }] = await Promise.all([
+      sb.from('hr_regjistrimet').select('nr, koha, gjendja').gte('koha', sot).lt('koha', hrDitaPas(sot)).order('koha').order('id').limit(5000),
+      hrNgarkoPun().catch(() => {}), hrNgarkoPushimet().catch(() => {})]);
+    if (error) throw new Error(error.message);
+    hrTaniVizato(sot, hrDitet(data || []));
+  } catch (e) { $('hr-t-lista').innerHTML = `<div class="mesazh gabim">${esc(e.message)}</div>`; }
+}
+function hrTaniVizato(sot, ditet) {
+  const sipasNr = Object.fromEntries(ditet.map((d) => [d.nr, d]));
+  const aktive = Object.values(hrPun).filter(hrAktiv).sort((a, b) => hrEmri(a.nr).localeCompare(hrEmri(b.nr), 'sq'));
+  const nePune = [], kaneDale = [], nePushim = [], mungojne = [];
+  for (const p of aktive) {
+    const d = sipasNr[p.nr];
+    if (d && d.brenda) nePune.push([p, d]); else if (d) kaneDale.push([p, d]);
+    else if (hrNePushim(p.nr, sot)) nePushim.push([p, hrNePushim(p.nr, sot)]); else mungojne.push([p, null]);
+  }
+  // edhe ata që kaluan kartelën sot, por s'janë më "në punë" në sistem (p.sh. të larguar)
+  for (const d of ditet) if (!aktive.some((p) => p.nr === d.nr)) (d.brenda ? nePune : kaneDale).push([hrPun[d.nr] || { nr: d.nr }, d]);
+  nePune.sort((a, b) => a[1].hyrja.localeCompare(b[1].hyrja));
+  const ora = new Date().toLocaleTimeString('sq-AL', { timeZone: 'Europe/Belgrade', hour: '2-digit', minute: '2-digit' });
+  $('hr-t-koha').textContent = `· ${hrDt(sot)}, përditësuar ${ora} · rifreskohet vetë çdo minutë`;
+  $('hr-t-permb').innerHTML = hrKarte('🟢 Në punë', nePune.length, 'tani brenda', '#22c55e') + hrKarte('Kanë dalë', kaneDale.length, 'erdhën sot dhe dolën', '#94a3b8')
+    + hrKarte('🌴 Në pushim', nePushim.length, 'pushime të aprovuara', '#f59e0b') + hrKarte('🔴 Mungojnë', mungojne.length, 'pa asnjë kalim sot', '#ef4444');
+  const pune = (lista, klasa, drite, pershkrim) => `<div class="hr-t-rrjeta">${lista.map(([p, x]) => `<div class="hr-t-p ${klasa}" data-dosja="${esc(p.nr)}" title="Hap dosjen">
+    <span class="hr-drite ${drite}"></span><div><b>${esc(hrEmri(p.nr))}</b><small>${pershkrim(p, x)}</small></div></div>`).join('')}</div>`;
+  const vone = (d) => (d.vone ? ` · <span class="minus">vonë +${d.vonese} min</span>` : '');
+  const grupi = (titulli, lista, html) => `<div class="hr-t-grup">${titulli} <span class="zbehte" style="font-weight:400">(${lista.length})</span></div>${lista.length ? html : '<div class="zbehte">Asnjë</div>'}`;
+  $('hr-t-lista').innerHTML = (aktive.length || ditet.length ? '' : '<div class="udhezim">Nuk ka ende punëtorë të regjistruar. Shtoji te 👥 Punëtorët.</div>')
+    + grupi('<span class="hr-drite"></span> Në punë tani', nePune, pune(nePune, 'ne-pune', '', (p, d) => `hyri ${d.hyrja}${d.pr.length > 1 ? ` · ${d.pr.length} kalime` : ''}${vone(d)}${p.pozita ? ' · ' + esc(p.pozita) : ''}`))
+    + grupi('<span class="hr-drite mung"></span> Mungojnë', mungojne, pune(mungojne, 'mungon', 'mung', (p) => esc([p.pozita, p.pika].filter(Boolean).join(' · ') || 'pa asnjë kalim sot')))
+    + grupi('<span class="hr-drite push"></span> Në pushim', nePushim, pune(nePushim, '', 'push', (p, x) => `${HR_PUSHIMI[x.lloji] || ''} deri ${hrDt(x.deri)}`))
+    + grupi('<span class="hr-drite dal"></span> Kanë dalë', kaneDale, pune(kaneDale, '', 'dal', (p, d) => `${d.hyrja} → ${d.dalja} · ${hrOre(d.min)} orë${vone(d)}`));
 }
 
 // ---------- Dosja e punëtorit (ekran + raport për printim A4) ----------
