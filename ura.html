@@ -866,7 +866,7 @@
         <datalist id="hr-l-pikat"></datalist><datalist id="hr-l-pozitat"></datalist>
         <div id="hr-komandat"></div>
         <div class="tabela"><table><thead><tr><th><input type="checkbox" id="hr-p-te" title="Zgjidh të gjithë në listë" style="min-width:0;width:18px;height:18px"></th><th>Nr</th><th>Punëtori</th><th>Pozita</th><th>Pika</th><th>Telefoni</th><th>Fillimi</th><th>Kontrata</th><th>Kartela</th><th>Hyrja e fundit</th><th>Aparati</th></tr></thead><tbody id="hr-p-trupi"></tbody></table></div>
-        <div class="zbehte" style="margin-top:8px">Kliko punëtorin për të hapur dosjen e tij (dhe për ta ndryshuar ose printuar). Ndryshimet e emrit dhe të kartelës shkojnë vetë te aparati brenda pak sekondash (emri te aparati del pa ë/ç, deri 24 shkronja).</div>
+        <div class="zbehte" style="margin-top:8px">Kliko punëtorin për të hapur dosjen e tij (dhe për ta ndryshuar ose printuar). Ndryshimet e emrit dhe të kartelës shkojnë vetë te aparati brenda pak sekondash (emri te aparati del pa ë/ç, deri 23 shkronja; emri i plotë mbetet këtu).</div>
       </div>
       <!-- Dosja e punëtorit: të dhënat, vijueshmëria, pushimet, ankesat; printohet si raport -->
       <div id="hr-p-dosja" hidden>
@@ -4461,7 +4461,7 @@ const hrMuajTekst = (m) => (m ? `${HR_MUAJT[+m.slice(5, 7) - 1]} ${m.slice(0, 4)
 const hrMuajiPas = (m) => { const [y, mm] = m.split('-').map(Number); return mm === 12 ? `${y + 1}-01` : `${y}-${String(mm + 1).padStart(2, '0')}`; };
 const hrMuajiZgjedhur = () => (hrPamja === 'dita' ? ($('hr-data').value || dataKS()).slice(0, 7) : $('hr-muaji').value);
 const hrEmri = (nr) => { const p = hrPun[nr]; return p ? (p.emri || p.emri_aparat || 'Nr ' + nr) : 'Nr ' + nr; };
-const hrEmriAparat = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\x20-\x7e]/g, '').trim().slice(0, 24);
+const hrEmriAparat = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\x20-\x7e]/g, '').trim().slice(0, 23).trim();   // 23: me 24 shkronja aparati e ngjit emrin me kartelën
 const hrAktiv = (p) => p && p.aktiv !== false;
 // Kartelat (badge EM 125 kHz) kanë të shtypur "0004776907 072,58315": numri 10-shifror = ai që ruan aparati;
 // "072,58315" = i njëjti numër i ndarë (72 × 65536 + 58315). Pranohen të dyja format ose vetëm njëri; nëse jepen të dyja, duhet të përputhen.
