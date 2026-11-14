@@ -4190,10 +4190,14 @@ async function paneli() {
   $('p-pikat-blloku').hidden = !!zgjedhur && zgjedhur.length === 1;
   if (!$('p-pikat-blloku').hidden) {
     const brenda = (x) => pikat.some((p) => iPerket(p, x.databaza, x.magazina));
-    const kartePike = (emri, sh, pg) => { const cash = sum(pg.filter((p) => p.lloji === 'PGH01' && p.grupi === 'Cash'), (x) => +x.shuma), tjera = sum(pg.filter((p) => p.lloji === 'PGH01' && p.grupi !== 'Cash'), (x) => +x.shuma);
-      return karte(esc(emri), eur(sum(sh)) + ' €', `${sh.length} shitje · arkëtuar: cash ${eur(cash)} €, kartë/bankë/online ${eur(tjera)} €`); };
-    $('p-pikat').innerHTML = (zgjedhur || pikat).map((p) => kartePike(p.emri, (shPD || []).filter((x) => iPerket(p, x.databaza, x.magazina)), (pag || []).filter((x) => iPerket(p, x.databaza, x.magazina)))).join('')
-      + (zgjedhur ? '' : kartePike('Të tjera (depo, online, wholesale…)', (shPD || []).filter((x) => !brenda(x)), (pag || []).filter((x) => !brenda(x))));
+    // 14.11.2026: shitjet e regjistruara nga aplikacioni (p.sh. "Regjistro shitjen" i shitëses) janë në Pro-Data porosi të hapura derisa arka të shtypë kuponin,
+    // prandaj s'dalin te shitjet e Pro-Data-s: tregohen veç, pa u mbledhur me to (që të mos numërohen dy herë pasi porosia kthehet në shitje).
+    const appReg = appGj.filter((f) => f.statusi === 'regjistruar' && f.kanali !== 'online');
+    const kartePike = (emri, sh, pg, ap) => { const cash = sum(pg.filter((p) => p.lloji === 'PGH01' && p.grupi === 'Cash'), (x) => +x.shuma), tjera = sum(pg.filter((p) => p.lloji === 'PGH01' && p.grupi !== 'Cash'), (x) => +x.shuma);
+      return karte(esc(emri), eur(sum(sh)) + ' €', `${sh.length} shitje në Pro-Data · arkëtuar: cash ${eur(cash)} €, kartë/bankë/online ${eur(tjera)} €`
+        + (ap.length ? `<br><b>📱 + ${ap.length} shitje nga aplikacioni: ${eur(sum(ap))} €</b> <span title="Në Pro-Data janë porosi; bëhen shitje kur arka shtyp kuponin fiskal">(porosi, presin kuponin)</span>` : '')); };
+    $('p-pikat').innerHTML = (zgjedhur || pikat).map((p) => kartePike(p.emri, (shPD || []).filter((x) => iPerket(p, x.databaza, x.magazina)), (pag || []).filter((x) => iPerket(p, x.databaza, x.magazina)), appReg.filter((f) => iPerket(p, DB1, f.magazina)))).join('')
+      + (zgjedhur ? '' : kartePike('Të tjera (depo, online, wholesale…)', (shPD || []).filter((x) => !brenda(x)), (pag || []).filter((x) => !brenda(x)), appReg.filter((f) => !pikat.some((p) => iPerket(p, DB1, f.magazina)))));
   }
   // Filtri sipas departamenteve të zgjedhura lart
   const fP = (x) => depLejon(x.magazina, x.databaza);
