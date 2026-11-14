@@ -2405,7 +2405,7 @@ $('mg-l-me-shume').onclick = () => mgListaNgarko(true);
 // Lista: kodet e regjistruara (vetëm ato në Pro-Data), sipas datës/kërkimit, një rresht për artikull + artikuj të shtuar me dorë.
 // Printimi: "dritarja" = dritarja e printimit e këtij kompjuteri → punon me çdo printer etiketash të instaluar (Zebra, TSC,
 // Xprinter, Godex, Brother…): një faqe = një etiketë (@page sa etiketa). Ose direkt te një printer etiketash i robotit (ZPL).
-// Etiketa: kodi lart · barkodi (Code 128) · barkodi me shkronja (kur ndryshon nga kodi) · çmimi poshtë. Pas printimit → 🏷️.
+// Etiketa: kodi lart · emri i produktit (≤2 rreshta) · barkodi (Code 128) · barkodi me shkronja (kur ndryshon nga kodi) · çmimi poshtë. Pas printimit → 🏷️.
 let etRreshtat = [], etNr = 0, etGati = false;
 const etLexo = (c, d) => { try { return localStorage.getItem('pd-etiketa-' + c) || d; } catch { return d; } };
 const etRuaj = (c, v) => { try { localStorage.setItem('pd-etiketa-' + c, v); } catch {} };
@@ -2503,7 +2503,7 @@ $('et-printeri').onchange = () => { etRuaj('printeri', $('et-printeri').value); 
 // Prandaj letra vjen nga printeri (Paper size), faqja = etiketa; "Rrotullo 90°" kur drajveri e ka letrën të kthyer anash.
 async function etFaqja(lista, m, prove, rrot) {
   await ngarkoLib(LIB_BARKOD);
-  const W = m.w, H = m.h, hB = (H * (prove ? 0.25 : 0.4)).toFixed(2);
+  const W = m.w, H = m.h, hB = (H * (prove ? 0.25 : 0.3)).toFixed(2);   // 0.3: lë vend për emrin e produktit (13.11.2026)
   const fit = (t, max, ber = 0.6) => Math.min(max, (W - 3) / Math.max(1, String(t || '').length * ber)).toFixed(2);   // shkrimi zvogëlohet që të nxë
   const fK = (t) => fit(t, H * 0.15), fC = (t) => fit(t, H * 0.17), fB = (t) => fit(t, H * 0.08, 0.56);
   const PW = rrot ? H : W, PH = rrot ? W : H;   // faqja (letra) në printer
@@ -2519,7 +2519,7 @@ async function etFaqja(lista, m, prove, rrot) {
   };
   const tekst = (k, t) => `<div class="${k}" style="font-size:${(k === 'k' ? fK : k === 'c' ? fC : fB)(t)}mm">${esc(t)}</div>`;
   const nje = (e) => { const c = e.cmimi > 0 ? eur(e.cmimi) + ' €' : '';
-    return `<div class="faqe"><div class="et">${tekst('k', e.kodi || '')}${barkod(e.barkodi || e.kodi)}
+    return `<div class="faqe"><div class="et">${tekst('k', e.kodi || '')}<div class="e">${esc(e.emri || '')}</div>${barkod(e.barkodi || e.kodi)}
     ${e.barkodi && e.barkodi !== e.kodi ? tekst('b', e.barkodi) : ''}${c ? tekst('c', c) : '<div></div>'}</div></div>`; };
   const trupi = prove
     ? `<div class="faqe"><div class="et prove">${tekst('k', `PROVË ${W} × ${H}`)}${tekst('b', '↑ LART · korniza te skajet e etiketës')}${barkod('C143012')}${tekst('c', '12.50 €')}</div></div>`
@@ -2536,6 +2536,9 @@ async function etFaqja(lista, m, prove, rrot) {
     .et.prove { border: 0.6mm solid #000; }
     .k, .c { font-weight: 700; line-height: 1; white-space: nowrap; }
     .b { line-height: 1; white-space: nowrap; }
+    .e { font-size: ${Math.min(3.2, H * 0.08).toFixed(2)}mm; line-height: 1.1; max-height: 2.2em; width: 100%; overflow: hidden; overflow-wrap: anywhere;
+         display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }   /* emri i produktit: deri 2 rreshta */
+    .e:empty { display: none; }
     svg { display: block; }
   </style></head><body>${trupi}</body></html>`;
 }
@@ -2563,7 +2566,7 @@ async function etDergoDirekt(printeri, json) {   // te roboti i printimit (p.sh.
 async function etPrinto(prove) {
   const m = etMadhesia(); if (!m) return etMsg('Shkruaj madhësinë e etiketës (gjerësia 20–110 mm, lartësia 10–150 mm).', 'gabim');
   const z = etRreshtat.filter((x) => x.zgjedhur);
-  const etiketat = prove ? [] : z.flatMap((x) => Array.from({ length: x.kopje }, () => ({ kodi: x.kodi, barkodi: x.barkodi, cmimi: x.cmimi })));
+  const etiketat = prove ? [] : z.flatMap((x) => Array.from({ length: x.kopje }, () => ({ kodi: x.kodi, emri: x.emri || '', barkodi: x.barkodi, cmimi: x.cmimi })));
   if (!prove && !etiketat.length) return;
   if (!prove && etiketat.length > 40 && !confirm(`Do të printohen ${etiketat.length} etiketa. Vazhdo?`)) return;
   const pr = $('et-printeri').value, idt = z.flatMap((x) => x.reg);
