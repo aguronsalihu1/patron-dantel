@@ -294,6 +294,11 @@
   .mg-lloji button { padding:12px 8px; border:1px solid var(--vije); border-radius:12px; background:#fff; font:inherit; font-weight:600; cursor:pointer; }
   .mg-lloji button.on { background:var(--kryesor); color:#fff; border-color:var(--kryesor); }
   .sh-arka-btn { width:100%; font-size:20px !important; padding:16px !important; border-radius:16px !important; background:linear-gradient(135deg, #065f46, #10b981) !important; }
+  .sh-dy { display:flex; gap:8px; } .sh-dy > button { flex:1; min-width:0; }
+  .sh-dy > button[hidden] { display:none; }
+  .sh-regj-btn { background:linear-gradient(135deg, #1e3a8a, #3b82f6) !important; }
+  .sh-pyetja { margin:10px 0; padding:14px; border:2px solid #3b82f6; border-radius:16px; text-align:center; }
+  .sh-pyetja .sh-dy > button { font-size:18px !important; padding:14px !important; border-radius:14px !important; }
   .barkodi { background:#fff; border:3px dashed var(--kryesor); border-radius:18px; padding:18px; margin-top:14px; text-align:center; }
   .barkodi .bk-numri { font-size:20px; margin:6px 0; } .barkodi .bk-numri b { font-size:34px; letter-spacing:2px; }
   .barkodi svg { background:#fff; }
@@ -422,9 +427,12 @@
     <div class="rresht"><label style="flex:1">Shënim <input id="sh-shenim" style="width:100%"></label></div>
     <div class="zbr-tot"><span>🏷️ Totali pas zbritjes €</span><input id="sh-zbrt" type="text" inputmode="decimal" autocomplete="off" placeholder="0.00"></div>
     <div class="sh-totali-kuti"><span>Totali<small id="sh-zbr-permb"></small></span><b><span id="sh-totali">0.00</span> €</b></div>
-    <button class="kryesor sh-arka-btn" id="sh-arka">🧾 Dërgo te arka</button>
+    <div class="sh-dy">
+      <button class="kryesor sh-arka-btn" id="sh-arka">🧾 Dërgo te arka</button>
+      <button class="kryesor sh-arka-btn sh-regj-btn" id="sh-direkt">✅ Regjistro shitjen</button>
+    </div>
+    <div class="sh-pyetja" id="sh-pyetja" hidden></div>
     <div class="butona">
-      <button class="kryesor" id="sh-direkt" style="background:var(--kryesor2)">⚡ Shitje direkte</button>
       <button class="dyte" id="sh-print-a4">🖨️ A4</button>
       <button class="dyte" id="sh-print-80">🖨️ Faturë e vogël</button>
       <button class="rrezik" id="sh-pastro">Pastro</button>
@@ -1497,23 +1505,35 @@ async function rifreskoStatusetBk() {
 }
 NGARKUESIT.shitje = async () => {
   $('sh-titulli').textContent = profili.roli === 'shitese_fizike' ? '🧾 Shitje' : '🧾 Faturë e re';
-  const ePlote = ['admin', 'arka'].includes(profili.roli);   // shitësja fizike: pa kod klienti dhe pa "shitje direkte"
-  $('sh-kodi-l').hidden = $('sh-direkt').hidden = !ePlote;
+  const ePlote = ['admin', 'arka'].includes(profili.roli);   // shitësja fizike: pa kod klienti (13850); "Regjistro shitjen" e ka (vendim i Aguronit, 13.11.2026)
+  $('sh-kodi-l').hidden = !ePlote;
   rifreskoStatusetBk();
 };
 $('sh-magazina').addEventListener('change', () => { try { localStorage.setItem('pd-pika', $('sh-magazina').value); } catch {} });
+// "Regjistro shitjen" (edhe nga telefoni i shitëses): fatura shkon drejt e në Pro-Data si porosi, pa kaluar te lista e arkës;
+// pastaj pyet: faturë A4 apo faturë e vogël (te printeri që është zgjedhur te 🖨️ në këtë pajisje). Kuponi fiskal mbetet në Pro-Data.
 $('sh-direkt').onclick = async () => {
   if (!shKontrollo()) return;
-  if (!confirm(`Shitje direkte: ${sh.rreshtat.length} produkte, totali ${$('sh-totali').textContent} €.\nPorosia dërgohet në Pro-Data. Vazhdo?`)) return;
-  const btn = $('sh-direkt'); btn.disabled = true;
+  if (!confirm(`Regjistro shitjen: ${sh.rreshtat.length} produkte, totali ${$('sh-totali').textContent} €.\nShitja dërgohet në Pro-Data. Vazhdo?`)) return;
+  const btn = $('sh-direkt'), arka = $('sh-arka'); btn.disabled = arka.disabled = true;
+  $('sh-pyetja').hidden = true; $('sh-barkodi').hidden = true;
   try {
     const { data: f, error } = await sb.from('app_faturat').insert(shTeDhenat('ne_arke')).select('*').single();
     if (error) throw new Error(error.message);
-    await regjistroFaturen(f, 'sh-mesazh');
-    shPastro();
+    shPastro();   // para mesazhit: shPastro e fsheh mesazhin
+    const k = await regjistroFaturen(f, 'sh-mesazh');
+    if (!k || k.statusi === 'kryer') shPyetFaturen(f);
   } catch (e) { $('sh-mesazh').className = 'mesazh gabim'; $('sh-mesazh').textContent = '❌ ' + e.message; }
-  btn.disabled = false;
+  btn.disabled = arka.disabled = false;
 };
+function shPyetFaturen(f) {
+  const el = $('sh-pyetja');
+  el.innerHTML = `<b style="font-size:18px">Çfarë fature do për shitjen nr. ${f.nr}?</b><div class="zbehte" style="margin:4px 0 10px">${eur(f.totali)} €</div>
+    <div class="sh-dy"><button class="kryesor sh-arka-btn sh-regj-btn" data-f="a4">📄 Faturë A4</button><button class="kryesor sh-arka-btn" data-f="80">🧾 Faturë e vogël</button></div>
+    <button class="dyte" data-f="" style="margin-top:8px">Pa faturë</button>`;
+  el.querySelectorAll('[data-f]').forEach((b) => b.onclick = () => { el.hidden = true; if (b.dataset.f) printoFaturenArka(f.nr, b.dataset.f); });
+  el.hidden = false; el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
 $('sh-posta-link').onclick = () => alert('Lidhja me web-in e postës lokale: më trego cilën postë përdorni dhe adresën e saj, dhe e lidh këtu.');
 function printo(lloji) {
   if (!sh.rreshtat.length) return alert('Fatura është bosh.');
@@ -1545,6 +1565,7 @@ async function regjistroFaturen(f, mesazhId) {
       Në Pro-Data: hap porosinë, ktheje në shitje dhe shtyp kuponin fiskal.`;
   } else if (k) { m.className = 'mesazh gabim'; m.innerHTML = '❌ Pro-Data nuk e pranoi: ' + esc(k.gabimi); }
   else { m.className = 'mesazh gabim'; m.innerHTML = '⚠️ Ura nuk u përgjigj. Fatura mbetet në radhë dhe regjistrohet kur ura të kthehet. Shiko Administrimi → Komandat.'; }
+  return k;
 }
 
 // ---------- ARKA ----------
@@ -1588,7 +1609,7 @@ async function printoFaturenArka(nr, formati) {
   p.innerHTML = `<div style="text-align:center"><b style="font-size:1.3em">PATRON DANTEL</b><br>MINNA SH.P.K.<br><b>FATURË nr. ${f.nr}</b>${f.porosia_nr ? '<br>Pro-Data: ' + esc(f.porosia_nr) : ''}
     <br><span>Nuk është dokument fiskal. Kuponi fiskal lëshohet nga arka.</span></div>
     <p>Data: ${new Date(f.regjistruar_koha || f.krijuar).toLocaleString('sq-AL', { timeZone: 'Europe/Belgrade' })}<br>Klienti: ${esc(f.klienti_emri || 'Qytetar')} ${esc(f.klienti_telefoni || '')}
-    <br>Shitësja: ${esc(f.shitesja_emri || '')}<br>Arka: ${esc(profili.emri || '')}</p>
+    <br>Shitësja: ${esc(f.shitesja_emri || '')}${['arka', 'admin'].includes(profili.roli) ? '<br>Arka: ' + esc(profili.emri || '') : ''}</p>
     <table><tr><th>Produkti</th><th>Sasia</th><th>Çmimi</th><th>Vlera</th></tr>
     ${(f.rreshtat || []).map((r) => `<tr><td>${esc(r.kodi)} ${esc(r.emri)}${zbrTekst(r)}</td><td>${r.sasia}</td><td>${eur(r.cmimi)}</td><td>${eur(vleraRr(r))}</td></tr>`).join('')}</table>
     ${zbrTotaliPrint(f)}<p style="text-align:right;font-size:1.3em"><b>Totali: ${eur(f.totali)} €</b><br><span style="font-size:.8em">Çmimet përfshijnë TVSH-në</span></p>
