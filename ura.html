@@ -1292,13 +1292,23 @@ sb.auth.onAuthStateChange(async (_n, ses) => {
   $('aplikacioni').style.display = perdoruesi ? 'block' : 'none';
   $('perdoruesi').hidden = !perdoruesi;
   // Supabase e thërret këtë edhe kur rifreskon hyrjen në sfond: koka fshihet vetëm kur dikush del
-  if (!perdoruesi) { $('statusi').hidden = $('titulli').hidden = $('shtepia').hidden = true; nisur = false; return; }
+  if (!perdoruesi) {
+    if (!$('f-shitje')) { location.reload(); return; }   // faqja ishte zëvendësuar me mesazhin "pa rol": rinis që hyrja tjetër të ketë gjithë aplikacionin
+    $('statusi').hidden = $('titulli').hidden = $('shtepia').hidden = true; nisur = false; return; }
   if (nisur) return; nisur = true;
   const { data } = await sb.from('prodata_perdoruesit').select('roli, emri, lejo_regjistrim, pika').eq('user_id', perdoruesi.id).maybeSingle();
   profili = data;
   $('dep').hidden = true;   // zgjedhja e departamentit lart: vetëm Super Admini (depNis e shfaq)
   if (!profili || !profili.roli) {
-    $('menyja').innerHTML = ''; document.querySelector('main').innerHTML = '<section class="faqe aktive"><div class="udhezim">Llogaria jote nuk ka ende rol. Kërko nga administratori të të caktojë rolin.</div></section>'; return;
+    // Ndodh kur pajisja është ende e hyrë me një llogari të vjetër që s'ka më qasje (p.sh. "tel. 049…" pasi u hapën llogaritë me emër, 13.11.2026):
+    // trego cila llogari është dhe jep butonin për të dalë e për të hyrë me llogarinë e vet.
+    const e = perdoruesi.email || '', kush = /^p\d+@patrondantel\.local$/.test(e) ? 'tel. ' + e.slice(1, e.indexOf('@')) : /^u\./.test(e) ? e.slice(2, e.indexOf('@')) : e;
+    $('menyja').innerHTML = ''; document.querySelector('main').innerHTML = `<section class="faqe aktive"><div class="udhezim" style="font-size:17px">
+      Je e hyrë me llogarinë <b>${esc(kush)}</b>, e cila nuk ka qasje (pa rol).<br><br>
+      Nëse ke llogari me emrin tënd (p.sh. <b>besarta</b>), dil dhe hyr me të. Përndryshe kërko nga Super Admini të të caktojë rolin.<br><br>
+      <button class="kryesor" type="button" id="pa-rol-dil" style="font-size:18px;padding:12px 20px">↩️ Dil dhe hyr me llogarinë time</button></div></section>`;
+    $('pa-rol-dil').onclick = async () => { fotoKeshPastro(); await sb.auth.signOut(); location.reload(); };
+    return;
   }
   const eAdmin = profili.roli === 'admin', emriP = profili.emri || (perdoruesi.email || '').split('@')[0];
   $('emri-perdoruesit').textContent = eAdmin ? `${emriP} · Super Admin` : emriP;
