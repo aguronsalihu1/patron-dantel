@@ -399,6 +399,7 @@
       <button class="onl-buton onl-b-gjej" data-shko="gjej">🔎<b>Gjej artikullin</b><small>Foto · kodi · ku gjendet · sasia · të shitura</small></button>
       <button class="onl-buton onl-b-porosite" data-shko="llogaria">👤<b>Llogaria ime</b><small id="fiz-home-nr">Faturat e sotme</small></button>
       <button class="onl-buton onl-b-llogaria" data-shko="mall">📦<b>Regjistro mall</b><small>Artikull i ri · shto sasi · foto</small></button>
+      <button class="onl-buton onl-b-gjej" data-shko="pranimi">🚚<b>Pranimi i mallit</b><small>Ngarkesa · pakot · kg · artikujt e rinj</small></button>
       <button class="onl-buton onl-b-dalje" data-shko="regjistrim">📝<b>Lëvizje / shpenzime</b><small>Mall te departament tjetër · shpenzime ditore</small></button>
       <button class="onl-buton onl-b-mungesa" data-shko="mungesat">🔍<b>S'e kemi</b><small>Klienti kërkoi diçka që mungon · foto</small></button>
     </div>
@@ -590,6 +591,21 @@
     <div class="zbehte" id="mg-l-nr" style="margin-bottom:6px"></div>
     <div class="ar-pritje" id="mg-lista"></div>
     <div class="butona" style="justify-content:center"><button class="dyte" type="button" id="mg-l-me-shume" hidden>Shfaq më shumë</button></div>
+  </section>
+
+  <!-- ===== PRANIMI I MALLIT (14.11.2026): ngarkesa → pakot (kg) → produktet (kodi, pesha, foto, çmimi) → artikujt në Pro-Data ===== -->
+  <section class="faqe" id="f-pranimi">
+    <h2>🚚 Pranimi i mallit</h2>
+    <div class="udhezim" id="pm-ndalur" hidden>🚫 Regjistrimi i mallit nuk është i lejuar për llogarinë tënde. Kërko nga Super Admin-i ta lejojë te ⚙️ Administrimi.</div>
+    <div id="pm-kryesore">
+      <p class="zbehte" style="margin-top:0">Kur vjen malli: 1) shëno ngarkesën dhe sa pako erdhën · 2) peshën e çdo pakoje · 3) çfarë kishte çdo pako (kodi, pesha) — prej aty krijohen artikujt e rinj me foto dhe çmim në Pro-Data, te departamenti që zgjedh.</p>
+      <div class="butona" style="margin-top:0"><button class="kryesor" type="button" id="pm-re">🆕 Ngarkesë e re</button></div>
+      <div id="pm-forma-re"></div>
+      <h3>Ngarkesat</h3>
+      <div class="ar-pritje" id="pm-lista"></div>
+    </div>
+    <div id="pm-ngarkesa" hidden></div>
+    <div class="mesazh" id="pm-mesazh"></div>
   </section>
 
   <!-- ===== LLOGARIA IME ===== -->
@@ -1245,14 +1261,14 @@ const stokuHTML = (a) => (teGjithaMag()
 // ---------- Rolet dhe menytë ----------
 const MENYTE = {
   admin: [['paneli', '📊 Paneli'], ['arka', '🧾 Arka'], ['shitjet', '🛒 Shitjet'], ['telposta', '📮 Tel-Post'], ['mungesat', "🔍 S'e kemi"], ['blerjet', '📦 Blerjet'], ['furnitoret', '🚚 Furnitorët'], ['depo', '🏭 Depo'], ['pagesat', '💶 Arka dhe pagesat'],
-          ['stafi', '👷 Burime njerëzore'], ['klientet', '👥 Klientët'], ['produktet', '🧵 Produktet'], ['gjej', '🔎 Gjej artikullin'], ['mall', '📦 Regjistro mall'], ['etiketat', '🏷️ Etiketat'], ['kontabiliteti', '📒 Kontabiliteti'], ['admin', '⚙️ Administrimi'], ['shitje', '➕ Faturë'], ['regjistrim', '📝 Regjistrim'], ['transfer', '🔁 Transfer']],
-  depo: [['depo', '🏭 Depo'], ['etiketat', '🏷️ Etiketat']],
+          ['stafi', '👷 Burime njerëzore'], ['klientet', '👥 Klientët'], ['produktet', '🧵 Produktet'], ['gjej', '🔎 Gjej artikullin'], ['mall', '📦 Regjistro mall'], ['pranimi', '🚚 Pranimi i mallit'], ['etiketat', '🏷️ Etiketat'], ['kontabiliteti', '📒 Kontabiliteti'], ['admin', '⚙️ Administrimi'], ['shitje', '➕ Faturë'], ['regjistrim', '📝 Regjistrim'], ['transfer', '🔁 Transfer']],
+  depo: [['depo', '🏭 Depo'], ['pranimi', '🚚 Pranimi i mallit'], ['etiketat', '🏷️ Etiketat']],
   hr: [['stafi', '👷 Burime njerëzore']],   // përgjegjësi i burimeve njerëzore sheh vetëm këtë faqe (dhe s'ka qasje në të dhënat e Pro-Data-s)
   // Depo dhe Transferi (magazina të tjera) mbeten vetëm te Super Admini
   arka: [['arka', '🧾 Arka'], ['shitje', '➕ Faturë'], ['shitjet', '🛒 Shitjet'], ['tp_lista', '📮 Tel-Post'], ['blerjet', '📦 Blerjet'], ['pagesat', '💶 Arka dhe pagesat'], ['stafi', '👷 Burime njerëzore'],
          ['klientet', '👥 Klientët'], ['produktet', '🧵 Produktet'], ['mall', '📦 Regjistro mall'], ['kontabiliteti', '📒 Kontabiliteti'], ['admin', '⚙️ Administrimi'], ['regjistrim', '📝 Regjistrim'], ['mungesat', "🔍 S'e kemi"]],
   shitese_online: [['onl_home', '🏠 Kryefaqja'], ['onl_shitje', '🛒 Shitje'], ['tp_lista', '📮 Tel-Post'], ['llogaria', '👤 Llogaria ime'], ['mall', '📦 Regjistro mall'], ['mungesat', "🔍 S'e kemi"]],
-  shitese_fizike: [['fiz_home', '🏠 Kryefaqja'], ['shitje', '🧾 Shitje'], ['gjej', '🔎 Gjej artikullin'], ['llogaria', '👤 Llogaria ime'], ['mall', '📦 Regjistro mall'], ['regjistrim', '📝 Regjistrim'], ['mungesat', "🔍 S'e kemi"]],
+  shitese_fizike: [['fiz_home', '🏠 Kryefaqja'], ['shitje', '🧾 Shitje'], ['gjej', '🔎 Gjej artikullin'], ['llogaria', '👤 Llogaria ime'], ['mall', '📦 Regjistro mall'], ['pranimi', '🚚 Pranimi i mallit'], ['regjistrim', '📝 Regjistrim'], ['mungesat', "🔍 S'e kemi"]],
 };
 // Shitëset (online dhe fizike) kanë kryefaqe me butona të mëdhenj në vend të menysë lart
 const KRYEFAQJA = { shitese_online: 'onl_home', shitese_fizike: 'fiz_home' };
@@ -1316,7 +1332,7 @@ sb.auth.onAuthStateChange(async (_n, ses) => {
   const eAdmin = profili.roli === 'admin', emriP = profili.emri || (perdoruesi.email || '').split('@')[0];
   $('emri-perdoruesit').textContent = eAdmin ? `${emriP} · Super Admin` : emriP;
   $('avatar').textContent = (emriP[0] || '?').toUpperCase();
-  document.querySelectorAll('[data-shko="mall"]').forEach((b) => { b.hidden = !profili.lejo_regjistrim; });   // Super Admin e lejon/ndalon për çdo llogari
+  document.querySelectorAll('[data-shko="mall"], [data-shko="pranimi"]').forEach((b) => { b.hidden = !profili.lejo_regjistrim; });   // Super Admin e lejon/ndalon për çdo llogari
   $('statusi').hidden = $('titulli').hidden = !eAdmin;
   // shitëset online kanë 3 butonat e kryefaqes; menyja lart u hoq, kthimi bëhet me 🏠
   const paMeny = !!KRYEFAQJA[profili.roli];
@@ -2172,6 +2188,270 @@ $('mg-kontrollo').onclick = mgKontrollo;
 $('mg-kerko').onkeydown = (e) => { if (e.key === 'Enter') mgKontrollo(); };
 $('mg-skano').onclick = () => dkSkaneri((kodi) => { $('mg-kerko').value = kodi; mgKontrollo(); });
 $('mg-ri-direkt').onclick = () => mgFormaRi($('mg-kerko').value.trim());
+// ---------- PRANIMI I MALLIT (14.11.2026, Aguroni) ----------
+// Ngarkesa (app_pranimet) → pakot me peshë (app_pranimet_pakot) → produktet e çdo pakoje = rreshta te regjistrimet_mallit
+// (pranimi_id, pako_id, pesha_kg, kodi_furnitorit). Ura e shkrimit i krijon në Pro-Data si çdo "Regjistro mall":
+// artikull i ri (me foto dhe çmim) + sasia si saldo fillestare te destinacioni; artikulli që ekziston merr vetëm sasinë.
+let pm = { id: null, pranimi: null, pakot: [], produktet: [], origj: null }, pmK = {};
+const pmNum = (v) => { const t = String(v == null ? '' : v).trim().replace(',', '.'); return t === '' ? null : Number(t); };
+const pmKg = (x) => (x == null || x === '' ? '—' : (+x).toLocaleString('sq-AL', { maximumFractionDigits: 3 }) + ' kg');
+const pmMagOps = (zgj) => '<option value="">— zgjidh ku hyn malli —</option>' + magazinat.map((m) => `<option value="${esc(m.kodi)}" ${m.kodi === zgj ? 'selected' : ''}>${esc(m.emri)} (${esc(m.kodi)})</option>`).join('');
+NGARKUESIT.pranimi = async (ngaRealtime) => {
+  const lejuar = mgLejuar();
+  $('pm-ndalur').hidden = lejuar; $('pm-kryesore').hidden = !lejuar || !!pm.id; $('pm-ngarkesa').hidden = !lejuar || !pm.id;
+  if (!lejuar) return;
+  if (pm.id) { if (ngaRealtime) await pmRifreskoProduktet(); else await pmHap(pm.id); } else if (!ngaRealtime || !$('pm-forma-re').innerHTML) await pmListo();
+};
+async function pmListo() {
+  const { data, error } = await sb.from('app_pranimet').select('*').neq('statusi', 'anuluar').order('krijuar', { ascending: false }).limit(60);
+  if (error) { $('pm-lista').innerHTML = `<p class="mesazh gabim" style="display:block">❌ ${esc(error.message)}</p>`; return; }
+  const idt = (data || []).map((x) => x.id);
+  const [{ data: pk }, { data: pr }] = idt.length ? await Promise.all([sb.from('app_pranimet_pakot').select('pranimi_id, pesha_kg').in('pranimi_id', idt),
+    sb.from('regjistrimet_mallit').select('pranimi_id, statusi, pesha_kg').in('pranimi_id', idt)]) : [{ data: [] }, { data: [] }];
+  $('pm-lista').innerHTML = (data || []).map((n) => {
+    const pp = (pk || []).filter((x) => x.pranimi_id === n.id), rr = (pr || []).filter((x) => x.pranimi_id === n.id && x.statusi !== 'anuluar');
+    const kg = pp.reduce((s, x) => s + (+x.pesha_kg || 0), 0), ok = rr.filter((x) => x.statusi === 'kryer').length, gab = rr.filter((x) => x.statusi === 'gabim').length;
+    return `<button class="ar-karte" data-id="${n.id}"><div class="rresht" style="justify-content:space-between;margin:0"><span class="nr">${oraKS(n.krijuar)}</span>${n.statusi === 'mbyllur' ? '<span class="shenje s-ok">✔️ Mbyllur</span>' : '<span class="shenje s-pritje">Hapur</span>'}</div>
+      <div class="tot">${pp.length} pako · ${pmKg(kg)}</div>
+      <div class="zbehte">${esc(n.furnitori || 'Pa furnitor')}${n.nr_dokumentit ? ' · dok. ' + esc(n.nr_dokumentit) : ''} → <b>${esc(emriMag(n.magazina))}</b></div>
+      <div class="zbehte">${rr.length} produkte · ✅ ${ok} në Pro-Data${gab ? ` · ❌ ${gab} gabim` : ''} · ${esc(n.krijuar_emri || '')}</div></button>`;
+  }).join('') || '<p class="zbehte">Ende asnjë ngarkesë. Kliko "🆕 Ngarkesë e re" kur të vijë malli.</p>';
+  document.querySelectorAll('#pm-lista [data-id]').forEach((b) => b.onclick = () => { pm.id = b.dataset.id; NGARKUESIT.pranimi(); });
+}
+$('pm-re').onclick = () => {
+  pm.origj = null;
+  $('pm-forma-re').innerHTML = `<div class="mg-forma"><h3 style="margin-top:0">🆕 Ngarkesë e re</h3>
+    <div class="tp-forma" style="margin-bottom:6px">
+      <label>Sa pako erdhën? * <input id="pm-n" type="text" inputmode="numeric" autocomplete="off" placeholder="p.sh. 6"></label>
+      <label>Ku hyn ky mall? (destinacioni) * <select id="pm-mag">${pmMagOps('')}</select></label>
+      <label>Furnitori <input id="pm-furn" placeholder="p.sh. emri i furnitorit / kompanisë"></label>
+      <label>Nr. i faturës / dërgesës <input id="pm-dok" placeholder="opsional"></label>
+    </div>
+    <b>Prej nga vjen malli?</b><div class="mg-zgjedh" id="pm-o">${Object.entries(MG_ORIGJINAT).map(([k, t]) => `<button type="button" data-v="${k}">${t}</button>`).join('')}</div>
+    <label>Shënim <input id="pm-shen" placeholder="opsional"></label>
+    <div class="butona"><button class="kryesor" type="button" id="pm-krijo">✅ Krijo ngarkesën</button><button class="dyte" type="button" id="pm-anulo-re">Anulo</button></div></div>`;
+  $('pm-o').querySelectorAll('button').forEach((b) => b.onclick = () => { pm.origj = pm.origj === b.dataset.v ? null : b.dataset.v; $('pm-o').querySelectorAll('button').forEach((x) => x.classList.toggle('on', x.dataset.v === pm.origj)); });
+  $('pm-anulo-re').onclick = () => { $('pm-forma-re').innerHTML = ''; };
+  $('pm-krijo').onclick = async () => {
+    const n = pmNum($('pm-n').value), mag = $('pm-mag').value, m = $('pm-mesazh'), btn = $('pm-krijo');
+    if (!(Number.isInteger(n) && n > 0 && n <= 500)) return alert('Shkruaj sa pako erdhën (1 – 500).');
+    if (!mag) return alert('Zgjidh ku hyn malli: Patron Dantel, depo apo cili departament.');
+    btn.disabled = true;
+    try {
+      const { data: p, error } = await sb.from('app_pranimet').insert({ magazina: mag, furnitori: $('pm-furn').value.trim() || null, nr_dokumentit: $('pm-dok').value.trim() || null,
+        origjina: pm.origj, shenim: $('pm-shen').value.trim() || null, krijuar_emri: profili.emri || null }).select('id').single();
+      if (error) throw new Error(error.message);
+      const { error: e2 } = await sb.from('app_pranimet_pakot').insert(Array.from({ length: n }, (_, i) => ({ pranimi_id: p.id, nr: i + 1 })));
+      if (e2) throw new Error(e2.message);
+      $('pm-forma-re').innerHTML = ''; m.className = 'mesazh'; pm.id = p.id; NGARKUESIT.pranimi();
+    } catch (e) { m.className = 'mesazh gabim'; m.textContent = '❌ ' + e.message; btn.disabled = false; }
+  };
+  $('pm-n').focus();
+};
+async function pmLexo(id) {
+  const [{ data: n, error }, { data: pk }, { data: pr }] = await Promise.all([sb.from('app_pranimet').select('*').eq('id', id).maybeSingle(),
+    sb.from('app_pranimet_pakot').select('*').eq('pranimi_id', id).order('nr'),
+    sb.from('regjistrimet_mallit').select('id, krijuar, lloji, pako_id, kodi_furnitorit, pesha_kg, emri, kodi, barkodi, njesia, sasia, cmimi_shitjes, magazina, statusi, gabimi, artikulli_id, krijuar_emri, fotot').eq('pranimi_id', id).order('krijuar')]);
+  if (error || !n) throw new Error(error ? error.message : 'Ngarkesa nuk u gjet.');
+  pm.pranimi = n; pm.pakot = pk || []; pm.produktet = (pr || []).filter((x) => x.statusi !== 'anuluar');
+}
+async function pmHap(id) {
+  const el = $('pm-ngarkesa');
+  try { await pmLexo(id); } catch (e) { el.innerHTML = `<p class="mesazh gabim" style="display:block">❌ ${esc(e.message)}</p><button class="dyte" id="pm-kthehu">← Kthehu</button>`; $('pm-kthehu').onclick = pmKthehu; return; }
+  const n = pm.pranimi, hapur = n.statusi === 'hapur';
+  el.innerHTML = `<div class="butona" style="margin-top:0"><button class="dyte" type="button" id="pm-kthehu">← Të gjitha ngarkesat</button></div>
+    <div class="mg-forma" style="border-width:1px">
+      <h3 style="margin:0">🚚 Ngarkesa e ${oraKS(n.krijuar)}${n.statusi === 'mbyllur' ? ' <span class="shenje s-ok">✔️ Mbyllur</span>' : ''}</h3>
+      <div class="zbehte" style="margin:4px 0 10px">${esc(n.furnitori || 'Pa furnitor')}${n.nr_dokumentit ? ' · dok. ' + esc(n.nr_dokumentit) : ''}${n.origjina ? ' · ' + esc(MG_ORIGJINAT[n.origjina] || n.origjina) : ''} · regjistroi ${esc(n.krijuar_emri || '')}${n.shenim ? ' · ' + esc(n.shenim) : ''}</div>
+      <label>Destinacioni (ku hyn malli) <select id="pm-dest" ${hapur ? '' : 'disabled'}>${pmMagOps(n.magazina)}</select></label>
+      <div class="karta" id="pm-permb" style="margin-top:10px"></div>
+    </div>
+    <div id="pm-pakot"></div>
+    ${hapur ? `<div class="butona"><button class="dyte" type="button" id="pm-shto-pako">➕ Shto edhe një pako</button><button class="kryesor" type="button" id="pm-mbyll">✔️ Mbyll ngarkesën (u regjistrua gjithçka)</button></div>`
+      : `<div class="butona"><button class="dyte" type="button" id="pm-rihap">↺ Rihap ngarkesën</button></div>`}`;
+  $('pm-kthehu').onclick = pmKthehu;
+  $('pm-dest').onchange = async (e) => {
+    if (!e.target.value) { e.target.value = n.magazina; return; }
+    const { error } = await sb.from('app_pranimet').update({ magazina: e.target.value }).eq('id', n.id);
+    if (error) { alert('❌ ' + error.message); e.target.value = n.magazina; return; }
+    n.magazina = e.target.value; prNjofto(`✅ Destinacioni: <b>${esc(emriMag(n.magazina))}</b>. Vlen për produktet që shton tani e tutje.`, 'ok');
+  };
+  if (hapur) {
+    $('pm-shto-pako').onclick = async () => {
+      const nr = Math.max(0, ...pm.pakot.map((p) => p.nr)) + 1;
+      const { error } = await sb.from('app_pranimet_pakot').insert({ pranimi_id: n.id, nr });
+      if (error) return alert('❌ ' + error.message);
+      pmHap(n.id);
+    };
+    $('pm-mbyll').onclick = async () => {
+      const pa = pm.pakot.filter((p) => p.pesha_kg == null).length, pret = pm.produktet.filter((x) => x.statusi !== 'kryer').length;
+      if (!confirm(`Mbyll ngarkesën?${pa ? `\n⚠️ ${pa} pako pa peshë.` : ''}${pret ? `\n⚠️ ${pret} produkte ende s'janë në Pro-Data (presin ose kanë gabim).` : ''}`)) return;
+      const { error } = await sb.from('app_pranimet').update({ statusi: 'mbyllur' }).eq('id', n.id);
+      if (error) return alert('❌ ' + error.message);
+      pmHap(n.id);
+    };
+  } else $('pm-rihap').onclick = async () => { const { error } = await sb.from('app_pranimet').update({ statusi: 'hapur' }).eq('id', n.id); if (error) return alert('❌ ' + error.message); pmHap(n.id); };
+  pmVizatoPakot();
+}
+function pmKthehu() { pm = { id: null, pranimi: null, pakot: [], produktet: [], origj: null }; $('pm-ngarkesa').innerHTML = ''; NGARKUESIT.pranimi(); window.scrollTo(0, 0); }
+function pmPermbledhja() {
+  const kgP = pm.pakot.reduce((s, p) => s + (+p.pesha_kg || 0), 0), kgR = pm.produktet.reduce((s, x) => s + (+x.pesha_kg || 0), 0);
+  const ok = pm.produktet.filter((x) => x.statusi === 'kryer').length, gab = pm.produktet.filter((x) => x.statusi === 'gabim').length;
+  const kart = (t, v, d = '') => `<div class="karte"><div class="tit">${t}</div><div class="vl">${v}</div><div class="det">${d}</div></div>`;
+  $('pm-permb').innerHTML = kart('Pako', pm.pakot.length, `${pm.pakot.filter((p) => p.pesha_kg != null).length} të peshuara`)
+    + kart('Pesha e pakove', pmKg(kgP))
+    + kart('Produkte', pm.produktet.length, `✅ ${ok} në Pro-Data${gab ? ` · ❌ ${gab} gabim` : ''}`)
+    + kart('Pesha e produkteve', pmKg(kgR), kgP && kgR ? `diferenca ${pmKg(Math.round((kgP - kgR) * 1000) / 1000)}` : '');
+}
+function pmRreshtiProd(x) {
+  const st = MG_STATUSET[x.statusi] || [x.statusi, ''];
+  return `<div class="mg-karte" style="margin:6px 0"><div class="info" style="flex:1">
+    <div class="rresht" style="justify-content:space-between;margin:0;gap:6px"><b>${esc(x.emri || '')}</b><span class="shenje ${st[1]}">${st[0]}</span></div>
+    <div class="zbehte">${x.kodi_furnitorit ? 'Kodi në pako: <b>' + esc(x.kodi_furnitorit) + '</b> · ' : ''}${x.kodi ? 'Pro-Data: <b>' + esc(x.kodi) + '</b> · ' : ''}${x.lloji === 'artikull_i_ri' ? '🆕 artikull i ri' : '➕ shtim sasie'}</div>
+    <div class="zbehte">${pmKg(x.pesha_kg)} · ${x.sasia ? +x.sasia + ' ' + esc(x.njesia || '') : 'pa sasi'}${x.cmimi_shitjes ? ' · ' + eur(x.cmimi_shitjes) + ' €' : ''} · → ${esc(emriMag(x.magazina))}${(x.fotot || []).length ? ' · 📷 ' + x.fotot.length : ''}</div>
+    ${x.statusi === 'gabim' ? `<div class="mesazh gabim" style="display:block;margin-top:4px">❌ ${esc(x.gabimi || '')}</div>` : ''}</div></div>`;
+}
+function pmVizatoPakot() {
+  const hapur = pm.pranimi.statusi === 'hapur', forma = $('pm-prod-forma');
+  if (forma && forma.closest('#pm-pakot')) return pmVizatoListat();   // forma e hapur s'prishet nga rifreskimi
+  $('pm-pakot').innerHTML = pm.pakot.map((p) => `<div class="mg-forma" style="border-width:1px" data-pako="${p.id}">
+      <div class="rresht" style="justify-content:space-between;align-items:flex-end;margin:0;gap:8px;flex-wrap:wrap">
+        <h3 style="margin:0">📦 Pako ${p.nr}</h3>
+        <label style="margin:0">Pesha e pakos (kg) <input class="pm-pesha" data-id="${p.id}" type="text" inputmode="decimal" autocomplete="off" value="${p.pesha_kg == null ? '' : +p.pesha_kg}" style="width:120px" ${hapur ? '' : 'disabled'}></label></div>
+      <div class="pm-prod-lista" data-pako="${p.id}"></div>
+      ${hapur ? `<div class="butona"><button class="kryesor pm-shto-prod" type="button" data-pako="${p.id}">➕ Shto produkt në pakon ${p.nr}</button></div>` : ''}
+      <div class="pm-forma-slot" data-pako="${p.id}"></div></div>`).join('');
+  document.querySelectorAll('#pm-pakot .pm-pesha').forEach((i) => i.onchange = async () => {
+    const v = pmNum(i.value);
+    if (v !== null && !(v >= 0 && v < 100000)) { alert('Pesha nuk është e saktë.'); return; }
+    const { error } = await sb.from('app_pranimet_pakot').update({ pesha_kg: v }).eq('id', i.dataset.id);
+    if (error) return alert('❌ ' + error.message);
+    const p = pm.pakot.find((x) => x.id === i.dataset.id); if (p) p.pesha_kg = v; pmVizatoListat();
+  });
+  document.querySelectorAll('#pm-pakot .pm-shto-prod').forEach((b) => b.onclick = () => pmFormaProd(pm.pakot.find((p) => p.id === b.dataset.pako)));
+  pmVizatoListat();
+}
+function pmVizatoListat() {
+  pmPermbledhja();
+  document.querySelectorAll('#pm-pakot .pm-prod-lista').forEach((l) => {
+    const p = pm.pakot.find((x) => x.id === l.dataset.pako), rr = pm.produktet.filter((x) => x.pako_id === l.dataset.pako);
+    const kg = rr.reduce((s, x) => s + (+x.pesha_kg || 0), 0);
+    l.innerHTML = (rr.length ? `<div class="zbehte" style="margin:6px 0">${rr.length} produkte · ${pmKg(kg)}${p && p.pesha_kg != null ? ` nga ${pmKg(p.pesha_kg)} e pakos` : ''}</div>` : '<p class="zbehte" style="margin:6px 0">Ende asnjë produkt në këtë pako.</p>')
+      + rr.map(pmRreshtiProd).join('');
+  });
+}
+async function pmRifreskoProduktet() {
+  if (!pm.id) return;
+  const { data } = await sb.from('regjistrimet_mallit').select('id, krijuar, lloji, pako_id, kodi_furnitorit, pesha_kg, emri, kodi, barkodi, njesia, sasia, cmimi_shitjes, magazina, statusi, gabimi, artikulli_id, krijuar_emri, fotot').eq('pranimi_id', pm.id).order('krijuar');
+  if (data) { pm.produktet = data.filter((x) => x.statusi !== 'anuluar'); if ($('pm-permb')) pmVizatoListat(); }
+}
+// Forma e produktit: 1) kodi në pako + pesha → kontrollohet a ekziston në Pro-Data; 2) artikull i ri (foto, çmim) ose shto sasi te ekzistuesi
+function pmFormaProd(pako) {
+  document.querySelectorAll('.pm-forma-slot').forEach((s) => { s.innerHTML = ''; });
+  $('mg-forma').innerHTML = '';   // fushat e fotove kanë të njëjtat id me formën e "Regjistro mall"
+  const slot = document.querySelector(`.pm-forma-slot[data-pako="${pako.id}"]`);
+  slot.innerHTML = `<div id="pm-prod-forma" class="mg-forma"><h3 style="margin-top:0">➕ Produkt në pakon ${pako.nr}</h3>
+    <div class="tp-forma" style="margin-bottom:6px">
+      <label>Kodi i produktit (në pako / etiketë) * <span class="rresht" style="margin:0;gap:6px"><input id="pm-kf" autocomplete="off" placeholder="shkruaj ose skano" style="flex:1"><button class="dyte" type="button" id="pm-kf-sk">📷</button></span></label>
+      <label>Pesha e këtij produkti (kg) <input id="pm-kg" type="text" inputmode="decimal" autocomplete="off" placeholder="p.sh. 4.5"></label>
+    </div>
+    <div class="butona"><button class="kryesor" type="button" id="pm-vazhdo">🔎 Vazhdo</button><button class="dyte" type="button" id="pm-prod-anulo">Anulo</button></div>
+    <div id="pm-hapi2"></div><div class="mesazh" id="pm-prod-msg"></div></div>`;
+  $('pm-prod-anulo').onclick = () => { slot.innerHTML = ''; };
+  $('pm-kf-sk').onclick = () => dkSkaneri((k) => { $('pm-kf').value = k; pmProdKontrollo(pako); });
+  $('pm-kf').onkeydown = (e) => { if (e.key === 'Enter') pmProdKontrollo(pako); };
+  $('pm-vazhdo').onclick = () => pmProdKontrollo(pako);
+  slot.scrollIntoView({ behavior: 'smooth', block: 'start' }); setTimeout(() => $('pm-kf').focus(), 300);
+}
+async function pmProdKontrollo(pako) {
+  const kf = $('pm-kf').value.trim(), kg = pmNum($('pm-kg').value), el = $('pm-hapi2');
+  if (!kf) return alert('Shkruaj ose skano kodin e produktit.');
+  if (kg !== null && !(kg >= 0 && kg < 100000)) return alert('Pesha nuk është e saktë.');
+  el.innerHTML = '<p class="zbehte">⏳ Po kontrollohet në Pro-Data…</p>';
+  const ek = (await kerkoArtikuj(kf)).filter((a) => a.kodi === kf || a.barkodi === kf);
+  if (ek.length) {
+    el.innerHTML = `<div class="udhezim">⚠️ Ky kod ekziston tashmë në Pro-Data. Shto sasinë te artikulli ekzistues, ose regjistroje si artikull të ri.</div>`
+      + ek.map((a) => `<div class="mg-karte ekziston"><div class="info"><b>${esc(a.emri)}</b><div class="zbehte">Kodi ${esc(a.kodi)}${a.barkodi && a.barkodi !== a.kodi ? ' · barkodi ' + esc(a.barkodi) : ''} · ${eur(a.cmimi)} € · ${esc(a.njesia || '')}</div>
+          <div class="butona" style="margin-top:6px"><button class="kryesor pm-ek" type="button" data-id="${a.prodata_id}">➕ Shto sasi te ky artikull</button></div></div></div>`).join('')
+      + '<div class="butona"><button class="dyte" type="button" id="pm-gjithsesi">🆕 Regjistroje si artikull të ri</button></div>';
+    el.querySelectorAll('.pm-ek').forEach((b) => b.onclick = () => pmFormaShtoSasi(pako, ek.find((a) => a.prodata_id === b.dataset.id), kf, kg));
+    $('pm-gjithsesi').onclick = () => pmFormaRiProd(pako, kf, kg);
+  } else pmFormaRiProd(pako, kf, kg);
+}
+function pmDestHTML() { return `<label>Ku hyn ky produkt? * <select id="pm-p-mag">${pmMagOps(pm.pranimi.magazina)}</select></label>`; }
+function pmFormaRiProd(pako, kf, kg) {
+  const barkod = /^\d{8,14}$/.test(kf);   // barkod EAN/UPC nga furnitori → bëhet barkodi i artikullit
+  $('pm-hapi2').innerHTML = `<h3>🆕 Artikull i ri</h3>${kodiPyetjetHTML('pm-')}
+    <div class="tp-forma" style="margin-bottom:6px">
+      <label>Emri i produktit * <input id="pm-emri" placeholder="p.sh. Dantell franceze me rruaza e bardhë"></label>
+      <label>Çmimi i shitjes me TVSH * <input id="pm-cmimi" type="text" inputmode="decimal" autocomplete="off"></label>
+      <label>Nr. i ngjyrës <input id="pm-ngjyra" type="text" inputmode="numeric" autocomplete="off" placeholder="p.sh. 21" style="width:110px"></label>
+      <label>Kodi në Pro-Data <input id="pm-kodi" placeholder="zgjidh materialin dhe origjinën"><span class="zbehte" id="pm-kodi-sh"></span></label>
+      <label>Barkodi <input id="pm-barkodi" value="${barkod ? esc(kf) : ''}" placeholder="opsional"></label>
+      <label>Njësia <select id="pm-njesia"><option value="M">M (metër)</option><option value="Copë">Copë</option></select></label>
+      <label>Sasia që hyn në stok * <input id="pm-sasia" type="text" inputmode="decimal" autocomplete="off" placeholder="metra ose copë"></label>
+      ${pmDestHTML()}
+    </div>
+    ${mgFotoHTML(true)}
+    <label style="margin-top:8px">Shënim <input id="pm-shenim" placeholder="opsional"></label>
+    <div class="butona"><button class="kryesor" type="button" id="pm-ruaj">✅ Regjistro artikullin</button></div>`;
+  mgFotoLidh(); pmK = kodiAuto('pm-').lidh();
+  if (pm.pranimi.origjina) { const b = $('pm-origj').querySelector(`[data-v="${pm.pranimi.origjina}"]`); if (b) b.click(); }
+  $('pm-ruaj').onclick = () => pmRuaj(pako, kf, kg, async () => {
+    const emri = $('pm-emri').value.trim(), cmimi = pmNum($('pm-cmimi').value), sasia = pmNum($('pm-sasia').value), mag = $('pm-p-mag').value;
+    if (!(await pmK.kontrollo())) return null;
+    if (!emri) throw new Error('Shkruaj emrin e produktit.');
+    if (!(cmimi > 0)) throw new Error('Shkruaj çmimin e shitjes me TVSH.');
+    if (!(sasia > 0)) throw new Error('Shkruaj sasinë që hyn në stok (metra ose copë).');
+    if (!mag) throw new Error('Zgjidh ku hyn ky produkt.');
+    if (!mgFotot.length) throw new Error('Bëj të paktën 1 foto të produktit.');
+    const barkodi = $('pm-barkodi').value.trim() || null, kodi = $('pm-kodi').value.trim() || barkodi;
+    const ek = (await kerkoArtikuj(kodi)).concat(barkodi ? await kerkoArtikuj(barkodi) : []).filter((a) => [kodi, barkodi].includes(a.kodi) || [kodi, barkodi].includes(a.barkodi));
+    if (ek.length && !confirm(`Kodi/barkodi "${kodi}" ekziston te artikulli "${ek[0].emri}".\nTa regjistroj gjithsesi si artikull të ri?`)) return null;
+    return { lloji: 'artikull_i_ri', emri, barkodi, kodi, njesia: $('pm-njesia').value, cmimi_shitjes: cmimi, magazina: mag, sasia,
+      materiali: pmK.mat, origjina: pmK.mat === 'cope' ? null : pmK.origj, ngjyra: $('pm-ngjyra').value.trim() || null, shenimUser: $('pm-shenim').value.trim() };
+  });
+}
+function pmFormaShtoSasi(pako, a, kf, kg) {
+  $('pm-hapi2').innerHTML = `<h3>➕ Shto sasi: ${esc(a.emri)}</h3><p class="zbehte">Kodi ${esc(a.kodi)} · ${eur(a.cmimi)} € · ${esc(a.njesia || '')}</p><div class="stoku">${stokuHTML(a)}</div>
+    <div class="tp-forma" style="margin:8px 0 6px"><label>Sasia që hyn * <input id="pm-sasia" type="text" inputmode="decimal" autocomplete="off" placeholder="${esc(a.njesia || 'metra / copë')}"></label>${pmDestHTML()}</div>
+    ${mgFotoHTML(false)}
+    <label style="margin-top:8px">Shënim <input id="pm-shenim" placeholder="opsional"></label>
+    <div class="butona"><button class="kryesor" type="button" id="pm-ruaj">✅ Regjistro sasinë</button></div>`;
+  mgFotoLidh();
+  $('pm-ruaj').onclick = () => pmRuaj(pako, kf, kg, async () => {
+    const sasia = pmNum($('pm-sasia').value), mag = $('pm-p-mag').value;
+    if (!(sasia > 0)) throw new Error('Shkruaj sasinë që hyn.');
+    if (!mag) throw new Error('Zgjidh ku hyn ky produkt.');
+    return { lloji: 'hyrje', artikulli_id: a.prodata_id, kodi: a.kodi, barkodi: a.barkodi, emri: a.emri, njesia: a.njesia, magazina: mag, sasia, shenimUser: $('pm-shenim').value.trim() };
+  }, a.prodata_id);
+}
+async function pmRuaj(pako, kf, kg, teDhenat, artikulliId) {
+  const btn = $('pm-ruaj'), m = $('pm-prod-msg'); btn.disabled = true;
+  try {
+    const d = await teDhenat(); if (!d) { btn.disabled = false; return; }
+    m.className = 'mesazh pritje'; m.textContent = '⏳ Po ruhet…';
+    const rruget = mgFotot.length ? await mgNgarkoFotot() : [];
+    const { shenimUser, ...fushat } = d;
+    const shenim = [`Pranimi ${dataShqip(dataKS(new Date(pm.pranimi.krijuar)))}`, `pako ${pako.nr}`, kf && 'kodi ' + kf, kg != null && kg + ' kg', pm.pranimi.furnitori, shenimUser].filter(Boolean).join(' · ');
+    const { data: r, error } = await sb.from('regjistrimet_mallit').insert({ ...fushat, pranimi_id: pm.id, pako_id: pako.id, kodi_furnitorit: kf, pesha_kg: kg,
+      shenim: shenim.slice(0, 300), krijuar_emri: profili.emri || null, fotot: rruget }).select('id').single();
+    if (error) throw new Error(error.message);
+    if (rruget.length) await sb.from('artikujt_fotot').insert(rruget.map((rruga) => ({ artikulli_id: artikulliId || null, regjistrimi_id: r.id, rruga })));
+    mgFotot = [];
+    document.querySelector(`.pm-forma-slot[data-pako="${pako.id}"]`).innerHTML = '';
+    prNjofto(`✅ U regjistrua te pako ${pako.nr}: <b>${esc(d.emri)}</b>. Po kalon në Pro-Data…`, 'ok');
+    await pmRifreskoProduktet();
+    for (let i = 0; i < 20; i++) {   // ura e shkrimit e kryen brenda pak sekondash
+      await new Promise((ok) => setTimeout(ok, 2000));
+      if (!pm.id) return;
+      await pmRifreskoProduktet();
+      const x = pm.produktet.find((y) => y.id === r.id);
+      if (x && x.statusi === 'kryer') return prNjofto(`✅ Në Pro-Data: <b>${esc(x.emri)}</b> · kodi <b>${esc(x.kodi || '')}</b> · ${+x.sasia} ${esc(x.njesia || '')} → ${esc(emriMag(x.magazina))}`, 'ok');
+      if (x && x.statusi === 'gabim') return prNjofto(`❌ Pro-Data nuk e pranoi <b>${esc(x.emri)}</b>: ${esc(x.gabimi || '')}`, 'gabim');
+    }
+  } catch (e) { m.className = 'mesazh gabim'; m.textContent = '❌ ' + e.message; btn.disabled = false; }
+}
 // ---------- KODI I RADHËS ----------
 // Kodet ndërtohen: prefiksi + numri i radhës + çmimi + /ngjyra (p.sh. B-011 06 /12, Cope 0247 090).
 // Funksioni kodet_e_radhes gjen për çdo familje kodin e fundit të regjistruar dhe numrin e lirë që vjen pas tij
