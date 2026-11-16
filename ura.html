@@ -1369,7 +1369,7 @@ if ('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWor
 async function ngarkoListat() {
   const { data: mg } = await sb.from('prodata_magazinat').select('kodi, emri').order('kodi');
   magazinat = mg || [];
-  const opcionet = (lista) => lista.map((m) => `<option value="${esc(m.kodi)}">${esc(m.kodi)} – ${esc(m.emri)}</option>`).join('');
+  const opcionet = (lista) => magOpsionet(lista);
   for (const id of ['tr-nga', 'tr-te']) $(id).innerHTML = opcionet(magazinat);
   for (const id of ['sh-magazina', 'rg-magazina']) $(id).innerHTML = opcionet(magazinatE());
   let pikaE = null; try { pikaE = localStorage.getItem('pd-pika'); } catch {}   // pika e fundit që zgjodhi Super Admini në këtë pajisje
@@ -1711,8 +1711,7 @@ const RG_TEKST = {
 let rgCeles = celesRi('LV');   // një çelës për çdo lëvizje: klikimi i dyfishtë s'krijon dy transfere
 function rgTeOpsionet() {   // departamentet e tjera të Pro-Data-s ku mund të shkojë malli
   const nga = $('rg-magazina').value, ishte = $('rg-te').value;
-  $('rg-te').innerHTML = '<option value="">— zgjidh departamentin —</option>' + magazinat.filter((m) => m.kodi !== nga)
-    .map((m) => `<option value="${esc(m.kodi)}">${esc(m.emri)} (${esc(m.kodi)})</option>`).join('');
+  $('rg-te').innerHTML = '<option value="">— zgjidh departamentin —</option>' + magOpsionet(magazinat.filter((m) => m.kodi !== nga));
   if ([...$('rg-te').options].some((o) => o.value === ishte)) $('rg-te').value = ishte;
 }
 $('rg-magazina').addEventListener('change', rgTeOpsionet);
@@ -1923,7 +1922,7 @@ async function mgNgarkoFotot() {   // → rrugët në produktet-fotot
   }
   return rruget;
 }
-const mgMagazinatHTML = () => magazinatE().map((m) => `<option value="${esc(m.kodi)}" ${m.kodi === $('sh-magazina').value ? 'selected' : ''}>${esc(m.kodi)} – ${esc(m.emri)}</option>`).join('');
+const mgMagazinatHTML = () => magOpsionet(magazinatE(), $('sh-magazina').value);
 // pjesa "sa po hyn": hyrje nga furnitori ose korrigjim stoku (e njëjtë për artikull të ri dhe për shto sasi)
 function mgSasiaHTML(eDetyrueshme, meSasi = true) {   // te artikulli i ri sasia del lart, menjëherë pas çmimit (meSasi = false)
   return `<div class="mg-lloji" id="mg-lloji"><button type="button" data-l="hyrje" class="on">📥 Hyrje nga furnitori</button><button type="button" data-l="korrigjim">➕ Korrigjim stoku</button></div>
@@ -2210,7 +2209,7 @@ const pmKgM = (kg, m) => (+kg > 0 && +m > 0 ? pmFmt(kg / m, 3) + ' kg/m' : '—'
 const pmRolle = (rr) => (rr || []).reduce((s, r) => s + (+r.n || 0), 0);
 const pmMetra = (rr) => Math.round((rr || []).reduce((s, r) => s + (+r.n || 0) * (+r.m || 0), 0) * 1000) / 1000;
 const pmKodi = (mat, nr) => `${mat.kodi_materialit}0${String(+mat.cmimi)}${nr ? '/' + nr : ''}`;   // I103 + 0 + 253 + /20
-const pmMagOps = (zgj) => '<option value="">— zgjidh ku hyn malli —</option>' + magazinat.map((m) => `<option value="${esc(m.kodi)}" ${m.kodi === zgj ? 'selected' : ''}>${esc(m.emri)} (${esc(m.kodi)})</option>`).join('');
+const pmMagOps = (zgj) => '<option value="">— zgjidh ku hyn malli —</option>' + magOpsionet(magazinat, zgj);
 NGARKUESIT.pranimi = async (ngaRealtime) => {
   const lejuar = mgLejuar();
   $('pm-ndalur').hidden = lejuar; $('pm-kryesore').hidden = !lejuar || !!pm.id; $('pm-ngarkesa').hidden = !lejuar || !pm.id;
@@ -4696,7 +4695,12 @@ NGARKUESIT.pagesat = async () => {
 // Hyrje/Dalje interne → komandë "transfer" (ura e krijon në Pro-Data). Historiku vjen nga prodata_levizjet (të gjitha lëvizjet e Pro-Data-s).
 let DK = (() => { try { return localStorage.getItem('depo_kodi') || '001'; } catch { return '001'; } })();
 let dkLv = { tipi: 'dalje', rreshtat: [], celes: celesRi('DP') }, dkPamja = null;
-const emriMag = (k) => (magazinat.find((m) => m.kodi === k) || {}).emri || k;
+// Emri i departamentit: emri ynë i pikës kur magazina i përket një pike (002 → "Patron Dantel", jo "MINNA SHPK-1 Patron" si në Pro-Data), 16.11.2026
+const emriMag = (k) => { const p = (pikat || []).find((x) => (x.magazinat || []).some((m) => m.db === DB1 && m.mag === k));
+  return p ? p.emri : (magazinat.find((m) => m.kodi === k) || {}).emri || k; };
+// Listat e departamenteve: Patron Dantel i pari, pastaj Depoja Kryesore, pastaj të tjerat
+const magRendit = (lista) => [...lista].sort((a, b) => (['002', '001'].indexOf(a.kodi) + 1 || 9) - (['002', '001'].indexOf(b.kodi) + 1 || 9) || String(a.kodi).localeCompare(String(b.kodi)));
+const magOpsionet = (lista, zgj) => magRendit(lista).map((m) => `<option value="${esc(m.kodi)}" ${m.kodi === zgj ? 'selected' : ''}>${esc(emriMag(m.kodi))} (${esc(m.kodi)})</option>`).join('');
 const fmtN = (n) => (Math.round((+n || 0) * 100) / 100).toLocaleString('sq-AL');
 function sizeNgaEmri(emri) {   // Pro-Data s'ka fushë për size: merret nga fundi i emrit ("… Dress 40" → 40)
   const m = String(emri || '').trim().match(/(?:^|\s)(\d{2}(?:[\/-]\d{2})?|XXS|XS|S|M|L|XL|XXL|XXXL|[2-5]XL|S\/M|M\/L|L\/XL|ONE ?SIZE)$/i);
