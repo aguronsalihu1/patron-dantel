@@ -2289,6 +2289,7 @@ async function pmHap(id) {
       <div class="zbehte" style="margin:4px 0 10px">${esc(MG_ORIGJINAT[n.origjina] || n.origjina || 'Origjina pa shënuar')}${n.transportuesi ? ' · ' + esc(n.transportuesi) : ''}${n.furnitori ? ' · furnitori ' + esc(n.furnitori) : ''}${n.nr_dokumentit ? ' · dok. ' + esc(n.nr_dokumentit) : ''} · regjistroi ${esc(n.krijuar_emri || '')}${n.shenim ? ' · ' + esc(n.shenim) : ''}</div>
       <label>Destinacioni (ku hyn malli) <select id="pm-dest" ${hapur ? '' : 'disabled'}>${pmMagOps(n.magazina)}</select></label>
       <div class="karta" id="pm-permb" style="margin-top:10px"></div>
+      <div class="butona" style="margin-top:6px"><button class="dyte" type="button" id="pm-rp-furn">📄 Raporti për furnitorin (pa çmime)</button><button class="dyte" type="button" id="pm-rp-plote">📄 Raporti i plotë (me çmime)</button></div>
       ${n.etiketat_statusi === 'perfunduar' ? `<div class="mesazh ok" style="display:block">🏷️ Etiketat u printuan nga <b>${esc(n.etiketat_perfunduar_nga || '')}</b> më ${oraKS(n.etiketat_perfunduar)}.</div>`
         : n.etiketat_statusi === 'ne_pritje' ? `<div class="mesazh pritje" style="display:block">🔔 Depoja u njoftua më ${oraKS(n.etiketat_njoftuar)}: po pritet printimi i etiketave.</div>` : ''}
     </div>
@@ -2299,6 +2300,7 @@ async function pmHap(id) {
     ${hapur ? '<div class="butona"><button class="kryesor" type="button" id="pm-mat-ri">➕ Material i ri</button></div><div id="pm-mat-forma"></div>' : ''}
     <div class="butona" style="margin-top:18px">${hapur ? '<button class="kryesor" type="button" id="pm-perfundo">✅ Përfundo regjistrimin dhe njofto depon</button>' : '<button class="dyte" type="button" id="pm-rihap">↺ Rihap ngarkesën (për të shtuar diçka)</button>'}</div>`;
   $('pm-kthehu').onclick = pmKthehu;
+  $('pm-rp-furn').onclick = () => pmRaporti(false); $('pm-rp-plote').onclick = () => pmRaporti(true);
   $('pm-dest').onchange = async (e) => {
     if (!e.target.value) { e.target.value = n.magazina; return; }
     const { error } = await sb.from('app_pranimet').update({ magazina: e.target.value }).eq('id', n.id);
@@ -2547,6 +2549,140 @@ async function pmPerfundo() {
   if (error) return alert('❌ ' + error.message);
   prNjofto('✅ U përfundua. 🔔 Depoja u njoftua për etiketat.', 'ok');
   pmHap(n.id);
+}
+// ---------- RAPORTI I FURNIZIMIT (16.11.2026, Aguroni) ----------
+// Të gjitha materialet e një furnizimi (p.sh. 007) në një dokument: "për furnitorin" (pa çmime: fotot, kg, metra, rollet)
+// dhe "i plotë" (edhe çmimi shitës dhe vlera). PDF (html2pdf), Excel (SheetJS), printim te A4 i arkës (roboti printon PDF-në) ose këtu.
+const LIB_PDF = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+const pmFotoData = new Map();   // rruga → data:URL e fotos së vogël (që PDF-ja dhe printimi t'i kenë fotot brenda)
+async function pmFototRaportit() {
+  const rr = [...new Set(pm.produktet.map((x) => (x.fotot || [])[0]).filter(Boolean))].filter((r) => !pmFotoData.has(r));
+  if (!rr.length) return;
+  const url = await gjUrlVogla(rr);
+  await Promise.all(rr.map(async (r) => {
+    const u = url.get(r); if (!u) return;
+    try { const b = await (await fetch(u)).blob(); pmFotoData.set(r, await new Promise((ok, gab) => { const fr = new FileReader(); fr.onload = () => ok(fr.result); fr.onerror = gab; fr.readAsDataURL(b); })); } catch {}
+  }));
+}
+const pmRolleTekst = (rr, nj) => (rr || []).map((r) => `${r.n} × ${pmFmt(r.m)} ${nj}`).join(' + ');
+function pmRaportHTML(meCmime) {
+  const n = pm.pranimi, nr = n.nr_furnizimit ? 'Furnizimi ' + esc(n.nr_furnizimit) : 'Furnizimi';
+  const kgP = pm.pakot.reduce((s, p) => s + (+p.pesha_kg || 0), 0), pr = pm.produktet;
+  const M = pr.reduce((s, x) => s + (+x.sasia || 0), 0), KG = pr.reduce((s, x) => s + (+x.pesha_kg || 0), 0), R = pr.reduce((s, x) => s + pmRolle(x.rollet), 0);
+  const V = pr.reduce((s, x) => s + (+x.sasia || 0) * (+x.cmimi_shitjes || 0), 0);
+  const info = [['Nr. i furnizimit', esc(n.nr_furnizimit || '—')], ['Data e pranimit', esc(dataShqip(dataKS(new Date(n.krijuar))))], ['Vendi i origjinës', esc(MG_ORIGJINAT[n.origjina] || n.origjina || '—')],
+    ['Transportuesi', esc(n.transportuesi || '—')], ['Furnitori', esc(n.furnitori || '—')], ['Nr. i dokumentit', esc(n.nr_dokumentit || '—')]]
+    .concat(meCmime ? [['Destinacioni', esc(emriMag(n.magazina))], ['Regjistroi', esc(n.krijuar_emri || '')]] : []);
+  const mat = pm.materialet.map((mt) => {
+    const rr = pr.filter((x) => x.materiali_id === mt.id); if (!rr.length) return '';
+    const nj = mt.njesia === 'Copë' ? 'copë' : 'm', m = rr.reduce((s, x) => s + (+x.sasia || 0), 0), kg = rr.reduce((s, x) => s + (+x.pesha_kg || 0), 0);
+    return `<div class="mat"><h2>${mt.kodi_materialit_furnitorit ? esc(mt.kodi_materialit_furnitorit) + ' · ' : ''}${esc(mt.emri)} <span class="zb">(kodi ynë ${esc(mt.kodi_materialit)}${mt.kodi_furnitorit ? ' · furnitori ' + esc(mt.kodi_furnitorit) : ''}${meCmime ? ' · ' + eur(mt.cmimi) + ' €/' + nj : ''})</span></h2>
+      <table><thead><tr><th>Foto</th><th>Ngjyra</th><th>Nr.</th><th>Kodi</th><th>Rollet (sasia × gjatësia)</th><th class="n">Rolle</th><th class="n">${nj === 'm' ? 'Metra' : 'Copë'}</th><th class="n">Kg</th><th class="n">Kg/${nj}</th>${meCmime ? `<th class="n">€/${nj}</th><th class="n">Vlera €</th>` : ''}</tr></thead><tbody>
+      ${rr.map((x) => { const f = pmFotoData.get((x.fotot || [])[0]);
+        return `<tr><td>${f ? `<img src="${f}" alt="">` : '—'}</td><td>${esc(x.ngjyra_emri || '')}</td><td><b>${esc(x.ngjyra || '')}</b></td><td>${esc(x.kodi || '')}</td><td>${esc(pmRolleTekst(x.rollet, nj))}</td>
+          <td class="n">${pmRolle(x.rollet) || '—'}</td><td class="n">${pmFmt(x.sasia)}</td><td class="n">${pmFmt(x.pesha_kg, 3)}</td><td class="n">${+x.pesha_kg > 0 && +x.sasia > 0 ? pmFmt(x.pesha_kg / x.sasia, 3) : '—'}</td>
+          ${meCmime ? `<td class="n">${eur(x.cmimi_shitjes)}</td><td class="n">${eur((+x.sasia || 0) * (+x.cmimi_shitjes || 0))}</td>` : ''}</tr>`; }).join('')}
+      <tr class="tot"><td colspan="5">Totali i materialit</td><td class="n">${rr.reduce((s, x) => s + pmRolle(x.rollet), 0)}</td><td class="n">${pmFmt(m)}</td><td class="n">${pmFmt(kg, 3)}</td><td class="n">${m > 0 ? pmFmt(kg / m, 3) : '—'}</td>
+        ${meCmime ? `<td></td><td class="n">${eur(rr.reduce((s, x) => s + (+x.sasia || 0) * (+x.cmimi_shitjes || 0), 0))}</td>` : ''}</tr></tbody></table></div>`;
+  }).join('');
+  return `<div class="rp"><style>
+    .rp { font-family: Arial, Helvetica, sans-serif; color: #111; font-size: 11px; background: #fff; line-height: 1.3; }
+    .rp .koka { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; border-bottom: 2px solid #5b2160; padding-bottom: 6px; margin-bottom: 8px; }
+    .rp h1 { font-size: 18px; margin: 0; } .rp h2 { font-size: 13px; margin: 12px 0 4px; } .rp .zb { color: #555; font-weight: 400; font-size: 11px; }
+    .rp .info { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px 14px; margin: 6px 0 4px; } .rp .info b { display: block; font-size: 9px; color: #666; font-weight: 400; text-transform: uppercase; }
+    .rp table { width: 100%; border-collapse: collapse; margin: 4px 0 6px; } .rp th, .rp td { border: 1px solid #bbb; padding: 3px 4px; text-align: left; vertical-align: middle; }
+    .rp th { background: #f1e9f2; font-size: 9.5px; } .rp .n { text-align: right; white-space: nowrap; }
+    .rp img { width: 58px; height: 58px; object-fit: cover; border-radius: 4px; display: block; }
+    .rp tr, .rp .permb { break-inside: avoid; page-break-inside: avoid; } .rp h2 { break-after: avoid; page-break-after: avoid; }
+    .rp .tot td { font-weight: 700; background: #faf7fa; } .rp .fund { margin-top: 10px; color: #666; font-size: 9px; text-align: center; }
+  </style>
+  <div class="koka"><div><h1>PATRON DANTEL</h1><div>MINNA SH.P.K.</div></div>
+    <div style="text-align:right"><h1>${nr}</h1><div>${meCmime ? 'Raport i plotë (me çmime)' : 'Raport i mallit të pranuar'} · printuar ${esc(new Date().toLocaleString('sq-AL', { timeZone: 'Europe/Belgrade' }))}</div></div></div>
+  <div class="info">${info.map(([k, v]) => `<div><b>${k}</b>${v}</div>`).join('')}</div>
+  <h2>📦 Pakot</h2>
+  <table><thead><tr><th>Pako</th><th class="n">Pesha (kg)</th><th>Shënim</th></tr></thead><tbody>
+    ${pm.pakot.map((p) => `<tr><td>Pako ${p.nr}</td><td class="n">${p.pesha_kg == null ? '—' : pmFmt(p.pesha_kg, 3)}</td><td>${esc(p.shenim || '')}</td></tr>`).join('')}
+    <tr class="tot"><td>Totali: ${pm.pakot.length} pako</td><td class="n">${pmFmt(kgP, 3)}</td><td></td></tr></tbody></table>
+  ${mat || '<p>Ende asnjë material i regjistruar.</p>'}
+  <div class="permb"><h2>Përmbledhja</h2><table><tbody>
+    <tr><td>Pako</td><td class="n">${pm.pakot.length}</td><td>Pesha e pakove</td><td class="n">${pmFmt(kgP, 3)} kg</td></tr>
+    <tr><td>Materiale</td><td class="n">${pm.materialet.filter((mt) => pr.some((x) => x.materiali_id === mt.id)).length}</td><td>Ngjyra / kode</td><td class="n">${pr.length}</td></tr>
+    <tr><td>Rolle</td><td class="n">${R}</td><td>Metra gjithsej</td><td class="n">${pmFmt(M)} m</td></tr>
+    <tr><td>Pesha e materialeve</td><td class="n">${pmFmt(KG, 3)} kg</td><td>Kg për metër (mesatarja)</td><td class="n">${M > 0 ? pmFmt(KG / M, 3) : '—'}</td></tr>
+    ${meCmime ? `<tr class="tot"><td colspan="3">Vlera me çmimin shitës (me TVSH)</td><td class="n">${eur(V)} €</td></tr>` : ''}
+  </tbody></table></div>
+  <div class="fund">${meCmime ? 'Dokument i brendshëm i Patron Dantel.' : 'Dokument informues për mallin e pranuar. Nuk është faturë.'}</div></div>`;
+}
+function pmRaportExcel(meCmime, emri) {
+  const n = pm.pranimi, orig = MG_ORIGJINAT[n.origjina] ? MG_ORIGJINAT[n.origjina].replace(/^\S+\s/, '') : n.origjina || '';
+  const pako = [['Transportuesi', 'Vendi i origjinës', 'Numri i pakos', 'Kilogram', 'Shënim']].concat(pm.pakot.map((p) => [n.transportuesi || '', orig, p.nr, p.pesha_kg == null ? '' : +p.pesha_kg, p.shenim || '']),
+    [['', '', 'Totali kilogram', pm.pakot.reduce((s, p) => s + (+p.pesha_kg || 0), 0)]]);
+  const koka = ['Origjina', 'Kodi i furnitorit', 'Kodi i materialit nga furnitori', 'Kodi i materialit', 'Emri i materialit', 'Ngjyra', 'Numri i ngjyrës']
+    .concat(meCmime ? ['Çmimi shitës për metër'] : [], ['Kilogram për metër/copë', 'Kilogram total', 'Top/rrolne', 'Rollet (sasia × metrazhi)', 'Total sasia/metrazhi', 'Kodi në Pro-Data', 'Pako'], meCmime ? ['Vlera €', 'Destinacioni'] : []);
+  const rr = [];
+  for (const mt of pm.materialet) for (const x of pm.produktet.filter((y) => y.materiali_id === mt.id)) {
+    const pk = pm.pakot.find((p) => p.id === x.pako_id);
+    rr.push([MG_ORIGJINAT[mt.origjina] ? MG_ORIGJINAT[mt.origjina].replace(/^\S+\s/, '') : mt.origjina || '', mt.kodi_furnitorit || '', mt.kodi_materialit_furnitorit || '', mt.kodi_materialit, mt.emri, x.ngjyra_emri || '', x.ngjyra || '']
+      .concat(meCmime ? [+x.cmimi_shitjes || 0] : [], [+x.pesha_kg > 0 && +x.sasia > 0 ? Math.round(x.pesha_kg / x.sasia * 1000) / 1000 : '', +x.pesha_kg || 0, pmRolle(x.rollet), pmRolleTekst(x.rollet, mt.njesia === 'Copë' ? 'copë' : 'm'), +x.sasia || 0, x.kodi || '', pk ? pk.nr : ''],
+        meCmime ? [Math.round((+x.sasia || 0) * (+x.cmimi_shitjes || 0) * 100) / 100, emriMag(x.magazina)] : []));
+  }
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(pako), 'Pako');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([koka, ...rr]), 'Produkti');
+  XLSX.writeFile(wb, emri + '.xlsx');
+}
+async function pmRaporti(meCmime) {
+  let el = $('pm-raport');
+  if (!el) { el = document.createElement('div'); el.id = 'pm-raport'; el.className = 'pr-dialog-stil'; document.body.appendChild(el); }
+  el.hidden = false; el.innerHTML = '<div class="pr-kuti"><p>⏳ Po përgatitet raporti me fotot…</p></div>';
+  try { await pmRifresko(); await pmFototRaportit(); } catch (e) { el.innerHTML = `<div class="pr-kuti"><p>❌ ${esc(e.message)}</p><button class="dyte rp-mbyll">Mbyll</button></div>`; el.querySelector('.rp-mbyll').onclick = () => { el.hidden = true; }; return; }
+  const html = pmRaportHTML(meCmime), titulli = `${pm.pranimi.nr_furnizimit ? 'Furnizimi ' + pm.pranimi.nr_furnizimit : 'Furnizimi'} ${meCmime ? '(i plotë)' : '(për furnitorin)'}`;
+  const emri = `Furnizimi_${String(pm.pranimi.nr_furnizimit || dataKS(new Date(pm.pranimi.krijuar))).replace(/[^\w-]+/g, '_')}_${meCmime ? 'i_plote' : 'per_furnitorin'}`;
+  el.innerHTML = `<div class="pr-kuti" style="width:min(980px,100%);max-height:92vh;overflow:auto">
+    <div class="rresht" style="justify-content:space-between;margin:0 0 8px;gap:8px;flex-wrap:wrap"><h3 style="margin:0">📄 ${meCmime ? 'Raporti i plotë (me çmime)' : 'Raporti për furnitorin (pa çmime)'}</h3><button class="dyte rp-mbyll" type="button">Mbyll</button></div>
+    <div class="butona" style="margin-top:0"><button class="kryesor rp-pdf" type="button">⬇️ Shkarko PDF</button><button class="dyte rp-xls" type="button">⬇️ Shkarko Excel</button>
+      <button class="dyte rp-print" type="button">🖨️ Printo te A4 i arkës</button><button class="dyte rp-ketu" type="button">🖨️ Printo këtu</button></div>
+    <div class="mesazh rp-msg"></div>
+    <div style="border:1px solid var(--vije);border-radius:12px;padding:12px;background:#fff;overflow:auto">${html}</div></div>`;
+  const msg = (t, k = '') => { const m = el.querySelector('.rp-msg'); m.className = 'mesazh rp-msg ' + k; m.style.display = t ? 'block' : 'none'; m.innerHTML = t; };
+  const pdf = async () => {   // faqe A4, fotot brenda; rreshtat s'ndahen në dy faqe
+    await ngarkoLib(LIB_PDF);
+    const c = document.createElement('div'); c.style.cssText = 'position:fixed;left:-10000px;top:0;width:194mm;background:#fff'; c.innerHTML = html; document.body.appendChild(c);
+    try { return await html2pdf().set({ margin: 8, image: { type: 'jpeg', quality: 0.92 }, html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', 'h2', '.permb'] } }).from(c).outputPdf('blob'); }
+    finally { c.remove(); }
+  };
+  const butonat = (on) => el.querySelectorAll('.butona button').forEach((b) => { b.disabled = !on; });
+  el.querySelector('.rp-mbyll').onclick = () => { el.hidden = true; el.innerHTML = ''; };
+  el.querySelector('.rp-pdf').onclick = async () => {
+    butonat(false); msg('⏳ Po krijohet PDF-ja…');
+    try { const b = await pdf(), a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = emri + '.pdf'; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000); msg('✅ PDF-ja u shkarkua: ' + esc(emri) + '.pdf', 'ok'); }
+    catch (e) { msg('❌ ' + esc(e.message), 'gabim'); }
+    butonat(true);
+  };
+  el.querySelector('.rp-xls').onclick = async () => {
+    try { await ngarkoXLSX(); pmRaportExcel(meCmime, emri); msg('✅ Excel-i u shkarkua: ' + esc(emri) + '.xlsx (fotot janë vetëm te PDF-ja).', 'ok'); } catch (e) { msg('❌ ' + esc(e.message), 'gabim'); }
+  };
+  el.querySelector('.rp-ketu').onclick = () => etPrintoNeDritare(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(emri)}</title><style>@page { size: A4; margin: 10mm; } body { margin: 0; }</style></head><body>${html}</body></html>`);
+  el.querySelector('.rp-print').onclick = async () => {   // PDF → telposta-letrat/raportet/ → roboti i arkës e printon faqe për faqe
+    butonat(false); msg('⏳ Po krijohet PDF-ja për printerin…');
+    try {
+      const b = await pdf(), rruga = `raportet/${dataKS()}_${[...crypto.getRandomValues(new Uint8Array(8))].map((x) => x.toString(16).padStart(2, '0')).join('')}.pdf`;
+      const { error: e1 } = await sb.storage.from('telposta-letrat').upload(rruga, b, { contentType: 'application/pdf' });
+      if (e1) throw new Error('PDF-ja nuk u ngarkua: ' + e1.message);
+      const { data: d, error } = await sb.from('printimet').insert({ printeri: 'arka-a4', titulli, krijuar_emri: profili.emri || null, html: JSON.stringify({ pdf: rruga }) }).select('id').single();
+      if (error) throw new Error(error.message);
+      msg('🖨️ U dërgua te printeri A4 i arkës… po pritet përgjigja.');
+      for (let i = 0; i < 60; i++) {
+        await new Promise((r) => setTimeout(r, 2000));
+        const { data: x } = await sb.from('printimet').select('statusi, gabimi').eq('id', d.id).maybeSingle();
+        if (x && x.statusi === 'kryer') { msg('✅ U printua te printeri A4 i arkës.', 'ok'); butonat(true); return; }
+        if (x && x.statusi === 'gabim') throw new Error('Printeri: ' + (x.gabimi || ''));
+      }
+      msg('⚠️ Printeri ende s\'u përgjigj. Printohet sapo PC-ja e arkës të jetë ndezur (brenda 10 min).', 'gabim');
+    } catch (e) { msg('❌ ' + esc(e.message), 'gabim'); }
+    butonat(true);
+  };
 }
 // ---------- NJOFTIMET E DEPOS: mall i ri → etiketat → ✔️ ----------
 let etPranimet = [], etPranimetNr = null;
