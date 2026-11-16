@@ -2577,12 +2577,12 @@ function pmRaportHTML(meCmime) {
     const rr = pr.filter((x) => x.materiali_id === mt.id); if (!rr.length) return '';
     const nj = mt.njesia === 'Copë' ? 'copë' : 'm', m = rr.reduce((s, x) => s + (+x.sasia || 0), 0), kg = rr.reduce((s, x) => s + (+x.pesha_kg || 0), 0);
     return `<div class="mat"><h2>${mt.kodi_materialit_furnitorit ? esc(mt.kodi_materialit_furnitorit) + ' · ' : ''}${esc(mt.emri)} <span class="zb">(kodi ynë ${esc(mt.kodi_materialit)}${mt.kodi_furnitorit ? ' · furnitori ' + esc(mt.kodi_furnitorit) : ''}${meCmime ? ' · ' + eur(mt.cmimi) + ' €/' + nj : ''})</span></h2>
-      <table><thead><tr><th>Foto</th><th>Ngjyra</th><th>Nr.</th><th>Kodi</th><th>Rollet (sasia × gjatësia)</th><th class="n">Rolle</th><th class="n">${nj === 'm' ? 'Metra' : 'Copë'}</th><th class="n">Kg</th><th class="n">Kg/${nj}</th>${meCmime ? `<th class="n">€/${nj}</th><th class="n">Vlera €</th>` : ''}</tr></thead><tbody>
+      <table><thead><tr><th>Foto</th><th>Ngjyra</th><th>Nr.</th>${meCmime ? '<th>Kodi</th>' : ''}<th>Rollet (sasia × gjatësia)</th><th class="n">Rolle</th><th class="n">${nj === 'm' ? 'Metra' : 'Copë'}</th><th class="n">Kg</th><th class="n">Kg/${nj}</th>${meCmime ? `<th class="n">€/${nj}</th><th class="n">Vlera €</th>` : ''}</tr></thead><tbody>
       ${rr.map((x) => { const f = pmFotoData.get((x.fotot || [])[0]);
-        return `<tr><td>${f ? `<img src="${f}" alt="">` : '—'}</td><td>${esc(x.ngjyra_emri || '')}</td><td><b>${esc(x.ngjyra || '')}</b></td><td>${esc(x.kodi || '')}</td><td>${esc(pmRolleTekst(x.rollet, nj))}</td>
+        return `<tr><td>${f ? `<img src="${f}" alt="">` : '—'}</td><td>${esc(x.ngjyra_emri || '')}</td><td><b>${esc(x.ngjyra || '')}</b></td>${meCmime ? `<td>${esc(x.kodi || '')}</td>` : ''}<td>${esc(pmRolleTekst(x.rollet, nj))}</td>
           <td class="n">${pmRolle(x.rollet) || '—'}</td><td class="n">${pmFmt(x.sasia)}</td><td class="n">${pmFmt(x.pesha_kg, 3)}</td><td class="n">${+x.pesha_kg > 0 && +x.sasia > 0 ? pmFmt(x.pesha_kg / x.sasia, 3) : '—'}</td>
           ${meCmime ? `<td class="n">${eur(x.cmimi_shitjes)}</td><td class="n">${eur((+x.sasia || 0) * (+x.cmimi_shitjes || 0))}</td>` : ''}</tr>`; }).join('')}
-      <tr class="tot"><td colspan="5">Totali i materialit</td><td class="n">${rr.reduce((s, x) => s + pmRolle(x.rollet), 0)}</td><td class="n">${pmFmt(m)}</td><td class="n">${pmFmt(kg, 3)}</td><td class="n">${m > 0 ? pmFmt(kg / m, 3) : '—'}</td>
+      <tr class="tot"><td colspan="${meCmime ? 5 : 4}">Totali i materialit</td><td class="n">${rr.reduce((s, x) => s + pmRolle(x.rollet), 0)}</td><td class="n">${pmFmt(m)}</td><td class="n">${pmFmt(kg, 3)}</td><td class="n">${m > 0 ? pmFmt(kg / m, 3) : '—'}</td>
         ${meCmime ? `<td></td><td class="n">${eur(rr.reduce((s, x) => s + (+x.sasia || 0) * (+x.cmimi_shitjes || 0), 0))}</td>` : ''}</tr></tbody></table></div>`;
   }).join('');
   return `<div class="rp"><style>
@@ -2618,13 +2618,13 @@ function pmRaportExcel(meCmime, emri) {
   const pako = [['Transportuesi', 'Vendi i origjinës', 'Numri i pakos', 'Kilogram', 'Shënim']].concat(pm.pakot.map((p) => [n.transportuesi || '', orig, p.nr, p.pesha_kg == null ? '' : +p.pesha_kg, p.shenim || '']),
     [['', '', 'Totali kilogram', pm.pakot.reduce((s, p) => s + (+p.pesha_kg || 0), 0)]]);
   const koka = ['Origjina', 'Kodi i furnitorit', 'Kodi i materialit nga furnitori', 'Kodi i materialit', 'Emri i materialit', 'Ngjyra', 'Numri i ngjyrës']
-    .concat(meCmime ? ['Çmimi shitës për metër'] : [], ['Kilogram për metër/copë', 'Kilogram total', 'Top/rrolne', 'Rollet (sasia × metrazhi)', 'Total sasia/metrazhi', 'Kodi në Pro-Data', 'Pako'], meCmime ? ['Vlera €', 'Destinacioni'] : []);
+    .concat(meCmime ? ['Çmimi shitës për metër'] : [], ['Kilogram për metër/copë', 'Kilogram total', 'Top/rrolne', 'Rollet (sasia × metrazhi)', 'Total sasia/metrazhi', 'Pako'], meCmime ? ['Kodi në Pro-Data', 'Vlera €', 'Destinacioni'] : []);
   const rr = [];
   for (const mt of pm.materialet) for (const x of pm.produktet.filter((y) => y.materiali_id === mt.id)) {
     const pk = pm.pakot.find((p) => p.id === x.pako_id);
     rr.push([MG_ORIGJINAT[mt.origjina] ? MG_ORIGJINAT[mt.origjina].replace(/^\S+\s/, '') : mt.origjina || '', mt.kodi_furnitorit || '', mt.kodi_materialit_furnitorit || '', mt.kodi_materialit, mt.emri, x.ngjyra_emri || '', x.ngjyra || '']
-      .concat(meCmime ? [+x.cmimi_shitjes || 0] : [], [+x.pesha_kg > 0 && +x.sasia > 0 ? Math.round(x.pesha_kg / x.sasia * 1000) / 1000 : '', +x.pesha_kg || 0, pmRolle(x.rollet), pmRolleTekst(x.rollet, mt.njesia === 'Copë' ? 'copë' : 'm'), +x.sasia || 0, x.kodi || '', pk ? pk.nr : ''],
-        meCmime ? [Math.round((+x.sasia || 0) * (+x.cmimi_shitjes || 0) * 100) / 100, emriMag(x.magazina)] : []));
+      .concat(meCmime ? [+x.cmimi_shitjes || 0] : [], [+x.pesha_kg > 0 && +x.sasia > 0 ? Math.round(x.pesha_kg / x.sasia * 1000) / 1000 : '', +x.pesha_kg || 0, pmRolle(x.rollet), pmRolleTekst(x.rollet, mt.njesia === 'Copë' ? 'copë' : 'm'), +x.sasia || 0, pk ? pk.nr : ''],
+        meCmime ? [x.kodi || '', Math.round((+x.sasia || 0) * (+x.cmimi_shitjes || 0) * 100) / 100, emriMag(x.magazina)] : []));   // kodi ynë përmban çmimin: jo te furnitori
   }
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(pako), 'Pako');
@@ -2646,11 +2646,9 @@ async function pmRaporti(meCmime) {
     <div style="border:1px solid var(--vije);border-radius:12px;padding:12px;background:#fff;overflow:auto">${html}</div></div>`;
   const msg = (t, k = '') => { const m = el.querySelector('.rp-msg'); m.className = 'mesazh rp-msg ' + k; m.style.display = t ? 'block' : 'none'; m.innerHTML = t; };
   const pdf = async () => {   // faqe A4, fotot brenda; rreshtat s'ndahen në dy faqe
-    await ngarkoLib(LIB_PDF);
-    const c = document.createElement('div'); c.style.cssText = 'position:fixed;left:-10000px;top:0;width:194mm;background:#fff'; c.innerHTML = html; document.body.appendChild(c);
-    try { return await html2pdf().set({ margin: 8, image: { type: 'jpeg', quality: 0.92 }, html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', 'h2', '.permb'] } }).from(c).outputPdf('blob'); }
-    finally { c.remove(); }
+    await ngarkoLib(LIB_PDF);   // nga teksti HTML: html2pdf krijon vetë kutinë me gjerësinë e faqes (një element jashtë ekranit del bosh)
+    return html2pdf().set({ margin: 8, image: { type: 'jpeg', quality: 0.92 }, html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', 'h2', '.permb'] } }).from(html, 'string').outputPdf('blob');
   };
   const butonat = (on) => el.querySelectorAll('.butona button').forEach((b) => { b.disabled = !on; });
   el.querySelector('.rp-mbyll').onclick = () => { el.hidden = true; el.innerHTML = ''; };
