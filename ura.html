@@ -2659,40 +2659,56 @@ async function pmRaporti(meCmime) {
     <div class="mesazh rp-msg"></div>
     <div style="border:1px solid var(--vije);border-radius:12px;padding:12px;background:#fff;overflow:auto">${html}</div></div>`;
   const msg = (t, k = '') => { const m = el.querySelector('.rp-msg'); m.className = 'mesazh rp-msg ' + k; m.style.display = t ? 'block' : 'none'; m.innerHTML = t; };
-  const pdf = async () => {   // faqe A4, fotot brenda; rreshtat s'ndahen në dy faqe
+  const pdf = async () => {   // rezervë kur PC-ja e arkës është e fikur: PDF-ja krijohet në këtë pajisje (në iPhone mund të jetë e ngadaltë)
     await ngarkoLib(LIB_PDF);   // nga teksti HTML: html2pdf krijon vetë kutinë me gjerësinë e faqes (një element jashtë ekranit del bosh)
-    return html2pdf().set({ margin: 8, image: { type: 'jpeg', quality: 0.92 }, html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+    return html2pdf().set({ margin: 8, image: { type: 'jpeg', quality: 0.9 }, html2canvas: { scale: /iPhone|iPad/.test(navigator.userAgent) ? 1.5 : 2, useCORS: true, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0 },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }, pagebreak: { mode: ['css', 'legacy'], avoid: ['tr', 'h2', '.permb'] } }).from(html, 'string').outputPdf('blob');
+  };
+  // Zakonisht PDF-në e krijon roboti te PC-ja e arkës (Edge, A4 me buzë të sakta): "printo" e printon te HP-ja, "pdf" e kthen për shkarkim (16.11.2026)
+  const dokumenti = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(emri)}</title></head><body style="margin:0">${html}</body></html>`;
+  const robotiOnline = async () => { const { data } = await sb.from('printerat').select('pare_se_fundi').eq('id', 'arka-a4').maybeSingle(); return !!data && prOnline(data); };
+  const meRobot = async (veprimi, dalja) => {
+    const { data: d, error } = await sb.from('printimet').insert({ printeri: 'arka-a4', titulli: (veprimi === 'pdf' ? 'PDF: ' : '') + titulli, krijuar_emri: profili.emri || null,
+      html: JSON.stringify({ raport: dokumenti, veprimi, dalja }) }).select('id').single();
+    if (error) throw new Error(error.message);
+    for (let i = 0; i < 60; i++) {
+      await new Promise((r) => setTimeout(r, 2000));
+      const { data: x } = await sb.from('printimet').select('statusi, gabimi').eq('id', d.id).maybeSingle();
+      if (x && x.statusi === 'kryer') return true;
+      if (x && x.statusi === 'gabim') throw new Error('Roboti: ' + (x.gabimi || ''));
+      if (i === 10) msg('⏳ PC-ja e arkës ende s\'u përgjigj… (a është ndezur?)');
+    }
+    throw new Error('PC-ja e arkës nuk u përgjigj (roboti i printimit është i ndalur?).');
   };
   const butonat = (on) => el.querySelectorAll('.butona button').forEach((b) => { b.disabled = !on; });
   el.querySelector('.rp-mbyll').onclick = () => { el.hidden = true; el.innerHTML = ''; };
   el.querySelector('.rp-pdf').onclick = async () => {
-    butonat(false); msg('⏳ Po krijohet PDF-ja…');
-    try { const b = await pdf(), a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = emri + '.pdf'; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000); msg('✅ PDF-ja u shkarkua: ' + esc(emri) + '.pdf', 'ok'); }
-    catch (e) { msg('❌ ' + esc(e.message), 'gabim'); }
+    butonat(false);
+    try {
+      if (await robotiOnline()) {
+        msg('⏳ Po krijohet PDF-ja te PC-ja e arkës…');
+        const dalja = `raportet/${dataKS()}_${[...crypto.getRandomValues(new Uint8Array(8))].map((x) => x.toString(16).padStart(2, '0')).join('')}.pdf`;
+        await meRobot('pdf', dalja);
+        const { data: u, error } = await sb.storage.from('telposta-letrat').createSignedUrl(dalja, 3600, { download: emri + '.pdf' });
+        if (error) throw new Error(error.message);
+        // lidhje që e shtyp përdoruesi: iPhone-i s'lejon hapje automatike pas pritjes
+        msg(`✅ PDF-ja është gati: <a class="kryesor" style="display:inline-block;padding:8px 14px;border-radius:12px;color:#fff;text-decoration:none" href="${esc(u.signedUrl)}" target="_blank" rel="noopener">📄 Hap / shkarko ${esc(emri)}.pdf</a>`, 'ok');
+      } else {
+        msg('⏳ PC-ja e arkës është e fikur: PDF-ja po krijohet në këtë pajisje…');
+        const b = await pdf(), a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = emri + '.pdf'; document.body.appendChild(a); a.click();
+        setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000); msg('✅ PDF-ja u shkarkua: ' + esc(emri) + '.pdf', 'ok');
+      }
+    } catch (e) { msg('❌ ' + esc(e.message), 'gabim'); }
     butonat(true);
   };
   el.querySelector('.rp-xls').onclick = async () => {
     try { await ngarkoXLSX(); pmRaportExcel(meCmime, emri); msg('✅ Excel-i u shkarkua: ' + esc(emri) + '.xlsx (fotot janë vetëm te PDF-ja).', 'ok'); } catch (e) { msg('❌ ' + esc(e.message), 'gabim'); }
   };
   el.querySelector('.rp-ketu').onclick = () => etPrintoNeDritare(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(emri)}</title><style>@page { size: A4; margin: 10mm; } body { margin: 0; }</style></head><body>${html}</body></html>`);
-  el.querySelector('.rp-print').onclick = async () => {   // PDF → telposta-letrat/raportet/ → roboti i arkës e printon faqe për faqe
-    butonat(false); msg('⏳ Po krijohet PDF-ja për printerin…');
-    try {
-      const b = await pdf(), rruga = `raportet/${dataKS()}_${[...crypto.getRandomValues(new Uint8Array(8))].map((x) => x.toString(16).padStart(2, '0')).join('')}.pdf`;
-      const { error: e1 } = await sb.storage.from('telposta-letrat').upload(rruga, b, { contentType: 'application/pdf' });
-      if (e1) throw new Error('PDF-ja nuk u ngarkua: ' + e1.message);
-      const { data: d, error } = await sb.from('printimet').insert({ printeri: 'arka-a4', titulli, krijuar_emri: profili.emri || null, html: JSON.stringify({ pdf: rruga }) }).select('id').single();
-      if (error) throw new Error(error.message);
-      msg('🖨️ U dërgua te printeri A4 i arkës… po pritet përgjigja.');
-      for (let i = 0; i < 60; i++) {
-        await new Promise((r) => setTimeout(r, 2000));
-        const { data: x } = await sb.from('printimet').select('statusi, gabimi').eq('id', d.id).maybeSingle();
-        if (x && x.statusi === 'kryer') { msg('✅ U printua te printeri A4 i arkës.', 'ok'); butonat(true); return; }
-        if (x && x.statusi === 'gabim') throw new Error('Printeri: ' + (x.gabimi || ''));
-      }
-      msg('⚠️ Printeri ende s\'u përgjigj. Printohet sapo PC-ja e arkës të jetë ndezur (brenda 10 min).', 'gabim');
-    } catch (e) { msg('❌ ' + esc(e.message), 'gabim'); }
+  el.querySelector('.rp-print').onclick = async () => {   // HTML → roboti i arkës: Edge e bën PDF A4 dhe e printon faqe për faqe te HP-ja
+    butonat(false); msg('🖨️ U dërgua te printeri A4 i arkës… po pritet përgjigja.');
+    try { await meRobot('printo'); msg('✅ U printua te printeri A4 i arkës.', 'ok'); }
+    catch (e) { msg('❌ ' + esc(e.message), 'gabim'); }
     butonat(true);
   };
 }
