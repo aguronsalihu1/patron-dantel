@@ -2667,9 +2667,14 @@ async function pmRaporti(meCmime) {
   // Zakonisht PDF-në e krijon roboti te PC-ja e arkës (Edge, A4 me buzë të sakta): "printo" e printon te HP-ja, "pdf" e kthen për shkarkim (16.11.2026)
   const dokumenti = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(emri)}</title></head><body style="margin:0">${html}</body></html>`;
   const robotiOnline = async () => { const { data } = await sb.from('printerat').select('pare_se_fundi').eq('id', 'arka-a4').maybeSingle(); return !!data && prOnline(data); };
+  const emriSkedarit = (ext) => `raportet/${dataKS()}_${[...crypto.getRandomValues(new Uint8Array(8))].map((x) => x.toString(16).padStart(2, '0')).join('')}.${ext}`;
   const meRobot = async (veprimi, dalja) => {
+    // raporti me foto kalon kufirin 400 KB të printimet: ngarkohet si skedar dhe roboti merr vetëm rrugën
+    const rr = emriSkedarit('html');
+    const { error: e1 } = await sb.storage.from('telposta-letrat').upload(rr, new Blob([dokumenti], { type: 'text/html' }), { contentType: 'text/html; charset=utf-8' });
+    if (e1) throw new Error('Raporti nuk u ngarkua: ' + e1.message);
     const { data: d, error } = await sb.from('printimet').insert({ printeri: 'arka-a4', titulli: (veprimi === 'pdf' ? 'PDF: ' : '') + titulli, krijuar_emri: profili.emri || null,
-      html: JSON.stringify({ raport: dokumenti, veprimi, dalja }) }).select('id').single();
+      html: JSON.stringify({ raport_rruga: rr, veprimi, dalja }) }).select('id').single();
     if (error) throw new Error(error.message);
     for (let i = 0; i < 60; i++) {
       await new Promise((r) => setTimeout(r, 2000));
@@ -2687,7 +2692,7 @@ async function pmRaporti(meCmime) {
     try {
       if (await robotiOnline()) {
         msg('⏳ Po krijohet PDF-ja te PC-ja e arkës…');
-        const dalja = `raportet/${dataKS()}_${[...crypto.getRandomValues(new Uint8Array(8))].map((x) => x.toString(16).padStart(2, '0')).join('')}.pdf`;
+        const dalja = emriSkedarit('pdf');
         await meRobot('pdf', dalja);
         const { data: u, error } = await sb.storage.from('telposta-letrat').createSignedUrl(dalja, 3600, { download: emri + '.pdf' });
         if (error) throw new Error(error.message);
