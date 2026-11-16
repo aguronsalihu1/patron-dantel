@@ -2566,29 +2566,38 @@ async function pmFototRaportit() {
 }
 const pmRolleTekst = (rr, nj) => (rr || []).map((r) => `${r.n} × ${pmFmt(r.m)} ${nj}`).join(' + ');
 function pmRaportHTML(meCmime) {
-  const n = pm.pranimi, nr = n.nr_furnizimit ? 'Furnizimi ' + esc(n.nr_furnizimit) : 'Furnizimi';
+  // raporti për furnitorin del shqip / anglisht (16.11.2026, Aguroni), që ta kuptojë plotësisht; i ploti mbetet shqip
+  const L = (sq, en) => (meCmime ? sq : `${sq} <span class="en">/ ${en}</span>`);
+  const ORIG_EN = { turqi: 'Turkey', kine: 'China', indi: 'India' };
+  const orig = (o) => (MG_ORIGJINAT[o] ? MG_ORIGJINAT[o] + (meCmime || !ORIG_EN[o] ? '' : ' / ' + ORIG_EN[o]) : o || '—');
+  const n = pm.pranimi, nr = esc(n.nr_furnizimit || '');
   const kgP = pm.pakot.reduce((s, p) => s + (+p.pesha_kg || 0), 0), pr = pm.produktet;
   const M = pr.reduce((s, x) => s + (+x.sasia || 0), 0), KG = pr.reduce((s, x) => s + (+x.pesha_kg || 0), 0), R = pr.reduce((s, x) => s + pmRolle(x.rollet), 0);
   const V = pr.reduce((s, x) => s + (+x.sasia || 0) * (+x.cmimi_shitjes || 0), 0);
-  const info = [['Nr. i furnizimit', esc(n.nr_furnizimit || '—')], ['Data e pranimit', esc(dataShqip(dataKS(new Date(n.krijuar))))], ['Vendi i origjinës', esc(MG_ORIGJINAT[n.origjina] || n.origjina || '—')],
-    ['Transportuesi', esc(n.transportuesi || '—')], ['Furnitori', esc(n.furnitori || '—')], ['Nr. i dokumentit', esc(n.nr_dokumentit || '—')]]
+  const info = [[L('Nr. i furnizimit', 'Shipment no.'), esc(n.nr_furnizimit || '—')], [L('Data e pranimit', 'Date received'), esc(dataShqip(dataKS(new Date(n.krijuar))))],
+    [L('Vendi i origjinës', 'Country of origin'), esc(orig(n.origjina))], [L('Transportuesi', 'Carrier'), esc(n.transportuesi || '—')],
+    [L('Furnitori', 'Supplier'), esc(n.furnitori || '—')], [L('Nr. i dokumentit', 'Document no.'), esc(n.nr_dokumentit || '—')]]
     .concat(meCmime ? [['Destinacioni', esc(emriMag(n.magazina))], ['Regjistroi', esc(n.krijuar_emri || '')]] : []);
   const mat = pm.materialet.map((mt) => {
     const rr = pr.filter((x) => x.materiali_id === mt.id); if (!rr.length) return '';
-    const nj = mt.njesia === 'Copë' ? 'copë' : 'm', m = rr.reduce((s, x) => s + (+x.sasia || 0), 0), kg = rr.reduce((s, x) => s + (+x.pesha_kg || 0), 0);
-    return `<div class="mat"><h2>${mt.kodi_materialit_furnitorit ? esc(mt.kodi_materialit_furnitorit) + ' · ' : ''}${esc(mt.emri)} <span class="zb">(kodi ynë ${esc(mt.kodi_materialit)}${mt.kodi_furnitorit ? ' · furnitori ' + esc(mt.kodi_furnitorit) : ''}${meCmime ? ' · ' + eur(mt.cmimi) + ' €/' + nj : ''})</span></h2>
-      <table><thead><tr><th>Foto</th><th>Ngjyra</th><th>Nr.</th>${meCmime ? '<th>Kodi</th>' : ''}<th>Rollet (sasia × gjatësia)</th><th class="n">Rolle</th><th class="n">${nj === 'm' ? 'Metra' : 'Copë'}</th><th class="n">Kg</th><th class="n">Kg/${nj}</th>${meCmime ? `<th class="n">€/${nj}</th><th class="n">Vlera €</th>` : ''}</tr></thead><tbody>
+    const nj = mt.njesia === 'Copë' ? 'copë' : 'm', njEn = mt.njesia === 'Copë' ? 'pcs' : 'm';
+    const m = rr.reduce((s, x) => s + (+x.sasia || 0), 0), kg = rr.reduce((s, x) => s + (+x.pesha_kg || 0), 0);
+    const rolleT = (x) => (x.rollet || []).map((r) => `${r.n} × ${pmFmt(r.m)} ${meCmime ? nj : njEn}`).join(' + ');
+    return `<div class="mat"><h2>${mt.kodi_materialit_furnitorit ? esc(mt.kodi_materialit_furnitorit) + ' · ' : ''}${esc(mt.emri)} <span class="zb">(${L('kodi ynë', 'our code')} ${esc(mt.kodi_materialit)}${mt.kodi_furnitorit ? ' · ' + L('furnitori', 'supplier') + ' ' + esc(mt.kodi_furnitorit) : ''}${meCmime ? ' · ' + eur(mt.cmimi) + ' €/' + nj : ''})</span></h2>
+      <table><thead><tr><th>${L('Foto', 'Photo')}</th><th>${L('Ngjyra', 'Colour')}</th><th>${L('Nr.', 'No.')}</th>${meCmime ? '<th>Kodi</th>' : ''}<th>${L('Rollet (sasia × gjatësia)', 'Rolls (qty × length)')}</th>
+        <th class="n">${L('Rolle', 'Rolls')}</th><th class="n">${nj === 'm' ? L('Metra', 'Meters') : L('Copë', 'Pieces')}</th><th class="n">Kg</th><th class="n">Kg/${meCmime ? nj : njEn}</th>${meCmime ? `<th class="n">€/${nj}</th><th class="n">Vlera €</th>` : ''}</tr></thead><tbody>
       ${rr.map((x) => { const f = pmFotoData.get((x.fotot || [])[0]);
-        return `<tr><td>${f ? `<img src="${f}" alt="">` : '—'}</td><td>${esc(x.ngjyra_emri || '')}</td><td><b>${esc(x.ngjyra || '')}</b></td>${meCmime ? `<td>${esc(x.kodi || '')}</td>` : ''}<td>${esc(pmRolleTekst(x.rollet, nj))}</td>
+        return `<tr><td>${f ? `<img src="${f}" alt="">` : '—'}</td><td>${esc(x.ngjyra_emri || '')}</td><td><b>${esc(x.ngjyra || '')}</b></td>${meCmime ? `<td>${esc(x.kodi || '')}</td>` : ''}<td>${esc(rolleT(x))}</td>
           <td class="n">${pmRolle(x.rollet) || '—'}</td><td class="n">${pmFmt(x.sasia)}</td><td class="n">${pmFmt(x.pesha_kg, 3)}</td><td class="n">${+x.pesha_kg > 0 && +x.sasia > 0 ? pmFmt(x.pesha_kg / x.sasia, 3) : '—'}</td>
           ${meCmime ? `<td class="n">${eur(x.cmimi_shitjes)}</td><td class="n">${eur((+x.sasia || 0) * (+x.cmimi_shitjes || 0))}</td>` : ''}</tr>`; }).join('')}
-      <tr class="tot"><td colspan="${meCmime ? 5 : 4}">Totali i materialit</td><td class="n">${rr.reduce((s, x) => s + pmRolle(x.rollet), 0)}</td><td class="n">${pmFmt(m)}</td><td class="n">${pmFmt(kg, 3)}</td><td class="n">${m > 0 ? pmFmt(kg / m, 3) : '—'}</td>
+      <tr class="tot"><td colspan="${meCmime ? 5 : 4}">${L('Totali i materialit', 'Material total')}</td><td class="n">${rr.reduce((s, x) => s + pmRolle(x.rollet), 0)}</td><td class="n">${pmFmt(m)}</td><td class="n">${pmFmt(kg, 3)}</td><td class="n">${m > 0 ? pmFmt(kg / m, 3) : '—'}</td>
         ${meCmime ? `<td></td><td class="n">${eur(rr.reduce((s, x) => s + (+x.sasia || 0) * (+x.cmimi_shitjes || 0), 0))}</td>` : ''}</tr></tbody></table></div>`;
   }).join('');
   return `<div class="rp"><style>
     .rp { font-family: Arial, Helvetica, sans-serif; color: #111; font-size: 11px; background: #fff; line-height: 1.3; }
     .rp .koka { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; border-bottom: 2px solid #5b2160; padding-bottom: 6px; margin-bottom: 8px; }
     .rp h1 { font-size: 18px; margin: 0; } .rp h2 { font-size: 13px; margin: 12px 0 4px; } .rp .zb { color: #555; font-weight: 400; font-size: 11px; }
+    .rp .en { color: #666; font-weight: 400; font-style: italic; }
     .rp .info { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px 14px; margin: 6px 0 4px; } .rp .info b { display: block; font-size: 9px; color: #666; font-weight: 400; text-transform: uppercase; }
     .rp table { width: 100%; border-collapse: collapse; margin: 4px 0 6px; } .rp th, .rp td { border: 1px solid #bbb; padding: 3px 4px; text-align: left; vertical-align: middle; }
     .rp th { background: #f1e9f2; font-size: 9.5px; } .rp .n { text-align: right; white-space: nowrap; }
@@ -2597,28 +2606,33 @@ function pmRaportHTML(meCmime) {
     .rp .tot td { font-weight: 700; background: #faf7fa; } .rp .fund { margin-top: 10px; color: #666; font-size: 9px; text-align: center; }
   </style>
   <div class="koka"><div><h1>PATRON DANTEL</h1><div>MINNA SH.P.K.</div></div>
-    <div style="text-align:right"><h1>${nr}</h1><div>${meCmime ? 'Raport i plotë (me çmime)' : 'Raport i mallit të pranuar'} · printuar ${esc(new Date().toLocaleString('sq-AL', { timeZone: 'Europe/Belgrade' }))}</div></div></div>
+    <div style="text-align:right"><h1>${meCmime ? 'Furnizimi' : 'Furnizimi / Shipment'}${nr ? ' ' + nr : ''}</h1>
+      <div>${meCmime ? 'Raport i plotë (me çmime)' : L('Raport i mallit të pranuar', 'Goods received report')} · ${L('printuar', 'printed')} ${esc(new Date().toLocaleString('sq-AL', { timeZone: 'Europe/Belgrade' }))}</div></div></div>
   <div class="info">${info.map(([k, v]) => `<div><b>${k}</b>${v}</div>`).join('')}</div>
-  <h2>📦 Pakot</h2>
-  <table><thead><tr><th>Pako</th><th class="n">Pesha (kg)</th><th>Shënim</th></tr></thead><tbody>
-    ${pm.pakot.map((p) => `<tr><td>Pako ${p.nr}</td><td class="n">${p.pesha_kg == null ? '—' : pmFmt(p.pesha_kg, 3)}</td><td>${esc(p.shenim || '')}</td></tr>`).join('')}
-    <tr class="tot"><td>Totali: ${pm.pakot.length} pako</td><td class="n">${pmFmt(kgP, 3)}</td><td></td></tr></tbody></table>
-  ${mat || '<p>Ende asnjë material i regjistruar.</p>'}
-  <div class="permb"><h2>Përmbledhja</h2><table><tbody>
-    <tr><td>Pako</td><td class="n">${pm.pakot.length}</td><td>Pesha e pakove</td><td class="n">${pmFmt(kgP, 3)} kg</td></tr>
-    <tr><td>Materiale</td><td class="n">${pm.materialet.filter((mt) => pr.some((x) => x.materiali_id === mt.id)).length}</td><td>Ngjyra / kode</td><td class="n">${pr.length}</td></tr>
-    <tr><td>Rolle</td><td class="n">${R}</td><td>Metra gjithsej</td><td class="n">${pmFmt(M)} m</td></tr>
-    <tr><td>Pesha e materialeve</td><td class="n">${pmFmt(KG, 3)} kg</td><td>Kg për metër (mesatarja)</td><td class="n">${M > 0 ? pmFmt(KG / M, 3) : '—'}</td></tr>
+  <h2>📦 ${L('Pakot', 'Packages')}</h2>
+  <table><thead><tr><th>${L('Pako', 'Package')}</th><th class="n">${L('Pesha (kg)', 'Weight (kg)')}</th><th>${L('Shënim', 'Note')}</th></tr></thead><tbody>
+    ${pm.pakot.map((p) => `<tr><td>${L('Pako', 'Package')} ${p.nr}</td><td class="n">${p.pesha_kg == null ? '—' : pmFmt(p.pesha_kg, 3)}</td><td>${esc(p.shenim || '')}</td></tr>`).join('')}
+    <tr class="tot"><td>${L('Totali', 'Total')}: ${pm.pakot.length} ${L('pako', 'packages')}</td><td class="n">${pmFmt(kgP, 3)}</td><td></td></tr></tbody></table>
+  ${mat || `<p>${L('Ende asnjë material i regjistruar.', 'No materials registered yet.')}</p>`}
+  <div class="permb"><h2>${L('Përmbledhja', 'Summary')}</h2><table><tbody>
+    <tr><td>${L('Pako', 'Packages')}</td><td class="n">${pm.pakot.length}</td><td>${L('Pesha e pakove', 'Package weight')}</td><td class="n">${pmFmt(kgP, 3)} kg</td></tr>
+    <tr><td>${L('Materiale', 'Materials')}</td><td class="n">${pm.materialet.filter((mt) => pr.some((x) => x.materiali_id === mt.id)).length}</td><td>${L('Ngjyra', 'Colours')}</td><td class="n">${pr.length}</td></tr>
+    <tr><td>${L('Rolle', 'Rolls')}</td><td class="n">${R}</td><td>${L('Metra gjithsej', 'Total meters')}</td><td class="n">${pmFmt(M)} m</td></tr>
+    <tr><td>${L('Pesha e materialeve', 'Material weight')}</td><td class="n">${pmFmt(KG, 3)} kg</td><td>${L('Kg për metër (mesatarja)', 'Kg per meter (average)')}</td><td class="n">${M > 0 ? pmFmt(KG / M, 3) : '—'}</td></tr>
     ${meCmime ? `<tr class="tot"><td colspan="3">Vlera me çmimin shitës (me TVSH)</td><td class="n">${eur(V)} €</td></tr>` : ''}
   </tbody></table></div>
-  <div class="fund">${meCmime ? 'Dokument i brendshëm i Patron Dantel.' : 'Dokument informues për mallin e pranuar. Nuk është faturë.'}</div></div>`;
+  <div class="fund">${meCmime ? 'Dokument i brendshëm i Patron Dantel.' : 'Dokument informues për mallin e pranuar. Nuk është faturë. / Information document for the goods received. This is not an invoice.'}</div></div>`;
 }
 function pmRaportExcel(meCmime, emri) {
   const n = pm.pranimi, orig = MG_ORIGJINAT[n.origjina] ? MG_ORIGJINAT[n.origjina].replace(/^\S+\s/, '') : n.origjina || '';
-  const pako = [['Transportuesi', 'Vendi i origjinës', 'Numri i pakos', 'Kilogram', 'Shënim']].concat(pm.pakot.map((p) => [n.transportuesi || '', orig, p.nr, p.pesha_kg == null ? '' : +p.pesha_kg, p.shenim || '']),
-    [['', '', 'Totali kilogram', pm.pakot.reduce((s, p) => s + (+p.pesha_kg || 0), 0)]]);
-  const koka = ['Origjina', 'Kodi i furnitorit', 'Kodi i materialit nga furnitori', 'Kodi i materialit', 'Emri i materialit', 'Ngjyra', 'Numri i ngjyrës']
-    .concat(meCmime ? ['Çmimi shitës për metër'] : [], ['Kilogram për metër/copë', 'Kilogram total', 'Top/rrolne', 'Rollet (sasia × metrazhi)', 'Total sasia/metrazhi', 'Pako'], meCmime ? ['Kodi në Pro-Data', 'Vlera €', 'Destinacioni'] : []);
+  const L = (sq, en) => (meCmime ? sq : `${sq} / ${en}`);   // versioni për furnitorin: shqip / anglisht
+  const pako = [[L('Transportuesi', 'Carrier'), L('Vendi i origjinës', 'Country of origin'), L('Numri i pakos', 'Package no.'), 'Kg', L('Shënim', 'Note')]]
+    .concat(pm.pakot.map((p) => [n.transportuesi || '', orig, p.nr, p.pesha_kg == null ? '' : +p.pesha_kg, p.shenim || '']),
+    [['', '', L('Totali kilogram', 'Total kg'), pm.pakot.reduce((s, p) => s + (+p.pesha_kg || 0), 0)]]);
+  const koka = [L('Origjina', 'Origin'), L('Kodi i furnitorit', 'Supplier code'), L('Kodi i materialit nga furnitori', 'Supplier material code'), L('Kodi i materialit', 'Our material code'),
+    L('Emri i materialit', 'Material name'), L('Ngjyra', 'Colour'), L('Numri i ngjyrës', 'Colour no.')]
+    .concat(meCmime ? ['Çmimi shitës për metër'] : [], [L('Kilogram për metër/copë', 'Kg per meter/piece'), L('Kilogram total', 'Total kg'), L('Top/rrolne', 'Rolls'),
+      L('Rollet (sasia × metrazhi)', 'Rolls (qty × length)'), L('Total sasia/metrazhi', 'Total meters'), L('Pako', 'Package')], meCmime ? ['Kodi në Pro-Data', 'Vlera €', 'Destinacioni'] : []);
   const rr = [];
   for (const mt of pm.materialet) for (const x of pm.produktet.filter((y) => y.materiali_id === mt.id)) {
     const pk = pm.pakot.find((p) => p.id === x.pako_id);
@@ -3048,7 +3062,26 @@ async function mgListaNgarko(meShume = false, rifresko = false) {
       <div style="display:flex;gap:10px;margin-top:6px">${f && url.get(f) ? `<img src="${esc(url.get(f))}" loading="lazy" decoding="async" style="width:56px;height:56px;border-radius:8px;object-fit:cover" alt="">` : ''}
       <div><b>${esc(r.emri || '')}</b><div class="zbehte">${esc(r.kodi || r.barkodi || '')}${r.sasia ? ' · ' + (+r.sasia) + ' ' + esc(r.njesia || '') : ''}${r.magazina ? ' · mag. ' + esc(r.magazina) : ''}${r.cmimi_shitjes ? ' · ' + eur(r.cmimi_shitjes) + ' €' : ''}</div>
       <div class="zbehte">${oraKS(r.krijuar)} · ${esc(r.krijuar_emri || '')}${r.arsyeja && r.lloji !== 'artikull_i_ri' ? ' · ' + esc(r.arsyeja) : ''}${r.prodata_nr ? ' · ' + esc(r.prodata_nr) : ''}</div>
-      ${r.gabimi ? `<div style="color:var(--gabim)">${esc(r.gabimi)}</div>` : ''}</div></div></div>`; }).join('') || `<p class="zbehte">${q || dita || lloji || statusi ? 'Asnjë regjistrim me këto filtra.' : 'Ende asnjë regjistrim.'}</p>`;
+      ${r.gabimi ? `<div style="color:var(--gabim)">${esc(r.gabimi)}</div>` : ''}
+      ${mgMundFshi(r) ? `<div class="butona" style="margin-top:6px"><button class="rrezik mg-fshi" type="button" data-id="${r.id}">🗑️ Fshije</button></div>` : ''}</div></div></div>`; }).join('') || `<p class="zbehte">${q || dita || lloji || statusi ? 'Asnjë regjistrim me këto filtra.' : 'Ende asnjë regjistrim.'}</p>`;
+  document.querySelectorAll('#mg-lista .mg-fshi').forEach((b) => b.onclick = () => mgFshi(mgLRreshtat.find((x) => x.id === b.dataset.id)));
+}
+// 🗑️ Fshirja (16.11.2026): regjistrimi që s'ka hyrë në Pro-Data (në pritje / me gabim) anulohet këtu (mbetet si "Anuluar" për gjurmë).
+// Ai që është tashmë në Pro-Data (artikull + dokument stoku SF001) s'fshihet nga faqja: rregulli i projektit ndalon fshirjen e dokumenteve në Pro-Data.
+const mgMundFshi = (r) => r && ((['ne_pritje', 'gabim'].includes(r.statusi) && !(r.lloji === 'artikull_i_ri' && r.artikulli_id) && (r.krijuar_nga === perdoruesi.id || ['admin', 'arka'].includes(profili.roli)))
+  || (r.statusi === 'kryer' && profili.roli === 'admin'));
+async function mgFshi(r) {
+  if (!r) return;
+  if (r.statusi === 'kryer') return alert(`"${r.emri}" (${r.kodi || ''}) është tashmë në Pro-Data${r.prodata_nr ? ' (' + r.prodata_nr + ')' : ''}.\n\n`
+    + 'Nga faqja nuk fshihet: fshirja e artikujve dhe e dokumenteve në Pro-Data nuk është e lejuar ende për urën.\n'
+    + 'Për ta hequr: fshije me dorë në Pro-Data (së pari dokumentin e stokut SF001, pastaj artikullin), ose më thuaj dhe e mësojmë këtë veprim që të bëhet nga faqja.');
+  if (!confirm(`Ta fshij regjistrimin "${r.emri || r.kodi || ''}"${r.sasia ? ' (' + +r.sasia + ' ' + (r.njesia || '') + ')' : ''}?\nNuk ka hyrë në Pro-Data, prandaj nuk kalon më atje.`)) return;
+  const { data, error } = await sb.from('regjistrimet_mallit').update({ statusi: 'anuluar' }).eq('id', r.id).in('statusi', ['ne_pritje', 'gabim']).select('id');
+  const m = $('mg-mesazh');
+  if (error) { m.className = 'mesazh gabim'; m.textContent = '❌ ' + error.message; return; }
+  if (!data || !data.length) { m.className = 'mesazh gabim'; m.textContent = '⚠️ Nuk u fshi: ndërkohë ka filluar të kalojë në Pro-Data. Rifresko listën.'; return mgListaNgarko(false, true); }
+  m.className = 'mesazh ok'; m.textContent = `✅ U fshi: ${r.emri || r.kodi || ''}.`;
+  mgListaNgarko(false, true);
 }
 { let kohe; $('mg-l-kerko').oninput = () => { clearTimeout(kohe); kohe = setTimeout(() => mgListaNgarko(), 250); }; }
 ['mg-l-dita', 'mg-l-lloji', 'mg-l-statusi'].forEach((id) => { $(id).onchange = () => mgListaNgarko(); });
