@@ -2687,6 +2687,17 @@ async function pmRaporti(meCmime) {
   };
   const butonat = (on) => el.querySelectorAll('.butona button').forEach((b) => { b.disabled = !on; });
   el.querySelector('.rp-mbyll').onclick = () => { el.hidden = true; el.innerHTML = ''; };
+  // PDF-ja gati → butona që i shtyp përdoruesi (iPhone-i lejon ndarjen/shkarkimin vetëm pas një prekjeje):
+  // "📤 Dërgo" hap menynë e telefonit (WhatsApp, Viber, Email, Ruaj në Files); "⬇️ Shkarko" e ruan skedarin (16.11.2026)
+  const ofroPdf = (blob) => {
+    const file = new File([blob], emri + '.pdf', { type: 'application/pdf' }), url = URL.createObjectURL(file);
+    const ndaj = !!(navigator.canShare && navigator.canShare({ files: [file] }));
+    msg(`✅ PDF-ja është gati (${Math.round(blob.size / 1024)} KB):<div class="butona" style="margin:8px 0 0">
+      ${ndaj ? '<button class="kryesor rp-ndaj" type="button">📤 Dërgo / ruaj (WhatsApp, Viber, Email, Files…)</button>' : ''}
+      <a class="${ndaj ? 'dyte' : 'kryesor'}" style="display:inline-block;padding:10px 14px;border-radius:12px;text-decoration:none" href="${url}" download="${esc(emri)}.pdf">⬇️ Shkarko ${esc(emri)}.pdf</a></div>`, 'ok');
+    const b = el.querySelector('.rp-ndaj');
+    if (b) b.onclick = () => navigator.share({ files: [file], title: emri }).catch((e) => { if (e && e.name !== 'AbortError') msg('❌ ' + esc(e.message), 'gabim'); });
+  };
   el.querySelector('.rp-pdf').onclick = async () => {
     butonat(false);
     try {
@@ -2694,14 +2705,12 @@ async function pmRaporti(meCmime) {
         msg('⏳ Po krijohet PDF-ja te PC-ja e arkës…');
         const dalja = emriSkedarit('pdf');
         await meRobot('pdf', dalja);
-        const { data: u, error } = await sb.storage.from('telposta-letrat').createSignedUrl(dalja, 3600, { download: emri + '.pdf' });
-        if (error) throw new Error(error.message);
-        // lidhje që e shtyp përdoruesi: iPhone-i s'lejon hapje automatike pas pritjes
-        msg(`✅ PDF-ja është gati: <a class="kryesor" style="display:inline-block;padding:8px 14px;border-radius:12px;color:#fff;text-decoration:none" href="${esc(u.signedUrl)}" target="_blank" rel="noopener">📄 Hap / shkarko ${esc(emri)}.pdf</a>`, 'ok');
+        const { data: b, error } = await sb.storage.from('telposta-letrat').download(dalja);
+        if (error) throw new Error('PDF-ja nuk u shkarkua: ' + error.message);
+        ofroPdf(b);
       } else {
         msg('⏳ PC-ja e arkës është e fikur: PDF-ja po krijohet në këtë pajisje…');
-        const b = await pdf(), a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = emri + '.pdf'; document.body.appendChild(a); a.click();
-        setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000); msg('✅ PDF-ja u shkarkua: ' + esc(emri) + '.pdf', 'ok');
+        ofroPdf(await pdf());
       }
     } catch (e) { msg('❌ ' + esc(e.message), 'gabim'); }
     butonat(true);
