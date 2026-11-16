@@ -3072,15 +3072,33 @@ const mgMundFshi = (r) => r && ((['ne_pritje', 'gabim'].includes(r.statusi) && !
   || (r.statusi === 'kryer' && profili.roli === 'admin'));
 async function mgFshi(r) {
   if (!r) return;
-  if (r.statusi === 'kryer') return alert(`"${r.emri}" (${r.kodi || ''}) është tashmë në Pro-Data${r.prodata_nr ? ' (' + r.prodata_nr + ')' : ''}.\n\n`
-    + 'Nga faqja nuk fshihet: fshirja e artikujve dhe e dokumenteve në Pro-Data nuk është e lejuar ende për urën.\n'
-    + 'Për ta hequr: fshije me dorë në Pro-Data (së pari dokumentin e stokut SF001, pastaj artikullin), ose më thuaj dhe e mësojmë këtë veprim që të bëhet nga faqja.');
+  if (r.statusi === 'kryer') return mgFshiProData(r);
   if (!confirm(`Ta fshij regjistrimin "${r.emri || r.kodi || ''}"${r.sasia ? ' (' + +r.sasia + ' ' + (r.njesia || '') + ')' : ''}?\nNuk ka hyrë në Pro-Data, prandaj nuk kalon më atje.`)) return;
   const { data, error } = await sb.from('regjistrimet_mallit').update({ statusi: 'anuluar' }).eq('id', r.id).in('statusi', ['ne_pritje', 'gabim']).select('id');
   const m = $('mg-mesazh');
   if (error) { m.className = 'mesazh gabim'; m.textContent = '❌ ' + error.message; return; }
   if (!data || !data.length) { m.className = 'mesazh gabim'; m.textContent = '⚠️ Nuk u fshi: ndërkohë ka filluar të kalojë në Pro-Data. Rifresko listën.'; return mgListaNgarko(false, true); }
   m.className = 'mesazh ok'; m.textContent = `✅ U fshi: ${r.emri || r.kodi || ''}.`;
+  mgListaNgarko(false, true);
+}
+// Fshirja edhe në Pro-Data (16.11.2026, vetëm Super Admini): ura fshin dokumentin e stokut (SF001) që krijoi ky regjistrim dhe,
+// te "Artikull i ri", edhe artikullin, njësoj si fshirja në Pro-Data (kopje te tabelat e të fshirave + historik). Refuzon nëse
+// artikulli është përdorur ndërkohë (shitje, porosi, lëvizje, stok tjetër…).
+async function mgFshiProData(r) {
+  const ri = r.lloji === 'artikull_i_ri', m = $('mg-mesazh');
+  if (!confirm(`🗑️ Fshi nga Pro-Data: "${r.emri || ''}" (${r.kodi || ''})?\n\n`
+    + `• Fshihet dokumenti i stokut${r.prodata_nr && r.prodata_nr.includes('SF001') ? ' ' + r.prodata_nr.split(' · ').pop() : ''} (${+r.sasia || 0} ${r.njesia || ''} te ${emriMag(r.magazina)})`
+    + (ri ? `\n• Fshihet edhe artikulli ${r.kodi || ''} nga Pro-Data` : '\n• Artikulli mbetet (fshihet vetëm sasia e shtuar)')
+    + '\n\nNëse artikulli është shitur ose përdorur diku tjetër, nuk fshihet. Vazhdo?')) return;
+  const celesi = celesRi('FS');
+  m.className = 'mesazh pritje'; m.textContent = '⏳ Po fshihet në Pro-Data…'; m.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  try {
+    await dergoKomande('fshi_mall', celesi, { regjistrimi_id: r.id, kodi: r.kodi || null });
+    const k = await prisKomanden(celesi, 120);
+    if (!k) { m.className = 'mesazh gabim'; m.textContent = '⚠️ Ura nuk u përgjigj. Kërkesa mbetet në radhë dhe kryhet sapo ura të jetë e lidhur.'; return; }
+    if (k.statusi === 'gabim') { m.className = 'mesazh gabim'; m.textContent = '❌ Nuk u fshi: ' + (k.gabimi || ''); return; }
+    m.className = 'mesazh ok'; m.textContent = `✅ U fshi nga Pro-Data: ${k.rezultati && k.rezultati.prodata_nr ? k.rezultati.prodata_nr : r.kodi || ''}.`;
+  } catch (e) { m.className = 'mesazh gabim'; m.textContent = '❌ ' + e.message; }
   mgListaNgarko(false, true);
 }
 { let kohe; $('mg-l-kerko').oninput = () => { clearTimeout(kohe); kohe = setTimeout(() => mgListaNgarko(), 250); }; }
