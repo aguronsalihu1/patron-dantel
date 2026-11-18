@@ -4197,8 +4197,8 @@ function tpVizato() {
       <div class="karte"><h4>📊 Statuset</h4>${tpShiritat(tpGrumbullo(lista, (p) => p.statusi), (x) => x.n, njeSasi)}</div>
       <div class="karte"><h4>👤 Te kush janë tani porositë aktive</h4>${tpShiritat(tpGrumbullo(lista.filter((p) => p.aktive), (p) => p.pergjegjesi).slice(0, 8), (x) => x.n, njeSasi)}</div>
     </div>`;
-  // porositë që po vonojnë: aktive, jo të refuzuara, më të vjetra se 5 ditë
-  const vonesa = aktive.filter((p) => p.data && tpGrupi(p.statusi) !== 'refuzuar' && tpTani() - new Date(p.data) > 5 * 864e5).sort((a, b) => new Date(a.data) - new Date(b.data));
+  // porositë që po vonojnë: aktive, ende pa u dorëzuar e pa u refuzuar (në rrugë ose në pritje), më të vjetra se 5 ditë
+  const vonesa = aktive.filter((p) => p.data && ['rruge', 'pritje'].includes(tpGrupi(p.statusi)) &&tpTani() - new Date(p.data) > 5 * 864e5).sort((a, b) => new Date(a.data) - new Date(b.data));
   $('tp-vonesa').innerHTML = vonesa.length ? `<h3>⚠️ Po vonojnë (mbi 5 ditë): ${vonesa.length}</h3><div class="karte">${vonesa.slice(0, 15).map((p) => `<div class="tp-rr" style="grid-template-columns:auto minmax(0,1fr) auto"><button type="button" class="tp-lidhje" data-kodi="${esc(p.kodi)}">${esc(p.kodi)}</button><span class="em">${esc(p.qyteti || '')}, ${esc(p.statusi || '')} · ${esc(p.pergjegjesi || '')}</span><span class="vl">${Math.floor((tpTani() - new Date(p.data)) / 864e5)} ditë</span></div>`).join('')}</div>` : '';
   // lëvizjet
   $('tp-levizjet').innerHTML = tpN.slice(0, 80).map((n) => `<div class="tp-lev"><span>${TP_IKONAT[n.lloji] || '🔔'}</span><div>${n.kodi ? esc(n.titulli || '').replace(esc(n.kodi), `<button type="button" data-kodi="${esc(n.kodi)}">${esc(n.kodi)}</button>`) : esc(n.titulli || '')}<small>${tpData(n.koha)} ${tpOra(n.koha)}</small></div></div>`).join('') || '<p class="zbehte">Ende asnjë lëvizje.</p>';
