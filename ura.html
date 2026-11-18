@@ -4106,7 +4106,8 @@ const tpPara = (x) => `${(+x || 0).toLocaleString('de-DE', { minimumFractionDigi
 const tpData = (d) => { if (!d) return '—'; const s = dataKS(new Date(d)); return `${s.slice(8)}.${s.slice(5, 7)}.${s.slice(2, 4)}`; };
 const tpOra = (d) => (d ? new Date(d).toLocaleTimeString('sq-AL', { timeZone: 'Europe/Belgrade', hour: '2-digit', minute: '2-digit', hour12: false }) : '');
 function tpGrupi(s) {
-  if (/^dor[eë]zuar$/i.test(s || '')) return 'dorezuar';
+  // "Dorezuar ne MK/AL" = e dorëzoi korrieri partner (DeliveryM, Express24) te klienti; asnjë s'kalon më pas te "Dorëzuar" (Aguroni, 17.11.2026)
+  if (/^dor[eë]zuar(\s+n[eë]\s+\w+)?$/i.test(s || '')) return 'dorezuar';
   if (/refuz|kthyer/i.test(s || '')) return 'refuzuar';
   if (/pritje/i.test(s || '')) return 'pritje';
   if (/nuk ekziston|anul/i.test(s || '')) return 'tjeter';
