@@ -333,6 +333,14 @@
   .mk-karte { border:1px solid var(--vije); border-radius:14px; padding:10px 12px; margin-bottom:8px; } .mk-karte[hidden] { display:none; }
   #pr-dialog[hidden], #pr-njoftim[hidden] { display:none; }
   #pr-dialog .pr-kuti, .pr-dialog-stil .pr-kuti { background:#fff; border-radius:18px; padding:18px; width:min(460px, 100%); max-height:90vh; overflow:auto; box-shadow:var(--hije); }
+  /* 🎨 zgjedhja e ngjyrës për materialet bazike (19.11.2026) */
+  .bz-rrjeta { display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:6px; margin-top:10px; }
+  .bz-ngj { display:flex; align-items:center; gap:8px; text-align:left; border:1px solid var(--vije); background:#fff; border-radius:12px; padding:7px 9px; font:inherit; cursor:pointer; color:var(--tekst); min-height:48px; }
+  .bz-ngj:hover, .bz-ngj:focus-visible { border-color:var(--kryesor); box-shadow:inset 0 0 0 1px var(--kryesor); }
+  .bz-ngj.pa { border-style:dashed; opacity:.8; }
+  .bz-ngj .bz-mostra { flex:0 0 28px; height:28px; border-radius:50%; border:1px solid rgba(0,0,0,.25); }
+  .bz-ngj b { font-size:17px; min-width:22px; } .bz-ngj span { line-height:1.15; font-size:14px; } .bz-ngj small { display:block; color:var(--zbehte, #777); font-size:12px; }
+  .bz-mostra-v { display:inline-block; width:14px; height:14px; border-radius:50%; border:1px solid rgba(0,0,0,.25); vertical-align:-2px; margin-right:4px; }
   @media print {
     body * { visibility:hidden; } #printimi, #printimi * { visibility:visible; }
     #printimi { display:block; position:absolute; left:0; top:0; width:100%; font-size:12px; }
@@ -745,6 +753,7 @@
     <div class="rresht kerkimi">
       <label>Shto artikull tjetër <input id="et-shto" placeholder="barkodi, kodi ose emri…" autocomplete="off" style="width:min(360px, 70vw)"></label>
       <button class="dyte" id="et-skano" type="button">📷 Skano</button>
+      <button class="dyte" id="et-bazike" type="button" title="Një etiketë për çdo material bazik, pa ngjyrë: ngjyra zgjidhet te shitja">🎨 Materialet bazike</button>
       <div class="lista" id="et-shto-lista" hidden></div>
     </div>
     <div class="rresht" style="justify-content:space-between;flex-wrap:wrap;gap:8px;margin:8px 0">
@@ -1401,22 +1410,107 @@ async function kerkoArtikuj(q) {
   for (const a of art) { a.id = +a.prodata_id; a.cmimi = +a.cmimi || 0; a.stoku = (st || []).filter((s) => s.prodata_artikull_id === a.prodata_id).map((s) => ({ magazina: s.magazina, sasia: +s.sasia })); }
   return art;
 }
-function kerkimArtikujsh(inputId, listaId, kurZgjidhet, kurMungon) {   // kurMungon(q): kur kodi/barkodi s'gjendet → "Regjistroje shpejt"
+// ---------- 🎨 MATERIALET BAZIKE PA NGJYRË (Aguroni, 19.11.2026) ----------
+// Një etiketë për materialin (p.sh. B-0000204 Saten rus). Kur skanohet, pyetet ngjyra (1–31) dhe te fatura/Pro-Data shkon
+// artikulli i ngjyrës B-0000204/<nr> që ekziston në Pro-Data: stoku për çdo ngjyrë mbetet i saktë. Listat: Supabase 065.
+let bzMat = null, bzNgj = null, bzPremtimi = null;
+function bzNgarko() {
+  if (bzMat) return Promise.resolve();
+  if (!bzPremtimi) bzPremtimi = Promise.all([sb.from('materialet_bazike').select('*').eq('aktiv', true).order('rendi'), sb.from('ngjyrat').select('*').eq('aktive', true).order('nr')])
+    .then(([m, n]) => { if (m.error || n.error) throw (m.error || n.error); if (!(m.data || []).length) return;   // para hyrjes: RLS kthen bosh, provohet sërish më vonë
+      bzMat = m.data; bzNgj = n.data || []; })
+    .catch(() => {}).finally(() => { bzPremtimi = null; });
+  return bzPremtimi;
+}
+const bzT = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+const bzGjej = (q) => (bzMat || []).find((m) => bzT(m.kodi) === bzT(q)) || null;
+const bzKerko = (q) => { const t = bzT(q); return t.length < 2 ? [] : (bzMat || []).filter((m) => bzT(m.kodi).includes(t) || bzT(m.emri).includes(t)).slice(0, 6); };
+const bzMostra = (n) => (n.hex === 'multi' ? 'conic-gradient(#e53935,#fb8c00,#fdd835,#43a047,#1e88e5,#8e24aa,#e53935)' : n.hex);
+const bzNrNgjyres = (kodi, baza) => { const p = String(kodi || '').slice(baza.length); return /^\/\d+$/.test(p) ? +p.slice(1) : null; };
+// Dritarja: numri i ngjyrës (shkruaj + Enter) ose prek ngjyrën. Kthen { n: ngjyra, art: artikulli i Pro-Data-s ose null } ose null.
+async function bzZgjidhNgjyren(m) {
+  await bzNgarko();
+  const { data: v } = await sb.from('prodata_artikujt').select('prodata_id, kodi, barkodi, emri, njesia, cmimi, aktiv').ilike('kodi', m.kodi + '/%').limit(300);
+  const sipasNr = new Map();
+  for (const a of v || []) { const nr = bzNrNgjyres(a.kodi, m.kodi); if (nr != null && (!sipasNr.has(nr) || (a.aktiv && !sipasNr.get(nr).aktiv))) sipasNr.set(nr, a); }
+  const stoku = new Map();
+  if (sipasNr.size) {
+    const { data: st } = await sb.from('prodata_stoku').select('prodata_artikull_id, sasia').in('prodata_artikull_id', [...sipasNr.values()].map((a) => a.prodata_id));
+    for (const s of st || []) stoku.set(String(s.prodata_artikull_id), (stoku.get(String(s.prodata_artikull_id)) || 0) + (+s.sasia || 0));
+  }
+  return new Promise((ok) => {
+    const el = document.createElement('div'); el.className = 'pr-dialog-stil'; document.body.appendChild(el);
+    el.innerHTML = `<div class="pr-kuti" style="width:min(720px,100%)">
+      <div class="rresht" style="justify-content:space-between;margin:0;align-items:flex-start"><div><h3 style="margin:0">🎨 ${esc(m.emri)}: cila ngjyrë?</h3>
+        <div class="zbehte">${esc(m.kodi)} · ${eur(m.cmimi)} €/${esc(m.njesia)}</div></div><button type="button" class="dyte bz-mbyll">Mbyll</button></div>
+      <div class="rresht" style="margin:10px 0 0;gap:8px"><input class="bz-nr" type="text" inputmode="numeric" autocomplete="off" placeholder="Nr. i ngjyrës + Enter" style="max-width:200px"><span class="zbehte bz-sh"></span></div>
+      <div class="bz-rrjeta">${(bzNgj || []).map((n) => { const a = sipasNr.get(n.nr), s = a ? stoku.get(String(a.prodata_id)) : null;
+        return `<button type="button" class="bz-ngj${a ? '' : ' pa'}" data-nr="${n.nr}"><i class="bz-mostra" style="background:${bzMostra(n)}"></i><b>${n.nr}</b><span>${esc(n.emri)}<small>${a ? (s ? `stoku ${eur(s).replace(/[.,]00$/, '')} ${esc(a.njesia || '')}` : 'pa stok') : 'e re në Pro-Data'}</small></span></button>`; }).join('')}</div></div>`;
+    const mbaro = (x) => { el.remove(); document.removeEventListener('keydown', esc_); ok(x); };
+    const esc_ = (e) => { if (e.key === 'Escape') mbaro(null); };
+    document.addEventListener('keydown', esc_);
+    const zgjidh = (nr) => { const n = (bzNgj || []).find((x) => x.nr === nr); if (!n) { el.querySelector('.bz-sh').textContent = '❌ Nuk ka ngjyrë me nr. ' + nr; return; } mbaro({ n, art: sipasNr.get(nr) || null }); };
+    el.querySelector('.bz-mbyll').onclick = () => mbaro(null);
+    el.onclick = (e) => { if (e.target === el) return mbaro(null); const b = e.target.closest('.bz-ngj'); if (b) zgjidh(+b.dataset.nr); };
+    const inp = el.querySelector('.bz-nr');
+    inp.onkeydown = (e) => { if (e.key === 'Enter' && inp.value.trim()) zgjidh(parseInt(inp.value, 10)); };
+    if (!matchMedia('(pointer:coarse)').matches) setTimeout(() => inp.focus(), 30);   // në telefon pa tastierë: ngjyrat duken menjëherë
+  });
+}
+// Kthen artikullin e ngjyrës gati për faturë (çmimi = çmimi i materialit bazik). Kur ngjyra s'ekziston në Pro-Data: krijohet (me leje).
+async function bzMeNgjyre(m, mundKrijo, magazina) {
+  const z = await bzZgjidhNgjyren(m); if (!z) return null;
+  const { n, art } = z, emri = `${m.emri} · ${n.nr} ${n.emri}`, cmimi = +m.cmimi > 0 ? +m.cmimi : +((art || {}).cmimi) || 0;
+  if (art) return { ...art, id: +art.prodata_id, emri, cmimi, ngjyra: n.nr, stoku: [] };
+  const kodi = `${m.kodi}/${n.nr}`;
+  if (!mundKrijo) { alert(`Ngjyra ${n.nr} ${n.emri} e "${m.emri}" nuk ekziston ende në Pro-Data (${kodi}). Krijohet vetë herën e parë që shitet.`); return null; }
+  if (!mgLejuar()) { alert(`Ngjyra ${n.nr} ${n.emri} e "${m.emri}" nuk ekziston ende në Pro-Data (${kodi}).\nKërko nga Super Admin-i që të të lejojë regjistrimin e mallit, ose nga arka ta shesë.`); return null; }
+  if (!confirm(`Ngjyra ${n.nr} ${n.emri} e "${m.emri}" nuk ekziston ende në Pro-Data.\nTa krijoj tani si ${kodi} (${eur(cmimi)} €/${m.njesia}) dhe ta shtoj te fatura?`)) return null;
+  prNjofto(`⏳ Po krijohet në Pro-Data: <b>${esc(kodi)}</b>…`);
+  const { data: r, error } = await sb.from('regjistrimet_mallit').insert({ lloji: 'artikull_i_ri', emri: m.emri, barkodi: kodi, kodi, njesia: m.njesia, cmimi_shitjes: cmimi,
+    magazina: magazina || null, sasia: null, ngjyra: String(n.nr), shenim: `Ngjyrë e re e materialit bazik ${m.kodi} nga shitja`, krijuar_emri: profili.emri || null, fotot: [] }).select('id').single();
+  if (error) { prNjofto('❌ ' + esc(error.message), 'gabim'); return null; }
+  for (let i = 0; i < 60; i++) {
+    await new Promise((x) => setTimeout(x, 1500));
+    const { data: x } = await sb.from('regjistrimet_mallit').select('statusi, artikulli_id, kodi, gabimi').eq('id', r.id).maybeSingle();
+    if (x && x.statusi === 'gabim') { prNjofto('❌ Pro-Data nuk e pranoi: ' + esc(x.gabimi || ''), 'gabim'); return null; }
+    if (x && x.artikulli_id) { prNjofto(`✅ U krijua në Pro-Data: <b>${esc(x.kodi || kodi)}</b> · ${esc(emri)}. U shtua te fatura.`, 'ok');
+      return { id: +x.artikulli_id, prodata_id: String(x.artikulli_id), kodi: x.kodi || kodi, barkodi: kodi, emri, cmimi, njesia: m.njesia, ngjyra: n.nr, stoku: [] }; }
+  }
+  prNjofto('⚠️ Ura nuk u përgjigj. Ngjyra krijohet sapo ura të kthehet; pastaj skanoje sërish.', 'gabim'); return null;
+}
+const bzSiArtikull = (m) => ({ prodata_id: 'baz-' + m.kodi, kodi: m.kodi, barkodi: m.kodi, emri: m.emri, cmimi: +m.cmimi, njesia: m.njesia, bazik: true });
+function kerkimArtikujsh(inputId, listaId, kurZgjidhet, kurMungon, opsionet = {}) {   // kurMungon(q): kur kodi/barkodi s'gjendet → "Regjistroje shpejt"
+  // opsionet.paNgjyre: materiali bazik zgjidhet si i tillë (etiketat); opsionet.magazina(): pika ku krijohet ngjyra e re
   const inp = $(inputId), lista = $(listaId); let kohe, koheZgjedhje, radha = 0, fundit = 0;
   const zgjidh = (a) => { clearTimeout(koheZgjedhje); radha++; lista.hidden = true; inp.value = ''; kurZgjidhet(a); inp.focus(); };
+  const zgjidhBaz = async (m) => {
+    clearTimeout(koheZgjedhje); radha++; lista.hidden = true; inp.value = '';
+    if (opsionet.paNgjyre) { kurZgjidhet(bzSiArtikull(m)); inp.focus(); return; }
+    const a = await bzMeNgjyre(m, !!kurMungon, opsionet.magazina ? opsionet.magazina() : null);
+    if (a) kurZgjidhet(a);
+    if (!matchMedia('(pointer:coarse)').matches) inp.focus();
+  };
+  inp.addEventListener('focus', () => { bzNgarko(); }, { once: true });
   inp.oninput = () => { clearTimeout(kohe); clearTimeout(koheZgjedhje); fundit = Date.now(); kohe = setTimeout(async () => {
     const q = inp.value.trim(), nr = ++radha; if (q.length < 2) { lista.hidden = true; return; }
-    const art = await kerkoArtikuj(q);
+    const [art] = await Promise.all([kerkoArtikuj(q), bzNgarko()]);
     if (nr !== radha) return;   // është shkruar diçka më e re: kjo përgjigje s'vlen më
+    const bz = bzGjej(q), bzL = bzKerko(q);
     // Lista del menjëherë; zgjedhja vetë e kodit të saktë pret 300 ms pa shkrim, që një kod më i gjatë të mos ndërpritet gjatë shkrimit.
-    if (art.length && art.filter((a) => a.barkodi === q || a.kodi === q).length === 1 && (art[0].barkodi === q || art[0].kodi === q)) koheZgjedhje = setTimeout(() => zgjidh(art[0]), Math.max(0, 300 - (Date.now() - fundit)));
-    lista.innerHTML = art.length ? '' : '<div class="zbehte">Nuk u gjet asnjë artikull</div>';
+    // Kodi i materialit bazik ka përparësi: pyet ngjyrën (edhe kur në Pro-Data ekziston një artikull me të njëjtin kod pa ngjyrë).
+    if (bz) koheZgjedhje = setTimeout(() => zgjidhBaz(bz), Math.max(0, 300 - (Date.now() - fundit)));
+    else if (art.length && art.filter((a) => a.barkodi === q || a.kodi === q).length === 1 && (art[0].barkodi === q || art[0].kodi === q)) koheZgjedhje = setTimeout(() => zgjidh(art[0]), Math.max(0, 300 - (Date.now() - fundit)));
+    lista.innerHTML = art.length || bzL.length ? '' : '<div class="zbehte">Nuk u gjet asnjë artikull</div>';
+    for (const m of bzL) { const d = document.createElement('div'); d.className = 'art-rresht';
+      d.innerHTML = `<span class="art-pa-foto">🎨</span><div><b>${esc(m.kodi)}</b> – ${esc(m.emri)} <span class="zbehte">· ${eur(m.cmimi)} € · material bazik${opsionet.paNgjyre ? ' (etiketë pa ngjyrë)' : ': zgjidh ngjyrën'}</span></div>`;
+      d.onclick = () => zgjidhBaz(m); lista.appendChild(d); }
     for (const a of art) { const d = document.createElement('div'); d.className = 'art-rresht'; d.dataset.id = a.prodata_id;
       d.innerHTML = `<span class="art-pa-foto">📦</span><div>
         <b>${esc(a.kodi)}</b> – ${esc(a.emri)} <span class="zbehte">· ${a.cmimi > 0 ? eur(a.cmimi) + ' €' : 'pa çmim'} · ${esc(a.barkodi || '')}</span>
         <div class="stoku">${stokuHTML(a)}</div></div>`;
       d.onclick = () => zgjidh(a); lista.appendChild(d); }
-    if (kurMungon && mgLejuar() && !art.some((a) => a.barkodi === q || a.kodi === q)) {
+    if (kurMungon && mgLejuar() && !bz && !art.some((a) => a.barkodi === q || a.kodi === q)) {
       const d = document.createElement('div'); d.className = 'art-rresht art-ri';
       d.innerHTML = `<span class="art-pa-foto">🆕</span><div><b>Nuk e gjen? Regjistroje shpejt</b><div class="zbehte">"${esc(q)}" krijohet në Pro-Data dhe shtohet te fatura</div></div>`;
       d.onclick = () => { radha++; lista.hidden = true; inp.value = ''; kurMungon(q); }; lista.appendChild(d);
@@ -1497,7 +1591,7 @@ function shShtoArtikullin(a) {
   const i = sh.rreshtat.findIndex((r) => r.id === a.id);
   if (!(sh.rreshtat[i].cmimi > 0)) fokusoCmimin('sh-rreshtat', i);
 }
-kerkimArtikujsh('sh-artikulli', 'sh-artikulli-lista', shShtoArtikullin, (q) => regjistroShpejt(q, $('sh-magazina').value, shShtoArtikullin));
+kerkimArtikujsh('sh-artikulli', 'sh-artikulli-lista', shShtoArtikullin, (q) => regjistroShpejt(q, $('sh-magazina').value, shShtoArtikullin), { magazina: () => $('sh-magazina').value });
 function shKontrollo() {
   if (!sh.rreshtat.length) { alert('Shto të paktën një produkt.'); return false; }
   if (sh.rreshtat.some((r) => !(r.sasia > 0))) { alert('Çdo produkt duhet të ketë sasi më të madhe se 0.'); return false; }
@@ -3224,8 +3318,15 @@ function etShtoArtikull(a) {   // nga kërkimi/skaneri: çdo artikull i Pro-Data
   else etRreshtat.unshift({ key, art_id: a.prodata_id, kodi: a.kodi, barkodi: a.barkodi || a.kodi, emri: a.emri, cmimi: +a.cmimi || 0, reg: [], printuar: false, zgjedhur: true, kopje: 1, dore: true });
   etVizato(); njoftim('🏷️ U shtua: ' + (a.kodi || ''));
 }
-kerkimArtikujsh('et-shto', 'et-shto-lista', etShtoArtikull);
-$('et-skano').onclick = () => dkSkaneri(async (kodi) => { const art = await kerkoArtikuj(kodi); const a = art.find((x) => x.barkodi === kodi || x.kodi === kodi) || (art.length === 1 ? art[0] : null);
+kerkimArtikujsh('et-shto', 'et-shto-lista', etShtoArtikull, null, { paNgjyre: true });   // materiali bazik: një etiketë pa ngjyrë (B-0000204)
+async function etShtoBazike() {   // 🎨 të gjitha materialet bazike në listë, nga një etiketë secili
+  await bzNgarko(); if (!bzMat || !bzMat.length) return njoftim('Lista e materialeve bazike nuk u lexua.');
+  for (const m of [...bzMat].reverse()) { const a = bzSiArtikull(m), key = 'a' + a.prodata_id;
+    if (!etRreshtat.some((x) => x.key === key)) etRreshtat.unshift({ key, art_id: null, kodi: a.kodi, barkodi: a.barkodi, emri: a.emri, cmimi: a.cmimi, reg: [], printuar: false, zgjedhur: true, kopje: 1, dore: true }); }
+  etVizato(); njoftim(`🎨 U shtuan ${bzMat.length} materialet bazike (pa ngjyrë).`);
+}
+$('et-bazike').onclick = etShtoBazike;
+$('et-skano').onclick = () => dkSkaneri(async (kodi) => { await bzNgarko(); const bz = bzGjej(kodi); if (bz) return etShtoArtikull(bzSiArtikull(bz)); const art = await kerkoArtikuj(kodi); const a = art.find((x) => x.barkodi === kodi || x.kodi === kodi) || (art.length === 1 ? art[0] : null);
   if (a) etShtoArtikull(a); else { $('et-shto').value = kodi; $('et-shto').dispatchEvent(new Event('input')); } });
 $('et-madhesia').onchange = () => { $('et-tjeter').hidden = $('et-madhesia').value !== 'tjeter'; etRuaj('masa2', $('et-madhesia').value); };
 ['et-w', 'et-h'].forEach((id) => { $(id).onchange = () => etRuaj('tjeter', `${$('et-w').value}x${$('et-h').value}`); });
