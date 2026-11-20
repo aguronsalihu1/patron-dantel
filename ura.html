@@ -1461,7 +1461,7 @@ async function bzZgjidhNgjyren(m) {
 async function bzMeNgjyre(m, mundKrijo, magazina) {
   const z = await bzZgjidhNgjyren(m); if (!z) return null;
   const { n, art } = z, emri = `${m.emri} · ${n.nr} ${n.emri}`, cmimi = +m.cmimi > 0 ? +m.cmimi : +((art || {}).cmimi) || 0;
-  if (art) return { ...art, id: +art.prodata_id, emri, cmimi, ngjyra: n.nr, stoku: [] };
+  if (art) return { ...art, id: +art.prodata_id, emri, cmimi, ngjyra: `${n.nr} ${n.emri}`, stoku: [] };
   const kodi = `${m.kodi}/${n.nr}`;
   if (!mundKrijo) { alert(`Ngjyra ${n.nr} ${n.emri} e "${m.emri}" nuk ekziston ende në Pro-Data (${kodi}). Krijohet vetë herën e parë që shitet.`); return null; }
   if (!mgLejuar()) { alert(`Ngjyra ${n.nr} ${n.emri} e "${m.emri}" nuk ekziston ende në Pro-Data (${kodi}).\nKërko nga Super Admin-i që të të lejojë regjistrimin e mallit, ose nga arka ta shesë.`); return null; }
@@ -1475,7 +1475,7 @@ async function bzMeNgjyre(m, mundKrijo, magazina) {
     const { data: x } = await sb.from('regjistrimet_mallit').select('statusi, artikulli_id, kodi, gabimi').eq('id', r.id).maybeSingle();
     if (x && x.statusi === 'gabim') { prNjofto('❌ Pro-Data nuk e pranoi: ' + esc(x.gabimi || ''), 'gabim'); return null; }
     if (x && x.artikulli_id) { prNjofto(`✅ U krijua në Pro-Data: <b>${esc(x.kodi || kodi)}</b> · ${esc(emri)}. U shtua te fatura.`, 'ok');
-      return { id: +x.artikulli_id, prodata_id: String(x.artikulli_id), kodi: x.kodi || kodi, barkodi: kodi, emri, cmimi, njesia: m.njesia, ngjyra: n.nr, stoku: [] }; }
+      return { id: +x.artikulli_id, prodata_id: String(x.artikulli_id), kodi: x.kodi || kodi, barkodi: kodi, emri, cmimi, njesia: m.njesia, ngjyra: `${n.nr} ${n.emri}`, stoku: [] }; }
   }
   prNjofto('⚠️ Ura nuk u përgjigj. Ngjyra krijohet sapo ura të kthehet; pastaj skanoje sërish.', 'gabim'); return null;
 }
@@ -4611,7 +4611,7 @@ function onlVizato() {
 kerkimArtikujsh('onl-kerko', 'onl-lista', (a) => {
   const ek = onl.rreshtat.find((r) => r.id === a.id);
   if (ek) ek.sasia += 1;
-  else onl.rreshtat.push({ id: a.id, kodi: a.kodi, emri: a.emri, barkodi: a.barkodi, njesia: a.njesia, ngjyra: ngjyraNgaEmri(a.emri), sasia: 1,
+  else onl.rreshtat.push({ id: a.id, kodi: a.kodi, emri: a.emri, barkodi: a.barkodi, njesia: a.njesia, ngjyra: a.ngjyra || ngjyraNgaEmri(a.emri), sasia: 1,
     cmimiListe: a.cmimi, cmimi: onlEksport() ? Math.round(a.cmimi / 1.18 * 100) / 100 : a.cmimi });
   onlVizato();
   const i = onl.rreshtat.findIndex((r) => r.id === a.id);
